@@ -59,6 +59,10 @@ const ALLOWLIST = new Map([
     "app/api/admin/seed-officers/route.ts",
     "seeds the demo roster into bfi_officers",
   ],
+  [
+    "lib/officers/ensure-seeded.ts",
+    "auto-seeds officers on first use; only called from resolveCurrentOfficer() which gates via currentOfficerRoster()",
+  ],
 ]);
 
 const failures = [];

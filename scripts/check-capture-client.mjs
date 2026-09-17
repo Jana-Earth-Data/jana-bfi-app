@@ -82,6 +82,10 @@ const ALLOWLIST = new Map([
     "scripts/check-seeded-rows.mjs",
     "reports across both origins by design",
   ],
+  [
+    "lib/officers/ensure-seeded.ts",
+    "auto-seeds officers with explicit origin='demo' — same pattern as seed-officers route",
+  ],
 ]);
 
 // --- 1. direct admin-client use --------------------------------------------

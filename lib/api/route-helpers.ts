@@ -65,6 +65,10 @@ export async function requireTenant(): Promise<TenantConfig> {
 /**
  * Resolve the current officer, or return a 401 response.
  *
+ * Officer auto-seeding into bfi_officers (for FK constraint satisfaction)
+ * is handled inside resolveCurrentOfficer() itself — see
+ * lib/officers/resolve.ts and lib/officers/ensure-seeded.ts.
+ *
  * Usage in a route:
  *   const [officer, err] = await requireOfficer();
  *   if (err) return err;

@@ -137,11 +137,6 @@ export function EsddWizard({
     useState<SaveStatus>("idle");
   const categorySaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const categoryPatchInFlight = useRef(0);
-  // Skip the very first autosave — the initial value is already what
-  // the server has (either the persisted override or the derived
-  // default, and re-saving the derived default would pollute the
-  // override column with values the officer never actually chose).
-  const skipNextAutosave = useRef(true);
   useEffect(() => {
     return () => {
       if (categorySaveTimer.current) clearTimeout(categorySaveTimer.current);
@@ -150,10 +145,6 @@ export function EsddWizard({
 
   function setLoanCategory(next: EsddLoanCategory | "") {
     setLoanCategoryState(next);
-    if (skipNextAutosave.current) {
-      skipNextAutosave.current = false;
-      return;
-    }
     if (readOnly) return;
     if (categorySaveTimer.current) clearTimeout(categorySaveTimer.current);
     setCategorySaveStatus("saving");
@@ -1185,9 +1176,9 @@ function ReviewStep({
           <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
             Some questions are unanswered. You can still save now — the
             engine will treat missing questions as not-applicable, but
-            unanswered questions do NOT count as 'not applicable' per NRB.
+            unanswered questions do NOT count as &apos;not applicable&apos; per NRB.
             For a defensible screening, complete every question or record
-            'd' (Not applicable) explicitly.
+            &apos;d&apos; (Not applicable) explicitly.
           </div>
         )}
 

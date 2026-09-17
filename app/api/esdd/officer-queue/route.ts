@@ -122,8 +122,9 @@ export type LoanCard = {
 };
 
 export async function GET() {
-  const [supabase, sbErr] = await requireCaptureClient();
+  const [sbClient, sbErr] = await requireCaptureClient();
   if (sbErr) return sbErr;
+  const supabase = sbClient!;
   const tenant = await resolveCurrentTenant();
   const [officer, offErr] = await requireOfficer("viewing the queue");
   if (offErr) return offErr;
@@ -133,21 +134,56 @@ export async function GET() {
   const loanById = new Map(data.loans.map((l) => [l.id, l]));
   const borrowerById = new Map(data.borrowers.map((b) => [b.id, b]));
 
-  // ------------------------------------------------------------------
-  // 1. Officer's ESDD activity, grouped per loan.
-  // ------------------------------------------------------------------
-  const { data: rawResponses, error: respErr } = await supabase
-    .from("bfi_esdd_responses")
-    .select("loan_id, borrower_id, question_id, captured_at")
-    .eq("bank_id", tenant.id)
-    .eq("officer_id", officer.id)
-    .order("captured_at", { ascending: false });
-  if (respErr) {
+  // ==================================================================
+  // PHASE 1 — Two independent queries in parallel: ESDD responses and
+  // loan assignments. Neither depends on the other.
+  // ==================================================================
+  type AssignRow = {
+    loan_id: string;
+    officer_id: string;
+    loan_category_override?: string | null;
+  };
+
+  async function fetchAssignments(): Promise<AssignRow[]> {
+    const { data, error } = await supabase
+      .from("bfi_loan_assignments")
+      .select("loan_id, officer_id, loan_category_override")
+      .eq("bank_id", tenant.id);
+    if (error) {
+      console.error(
+        "[officer-queue] assignment query with loan_category_override failed:",
+        error.message,
+        "- retrying without it. Apply scripts/supabase-loan-category-override.sql.",
+      );
+      const retry = await supabase
+        .from("bfi_loan_assignments")
+        .select("loan_id, officer_id")
+        .eq("bank_id", tenant.id);
+      if (retry.error) throw new Error(`Assignment query failed: ${retry.error.message}`);
+      return retry.data ?? [];
+    }
+    return data ?? [];
+  }
+
+  const [responsesResult, assignResult] = await Promise.all([
+    supabase
+      .from("bfi_esdd_responses")
+      .select("loan_id, borrower_id, question_id, captured_at")
+      .eq("bank_id", tenant.id)
+      .eq("officer_id", officer.id)
+      .order("captured_at", { ascending: false }),
+    fetchAssignments(),
+  ]);
+
+  if (responsesResult.error) {
     return NextResponse.json(
-      { error: `Response query failed: ${respErr.message}` },
+      { error: `Response query failed: ${responsesResult.error.message}` },
       { status: 500 },
     );
   }
+  const rawResponses = responsesResult.data;
+
+  // Aggregate ESDD responses by loan.
   type Agg = {
     loanId: string;
     borrowerId: string;
@@ -169,63 +205,12 @@ export async function GET() {
     }
   }
 
-  // ------------------------------------------------------------------
-  // 2. Assignments — pull ALL assignments for this tenant so we know
-  //    which loans have an owner (any officer) versus which are
-  //    unassigned and free to pick up.
-  // ------------------------------------------------------------------
-  // loan_category_override is a P45 addition. It exists in the offline
-  // Postgres init scripts and in scripts/supabase-loan-category-override.sql,
-  // but that second one is applied by hand -- so a Supabase project that
-  // never had it run does not have the column.
-  //
-  // This previously discarded the error. When the column was missing the
-  // whole select failed, allAssigns came back undefined, and every loan
-  // looked unassigned: owned loans dropped out of "My loans" and reappeared
-  // in "Available to claim". Nothing surfaced anywhere. Now a failure is
-  // logged and we retry without the optional column, so a missing migration
-  // costs the category override rather than the entire ownership model.
-  let assignRows:
-    | Array<{
-        loan_id: string;
-        officer_id: string;
-        loan_category_override?: string | null;
-      }>
-    | null = null;
-  {
-    const { data, error } = await supabase
-      .from("bfi_loan_assignments")
-      .select("loan_id, officer_id, loan_category_override")
-      .eq("bank_id", tenant.id);
-    if (error) {
-      console.error(
-        "[officer-queue] assignment query with loan_category_override failed:",
-        error.message,
-        "- retrying without it. Apply scripts/supabase-loan-category-override.sql.",
-      );
-      const retry = await supabase
-        .from("bfi_loan_assignments")
-        .select("loan_id, officer_id")
-        .eq("bank_id", tenant.id);
-      if (retry.error) {
-        return NextResponse.json(
-          { error: `Assignment query failed: ${retry.error.message}` },
-          { status: 500 },
-        );
-      }
-      assignRows = retry.data ?? [];
-    } else {
-      assignRows = data ?? [];
-    }
-  }
-  const allAssigns = assignRows;
+  // Process assignments.
+  const allAssigns = assignResult;
   const assignedLoanIds = new Set<string>();
   const myAssignedLoanIds = new Set<string>();
-  // P45 — officer-set ESDD loan-category override per loan. Used
-  // below to decide PF-screening applicability so the queue matches
-  // what the officer sees in the wizard.
   const categoryOverrideByLoan = new Map<string, string | null>();
-  for (const a of allAssigns ?? []) {
+  for (const a of allAssigns) {
     assignedLoanIds.add(a.loan_id);
     if (a.officer_id === officer.id) myAssignedLoanIds.add(a.loan_id);
     categoryOverrideByLoan.set(
@@ -234,64 +219,18 @@ export async function GET() {
     );
   }
 
-  // ------------------------------------------------------------------
-  // 3. Latest ESRM screening per loan (tenant-wide — screenings are
-  //    attributed to whoever saved them, but the flow is bank-wide).
-  // ------------------------------------------------------------------
-  // Screenings must be loaded for loans this officer OWNS as well as ones
-  // they have live answers for. A loan can legitimately have a saved
-  // screening and zero response rows: the wizard's "Exit without saving"
-  // deletes the answer rows but deliberately preserves the screening it
-  // was captured into. Keying this query on responses alone made such a
-  // loan render as untouched -- no risk class, no escalation flag --
-  // despite being screened and owned.
+  // ==================================================================
+  // PHASE 2 — Build the screening lookup set (needs responses +
+  // assignments) and the candidate loan set. Query screenings.
+  // ==================================================================
   const touchedLoanIds = Array.from(byLoan.keys());
   const screeningLookupIds = Array.from(
     new Set([...touchedLoanIds, ...myAssignedLoanIds]),
   );
-  const { data: screenings, error: scrErr } = await supabase
-    .from("bfi_esrm_screenings")
-    .select("loan_id, computed_risk_class, escalation_flag, captured_at")
-    .eq("bank_id", tenant.id)
-    .in("loan_id", screeningLookupIds.concat(["__never__"]))
-    .order("captured_at", { ascending: false });
-  if (scrErr) {
-    return NextResponse.json(
-      { error: `Screening query failed: ${scrErr.message}` },
-      { status: 500 },
-    );
-  }
-  const screeningByLoan = new Map<
-    string,
-    { riskClass: RiskClass; escalated: boolean; capturedAt: string }
-  >();
-  for (const s of screenings ?? []) {
-    if (screeningByLoan.has(s.loan_id)) continue;
-    screeningByLoan.set(s.loan_id, {
-      riskClass: s.computed_risk_class as RiskClass,
-      escalated: s.escalation_flag,
-      capturedAt: s.captured_at,
-    });
-  }
 
-  // ------------------------------------------------------------------
-  // 4. Determine the candidate loan set for this officer. Three
-  //    complementary sources — a loan appearing in any of them
-  //    belongs on this officer's queue:
-  //
-  //    (a) Every loan they've personally touched
-  //        (their attribution + prior work)
-  //    (b) Every loan currently assigned to them
-  //        (their explicit ownership)
-  //    (c) Every under-review loan that is NOT assigned to anyone
-  //        (available to pick up — otherwise unassigned work is
-  //        invisible after the first assignment lands)
-  //
-  //    (c) is the fix for "Sujata's queue emptied out after seed
-  //    assigned her one loan" — without it, the moment any officer
-  //    gets even one assignment their view of the free pool
-  //    disappears.
-  // ------------------------------------------------------------------
+  // Candidate loan set — three sources:
+  //   (a) touched by this officer  (b) assigned to this officer
+  //   (c) under-review and unassigned (available to pick up)
   const candidateLoanIds = new Set<string>();
   for (const id of byLoan.keys()) candidateLoanIds.add(id);
   for (const id of myAssignedLoanIds) candidateLoanIds.add(id);
@@ -301,31 +240,146 @@ export async function GET() {
       candidateLoanIds.add(app.loan.id);
     }
   }
-
-  // ------------------------------------------------------------------
-  // 5. Taxonomy assessments for the candidate set (tenant-wide latest).
-  // ------------------------------------------------------------------
   const candidateArray = Array.from(candidateLoanIds);
-  const { data: taxRows, error: taxErr } =
+  const candidateBorrowerIds = Array.from(
+    new Set(
+      candidateArray
+        .map((id) => loanById.get(id)?.borrowerId)
+        .filter((v): v is string => typeof v === "string"),
+    ),
+  );
+
+  // ==================================================================
+  // PHASE 3 — Six queries in parallel: screenings + taxonomy +
+  // PF responses + PF results + PCAF availability + CAP items.
+  // Screenings filter on screeningLookupIds; the rest filter on
+  // candidateArray / candidateBorrowerIds.
+  // ==================================================================
+  const noRows = { data: [] as never[], error: null };
+  const [
+    screeningsResult,
+    taxResult,
+    pfRespResult,
+    pfResResult,
+    pcafResult,
+    capResult,
+  ] = await Promise.all([
+    // Screenings
+    screeningLookupIds.length > 0
+      ? supabase
+          .from("bfi_esrm_screenings")
+          .select("loan_id, computed_risk_class, escalation_flag, captured_at")
+          .eq("bank_id", tenant.id)
+          .in("loan_id", screeningLookupIds.concat(["__never__"]))
+          .order("captured_at", { ascending: false })
+      : noRows,
+    // Taxonomy assessments
     candidateArray.length > 0
-      ? await supabase
+      ? supabase
           .from("bfi_taxonomy_assessments")
           .select("loan_id, activity_id, computed_color, captured_at")
           .eq("bank_id", tenant.id)
           .in("loan_id", candidateArray)
           .order("captured_at", { ascending: false })
-      : { data: [], error: null };
-  if (taxErr) {
+      : noRows,
+    // PF screening responses
+    candidateArray.length > 0
+      ? supabase
+          .from("bfi_pf_screening_responses")
+          .select("loan_id, item_id, captured_at")
+          .eq("bank_id", tenant.id)
+          .in("loan_id", candidateArray)
+          .order("captured_at", { ascending: false })
+      : noRows,
+    // PF screening results
+    candidateArray.length > 0
+      ? supabase
+          .from("bfi_pf_screening_results")
+          .select("loan_id, computed_risk_class, items_flagged, captured_at")
+          .eq("bank_id", tenant.id)
+          .in("loan_id", candidateArray)
+          .order("captured_at", { ascending: false })
+      : noRows,
+    // PCAF data-availability (per borrower)
+    candidateBorrowerIds.length > 0
+      ? supabase
+          .from("bfi_pcaf_availability")
+          .select("borrower_id")
+          .eq("bank_id", tenant.id)
+          .in("borrower_id", candidateBorrowerIds)
+      : noRows,
+    // CAP items
+    candidateArray.length > 0
+      ? supabase
+          .from("bfi_cap_items")
+          .select("loan_id, status, deadline_date")
+          .eq("bank_id", tenant.id)
+          .in("loan_id", candidateArray)
+      : noRows,
+  ]);
+
+  // Check for errors from the parallel batch.
+  if (screeningsResult.error) {
     return NextResponse.json(
-      { error: `Taxonomy query failed: ${taxErr.message}` },
+      { error: `Screening query failed: ${screeningsResult.error.message}` },
       { status: 500 },
     );
   }
+  if (taxResult.error) {
+    return NextResponse.json(
+      { error: `Taxonomy query failed: ${taxResult.error.message}` },
+      { status: 500 },
+    );
+  }
+  if (pfRespResult.error) {
+    return NextResponse.json(
+      { error: `PF response query failed: ${pfRespResult.error.message}` },
+      { status: 500 },
+    );
+  }
+  if (pfResResult.error) {
+    return NextResponse.json(
+      { error: `PF result query failed: ${pfResResult.error.message}` },
+      { status: 500 },
+    );
+  }
+  if (pcafResult.error) {
+    return NextResponse.json(
+      { error: `PCAF availability query failed: ${pcafResult.error.message}` },
+      { status: 500 },
+    );
+  }
+  if (capResult.error) {
+    return NextResponse.json(
+      { error: `CAP item query failed: ${capResult.error.message}` },
+      { status: 500 },
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Process screenings
+  // ------------------------------------------------------------------
+  const screeningByLoan = new Map<
+    string,
+    { riskClass: RiskClass; escalated: boolean; capturedAt: string }
+  >();
+  for (const s of screeningsResult.data ?? []) {
+    if (screeningByLoan.has(s.loan_id)) continue;
+    screeningByLoan.set(s.loan_id, {
+      riskClass: s.computed_risk_class as RiskClass,
+      escalated: s.escalation_flag,
+      capturedAt: s.captured_at,
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Process taxonomy assessments
+  // ------------------------------------------------------------------
   const taxByLoan = new Map<
     string,
     { activityId: string; color: TaxColor; capturedAt: string }
   >();
-  for (const t of taxRows ?? []) {
+  for (const t of taxResult.data ?? []) {
     if (taxByLoan.has(t.loan_id)) continue;
     taxByLoan.set(t.loan_id, {
       activityId: t.activity_id,
@@ -335,32 +389,12 @@ export async function GET() {
   }
 
   // ------------------------------------------------------------------
-  // 5b. Annex 5b PF-screening state for the candidate set.
-  //
-  // Two queries:
-  //   (a) count distinct item_ids per loan on bfi_pf_screening_responses
-  //       (via full row fetch since Supabase JS lacks GROUP BY)
-  //   (b) latest bfi_pf_screening_results row per loan
+  // Process PF screening responses + results
   // ------------------------------------------------------------------
   const pfTotalItems = ANNEX5B_ALL.length;
-  const { data: pfRespRows, error: pfRespErr } =
-    candidateArray.length > 0
-      ? await supabase
-          .from("bfi_pf_screening_responses")
-          .select("loan_id, item_id, captured_at")
-          .eq("bank_id", tenant.id)
-          .in("loan_id", candidateArray)
-          .order("captured_at", { ascending: false })
-      : { data: [], error: null };
-  if (pfRespErr) {
-    return NextResponse.json(
-      { error: `PF response query failed: ${pfRespErr.message}` },
-      { status: 500 },
-    );
-  }
   const pfAnsweredByLoan = new Map<string, Set<string>>();
   const pfLastActivityByLoan = new Map<string, string>();
-  for (const row of pfRespRows ?? []) {
+  for (const row of pfRespResult.data ?? []) {
     let set = pfAnsweredByLoan.get(row.loan_id);
     if (!set) {
       set = new Set<string>();
@@ -369,26 +403,11 @@ export async function GET() {
     }
     set.add(row.item_id);
   }
-  const { data: pfResults, error: pfResErr } =
-    candidateArray.length > 0
-      ? await supabase
-          .from("bfi_pf_screening_results")
-          .select("loan_id, computed_risk_class, items_flagged, captured_at")
-          .eq("bank_id", tenant.id)
-          .in("loan_id", candidateArray)
-          .order("captured_at", { ascending: false })
-      : { data: [], error: null };
-  if (pfResErr) {
-    return NextResponse.json(
-      { error: `PF result query failed: ${pfResErr.message}` },
-      { status: 500 },
-    );
-  }
   const pfResultByLoan = new Map<
     string,
     { riskClass: "low" | "medium" | "high" | "critical"; capturedAt: string }
   >();
-  for (const r of pfResults ?? []) {
+  for (const r of pfResResult.data ?? []) {
     if (pfResultByLoan.has(r.loan_id)) continue;
     pfResultByLoan.set(r.loan_id, {
       riskClass: r.computed_risk_class as
@@ -401,64 +420,20 @@ export async function GET() {
   }
 
   // ------------------------------------------------------------------
-  // 5c. PCAF data-availability confirmation (per BORROWER, not per
-  // loan). One row in bfi_pcaf_availability means the officer has
-  // saved the four §5 flags together for that borrower. Batched into a
-  // single tenant-scoped query for every borrower in the candidate set
-  // to avoid an N+1.
+  // Process PCAF availability
   // ------------------------------------------------------------------
-  const candidateBorrowerIds = Array.from(
-    new Set(
-      Array.from(candidateLoanIds)
-        .map((id) => loanById.get(id)?.borrowerId)
-        .filter((v): v is string => typeof v === "string"),
-    ),
-  );
-  const { data: pcafRows, error: pcafErr } =
-    candidateBorrowerIds.length > 0
-      ? await supabase
-          .from("bfi_pcaf_availability")
-          .select("borrower_id")
-          .eq("bank_id", tenant.id)
-          .in("borrower_id", candidateBorrowerIds)
-      : { data: [], error: null };
-  if (pcafErr) {
-    return NextResponse.json(
-      { error: `PCAF availability query failed: ${pcafErr.message}` },
-      { status: 500 },
-    );
-  }
   const pcafConfirmedBorrowerIds = new Set<string>();
-  for (const row of pcafRows ?? []) {
+  for (const row of pcafResult.data ?? []) {
     pcafConfirmedBorrowerIds.add(row.borrower_id);
   }
 
   // ------------------------------------------------------------------
-  // 5d. CAP items per loan (P44). One batched query for the whole
-  // candidate set — count total / completed / overdue per loan so the
-  // loan card can label its CTA "Start CAP" / "Continue N/M" /
-  // "Review CAP" without an N+1. Overdue projection matches the same
-  // rule GET /api/cap/[loanId] applies at read time (status !=
-  // 'completed' AND deadline_date < today).
+  // Process CAP items
   // ------------------------------------------------------------------
   const today = new Date().toISOString().slice(0, 10);
-  const { data: capRows, error: capErr } =
-    candidateArray.length > 0
-      ? await supabase
-          .from("bfi_cap_items")
-          .select("loan_id, status, deadline_date")
-          .eq("bank_id", tenant.id)
-          .in("loan_id", candidateArray)
-      : { data: [], error: null };
-  if (capErr) {
-    return NextResponse.json(
-      { error: `CAP item query failed: ${capErr.message}` },
-      { status: 500 },
-    );
-  }
   type CapAgg = { total: number; completed: number; overdue: number };
   const capByLoan = new Map<string, CapAgg>();
-  for (const row of capRows ?? []) {
+  for (const row of capResult.data ?? []) {
     const agg = capByLoan.get(row.loan_id) ?? {
       total: 0,
       completed: 0,

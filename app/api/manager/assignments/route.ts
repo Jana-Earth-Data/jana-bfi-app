@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { resolveCurrentOfficer } from "@/lib/officers/resolve";
 import { getCaptureClient } from "@/lib/data/capture-client";
+import { ensureOfficerSeeded } from "@/lib/officers/ensure-seeded";
 
 export const dynamic = "force-dynamic";
 
@@ -124,19 +125,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, loanId, officerId: null });
   }
 
-  // Verify the target officer belongs to this tenant.
-  const { data: target, error: targetErr } = await supabase
-    .from("bfi_officers")
-    .select("id, name")
-    .eq("bank_id", tenant.id)
-    .eq("id", officerId)
-    .maybeSingle();
-  if (targetErr) {
-    return NextResponse.json(
-      { error: `Officer lookup failed: ${targetErr.message}` },
-      { status: 500 },
-    );
-  }
+  // Verify the target officer belongs to this tenant. If they exist in the
+  // hardcoded registry but not yet in bfi_officers, auto-seed them so the
+  // FK constraint on bfi_loan_assignments is satisfied. This makes the demo
+  // work without a manual seed-officers step.
+  const target = await ensureOfficerSeeded(supabase, tenant, officerId);
   if (!target) {
     return NextResponse.json(
       { error: `Officer ${officerId} not found in this tenant.` },

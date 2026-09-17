@@ -371,7 +371,7 @@ export function TourOverlay() {
             y="0"
             width={vw}
             height={vh}
-            fill="rgba(2, 6, 23, 0.78)"
+            fill="rgba(2, 6, 23, 0.45)"
             mask="url(#tour-spotlight-mask)"
           />
           <rect
