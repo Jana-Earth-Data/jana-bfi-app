@@ -1,0 +1,129 @@
+# ============================================================================
+# Continuous Integration — jana-bfi-demo
+# ============================================================================
+# Task P0.1 of PROJECT_PLAN.md. This is the gate that makes every later
+# hardening phase enforceable: nothing merges that fails lint, type-check, the
+# build guards, or the real Docker image build.
+#
+# WHY EVERYTHING RUNS IN A CONTAINER
+# ----------------------------------
+# This project has no local Node toolchain policy — all testing happens in
+# Docker. CI mirrors that exactly:
+#   * The `checks` job runs inside `node:20-alpine`, the SAME image the
+#     production Dockerfile builds from, so lint / type-check / guards run
+#     against the Node version we actually ship on — not whatever a bare
+#     GitHub runner happens to provide.
+#   * The `docker-build` job builds the REAL production image both ways
+#     (JANA_DEMO=1 demo and JANA_DEMO=0 live). This proves the exact artifact
+#     that deploys actually compiles, and exercises the prebuild guards inside
+#     the build (precompute-guard bakes the portfolio for demo, strips it for
+#     live). This subsumes the plan's `build:demo` / `build:live` requirement
+#     using the production Dockerfile rather than a bare `next build`.
+#
+# As tests accrue (Phase P1), a `test` step is added to the `checks` job and a
+# coverage gate is wired in — see PROJECT_PLAN.md P0.2–P0.4.
+# ============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Static checks: lint, type-check, and the build-time guards.
+  # Runs inside node:20-alpine to match the production image's Node version.
+  # --------------------------------------------------------------------------
+  checks:
+    name: Lint, type-check & guards
+    runs-on: ubuntu-latest
+    container:
+      image: node:20-alpine
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Install exactly what the lockfile pins — no silent version drift.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      # The 7 prebuild guards (check-dockerignore-build-scripts, check-build-
+      # wiring, check-demo-imports, check-demo-mode-gate, check-docker-demo-
+      # flag, check-capture-client, check-demo-officers) plus precompute-guard.
+      # Run them directly rather than via `next build` so a guard failure is
+      # attributed clearly and doesn't require a full build first.
+      #
+      # JANA_DEMO is left UNSET here: precompute-guard treats that as a live
+      # build and asserts no fabricated portfolio is present — the safer of the
+      # two invariants to enforce on every push.
+      - name: Build guards (prebuild)
+        run: npm run prebuild
+
+      # NOTE: the provenance guard (`npm run check:provenance` →
+      # check-seeded-rows.mjs) is deliberately NOT a CI step. It is an
+      # operational tool, not a build gate: it instantiates a live Supabase
+      # client and reads NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY
+      # to COUNT demo-tagged rows in the real project. Wiring it into CI would
+      # require putting production Supabase secrets into the workflow, and it
+      # cannot run without them. (It also currently requires Node ≥ 22 because
+      # @supabase/realtime-js needs native WebSocket, which node:20-alpine
+      # lacks.) It is run by hand against a real environment — see the script
+      # header. CI proves the build compiles; provenance is a human decision.
+
+  # --------------------------------------------------------------------------
+  # Build the real production image both ways. This is the "test in Docker"
+  # signal: the exact artifact that ships must build.
+  # --------------------------------------------------------------------------
+  docker-build:
+    name: Docker image build (demo + live)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Demo image: JANA_DEMO=1 bakes in the 80,035-loan synthesizer. This is
+      # the image the sales demo runs.
+      - name: Build demo image (JANA_DEMO=1)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          build-args: |
+            JANA_DEMO=1
+          cache-from: type=gha,scope=demo
+          cache-to: type=gha,mode=max,scope=demo
+          tags: jana-bfi-demo:ci-demo
+
+      # Live image: JANA_DEMO=0 must produce a bundle with NO fabricated
+      # portfolio. Building it here proves the live artifact compiles and that
+      # precompute-guard correctly strips the demo layer.
+      - name: Build live image (JANA_DEMO=0)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          build-args: |
+            JANA_DEMO=0
+          cache-from: type=gha,scope=live
+          cache-to: type=gha,mode=max,scope=live
+          tags: jana-bfi-demo:ci-live

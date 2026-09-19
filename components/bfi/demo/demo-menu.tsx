@@ -36,7 +36,6 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { useTour, PENDING_TOUR_KEY } from "@/lib/tour/tour-context";
 import { availableTours } from "@/lib/tour/registry";
 import type { TourName } from "@/lib/tour/types";
@@ -64,11 +63,10 @@ export function DemoMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [pending] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [rect, setRect] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const router = useRouter();
   const { startTour, status, stop } = useTour();
 
   useEffect(() => setMounted(true), []);

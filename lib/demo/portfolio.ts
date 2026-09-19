@@ -37,7 +37,6 @@ import {
   mulberry32,
   pick,
   pickWeighted,
-  rangeFloat,
   rangeInt,
 } from "@/lib/demo/synth-util";
 import { nprToUsd, roundNpr, usdToNpr } from "@/lib/units";
@@ -874,6 +873,7 @@ export async function getPortfolio(): Promise<BfiDemoData> {
     const path = require("path") as typeof import("path");
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const zlib = require("zlib") as typeof import("zlib");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { promisify } = require("util") as typeof import("util");
     const gunzip = promisify(zlib.gunzip);
 

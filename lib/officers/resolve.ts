@@ -15,6 +15,8 @@
 import { cookies } from "next/headers";
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { isDemoMode } from "@/lib/demo/mode";
+import { ensureOfficerSeeded } from "@/lib/officers/ensure-seeded";
+import { getCaptureClient } from "@/lib/data/capture-client";
 import type { Officer } from "@/lib/tenants";
 
 export const OFFICER_COOKIE_NAME = "jana_demo_officer";
@@ -53,6 +55,13 @@ export async function currentOfficerRoster(): Promise<Officer[]> {
  * Resolve the currently selected officer for the current request.
  * Returns null when no officer is set, or when the stored id no longer
  * belongs to the active tenant.
+ *
+ * Side-effect: when the officer is found in the registry, ensures they
+ * (and the entire tenant roster) exist in the bfi_officers Supabase table.
+ * This auto-seeds on first use so FK constraints on write routes are
+ * satisfied without requiring a manual seed-officers step. The check is
+ * cached in-memory per tenant per process, so the DB round-trip only
+ * happens once per cold start.
  */
 export async function resolveCurrentOfficer(): Promise<Officer | null> {
   const c = await cookies();
@@ -62,7 +71,24 @@ export async function resolveCurrentOfficer(): Promise<Officer | null> {
   // Via the gated roster: with demo mode off this is empty, so a stale
   // jana_demo_officer cookie from a demo session cannot resolve to a person.
   const roster = await currentOfficerRoster();
-  return roster.find((o) => o.id === stored) ?? null;
+  const officer = roster.find((o) => o.id === stored) ?? null;
+
+  // Auto-seed this officer's tenant roster into bfi_officers if needed.
+  // Fire-and-forget style: if it fails, downstream writes will surface
+  // the FK error, which is the same behavior as before this fix.
+  if (officer) {
+    try {
+      const supabase = await getCaptureClient();
+      if (supabase) {
+        const tenant = await resolveCurrentTenant();
+        await ensureOfficerSeeded(supabase, tenant, officer.id);
+      }
+    } catch (e) {
+      console.error("[resolveCurrentOfficer] auto-seed failed:", e);
+    }
+  }
+
+  return officer;
 }
 
 /** True if the officer id belongs to the current tenant's roster. */

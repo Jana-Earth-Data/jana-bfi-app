@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
   // Derive driving question ids from the snapshot — any question that
   // received an 'c' answer triggered escalation per NRB Annex 5. Cheaper
   // to compute here than for every drawer / stripe caller to reimplement.
-  let drivingQuestionIds: string[] = [];
+  const drivingQuestionIds: string[] = [];
   if (row?.esdd_snapshot && typeof row.esdd_snapshot === "object") {
     for (const [qid, entry] of Object.entries(
       row.esdd_snapshot as Record<string, { answer?: string }>,

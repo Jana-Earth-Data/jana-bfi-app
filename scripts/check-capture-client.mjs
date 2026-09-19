@@ -22,7 +22,7 @@
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, dirname, relative } from "node:path";
+import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -81,6 +81,10 @@ const ALLOWLIST = new Map([
   [
     "scripts/check-seeded-rows.mjs",
     "reports across both origins by design",
+  ],
+  [
+    "lib/officers/ensure-seeded.ts",
+    "auto-seeds officers with explicit origin='demo' — same pattern as seed-officers route",
   ],
 ]);
 

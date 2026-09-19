@@ -18,7 +18,6 @@ import {
   OFFICER_COOKIE_MAX_AGE_SECONDS,
   OFFICER_COOKIE_NAME,
 } from "@/lib/officers/resolve";
-import { resolveCurrentTenant } from "@/lib/tenants";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +44,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const tenant = await resolveCurrentTenant();
   const officer = (await currentOfficerRoster()).find((o) => o.id === officerId)!;
 
   const response = NextResponse.json({

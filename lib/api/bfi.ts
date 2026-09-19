@@ -19,7 +19,6 @@ import { emptyPortfolio } from "@/lib/data/empty-portfolio";
 import {
   BfiDemoData,
   Borrower,
-  MatchedFacility,
   PcafAttribution,
   PortfolioSummary,
   PortfolioTrendPoint,

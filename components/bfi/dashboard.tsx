@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AuthProvider, useAuth } from "@/lib/auth/auth-context";
 import { DashboardHeader } from "@/components/bfi/header";
 import { EmptyPortfolioState } from "@/components/bfi/empty-portfolio-state";

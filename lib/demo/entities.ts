@@ -16,8 +16,6 @@ import industrialSnapshot from "@/data/industrial-entities-npl.json";
 import ctSnapshot from "@/data/ct-nepal-2024.json";
 import {
   Borrower,
-  BorrowerDataTier,
-  BorrowerKind,
   MatchedFacility,
 } from "@/lib/types/bfi";
 import { mulberry32, rangeFloat } from "@/lib/demo/synth-util";
