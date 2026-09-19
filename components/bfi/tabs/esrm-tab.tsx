@@ -53,9 +53,6 @@ function isHydroBorrower(nrbSector: string): boolean {
   return nrbSector.toLowerCase().includes("hydropower");
 }
 
-const NRB_REGULATORY_LINK =
-  "https://www.nrb.org.np/contents/uploads/2018/05/Environment-Social-Risk-Management-Guidelines-2018.pdf";
-
 // Row shape returned by /api/manager/queue (kept local so this tab does
 // not depend on API types from the route module).
 type ManagerRow = {
@@ -272,7 +269,6 @@ export function EsrmTab({ data }: { data: DashboardSsrData }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLoanId]);
 
   const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>("all");
@@ -1547,7 +1543,6 @@ function ScreeningWorkbench({
     () => prebuiltScreening ?? buildScreening(borrower),
     [borrower, prebuiltScreening]
   );
-  const edgarLive = !!liveEnrichment?.edgar;
   const openaqLive = !!liveEnrichment?.openaq;
   const [esddOpen, setEsddOpen] = useState(false);
   const [sanityOpen, setSanityOpen] = useState(false);
@@ -1568,7 +1563,6 @@ function ScreeningWorkbench({
   // PCAF panel shouldn't stay open when the officer clicks a new row.
   useEffect(() => {
     setSubTab("overview");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loan.id]);
 
   // Listen for tour-driven sub-tab switches (see TourStep.workbenchSubtab).
@@ -1896,7 +1890,7 @@ function ScreeningWorkbench({
             {intensityRatio != null && (
               <div>
                 <div className="flex items-center gap-1 text-xs uppercase tracking-wide text-slate-400">
-                  Share of Nepal's national CO₂
+                  Share of Nepal&apos;s national CO₂
                   <InfoTip id="national-co2-share" side="below" />
                 </div>
                 <div
@@ -1911,7 +1905,7 @@ function ScreeningWorkbench({
                   {formatPercent(intensityRatio)}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-slate-500">
-                  of Nepal's national CO₂ (EDGAR 2024)
+                  of Nepal&apos;s national CO₂ (EDGAR 2024)
                   <InfoTip id="sanity-check-national-share" side="below" />
                 </div>
                 {borrower.facilities.length > 0 && (
@@ -2934,7 +2928,7 @@ function SanityCheckDrawer({
               Sanity check
             </div>
             <div className="text-lg font-semibold text-white">
-              {borrower.name}: {formatPercent(intensityRatio)} of Nepal's national CO₂
+              {borrower.name}: {formatPercent(intensityRatio)} of Nepal&apos;s national CO₂
             </div>
             <div className="text-xs text-slate-500">
               How this percentage is derived, end-to-end.
@@ -2974,7 +2968,7 @@ function SanityCheckDrawer({
           ) : (
             <p className="mt-2 text-sm leading-relaxed text-slate-200">
               No Climate TRACE facility match for this borrower in the 2024
-              snapshot. The borrower's emissions figure is sector-benchmark or
+              snapshot. The borrower&apos;s emissions figure is sector-benchmark or
               capacity-derived, not satellite-verified.
             </p>
           )}
@@ -3051,7 +3045,7 @@ function SanityCheckDrawer({
               {formatPercent(intensityRatio)}
             </span>
             . Both numbers come from committed snapshots: Climate TRACE 2024 for
-            the borrower, EDGAR v8.1 polygon-clipped to Nepal's administrative
+            the borrower, EDGAR v8.1 polygon-clipped to Nepal&apos;s administrative
             boundary for the national denominator ({EDGAR_NEPAL.nepalCellCount.toLocaleString()}{" "}
             cells inside Nepal). The percentage is not rounded up or framed
             favourably.
@@ -3111,7 +3105,7 @@ function SanityCheckDrawer({
             Single CT asset, single registry-confirmed plant, real 2024
             satellite emissions, real EDGAR polygon-clipped national CO₂
             denominator, straightforward division. No aggregation, no rounding
-            in the bank's favour.
+            in the bank&apos;s favour.
           </p>
         </section>
 

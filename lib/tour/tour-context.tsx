@@ -236,7 +236,6 @@ export function TourProvider({
         detail: step.workbenchSubtab,
       }),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step?.id, step?.workbenchSubtab]);
 
   // ------------------------------------------------------------------

@@ -71,7 +71,7 @@ tracker.** The rule:
 
 **What blocks production:**
 - **Zero automated tests** — the ~8,200 lines of regulatory logic have no behavioural verification.
-- **No CI/CD** — no `.github/workflows/`; guards and builds are never run automatically on PR.
+- ~~**No CI/CD**~~ — RESOLVED (P0.1): `.github/workflows/ci.yml` now runs lint, type-check, the 8 build guards, and a real demo+live Docker image build on every push/PR. Branch protection to enforce it is still pending (P0.5).
 - **No Supabase backups / PITR** — officer captures are unrecoverable if lost.
 - **No database migration system** — schema applied by hand; two copies can drift.
 - **Observability is `console.log`** — no structured logging, no error tracking, no metrics.
@@ -106,7 +106,7 @@ the build, or (as they accrue) the tests.
 
 | S | # | Task | Source | Effort |
 |---|---|------|--------|--------|
-| ☐ | P0.1 | Create `.github/workflows/ci.yml` — runs on push + PR: `npm ci`, `lint`, `prebuild` (10 guards), `tsc --noEmit`, `build:demo`, `build:live` | PRA §5.2, CRR §4.5 | 1 |
+| ☑ | P0.1 | Create `.github/workflows/ci.yml` — runs on push + PR. `checks` job runs in `node:20-alpine`: `npm ci`, `lint`, `type-check`, `prebuild` (8 guards). `docker-build` job builds the real production image both ways (`JANA_DEMO=1` demo + `JANA_DEMO=0` live), subsuming `build:demo`/`build:live`. All testing runs in Docker — no local toolchain. | PRA §5.2, CRR §4.5 | 1 |
 | ☐ | P0.2 | Install Vitest + `@vitest/coverage-v8` + `@testing-library/react` + `msw`; add `vitest.config.ts` wired to `@/` alias | TS §2 | 1 |
 | ☐ | P0.3 | Add `test`, `test:unit`, `test:watch`, `test:coverage` scripts to `package.json` | TS §5.1 | 0.5 |
 | ☐ | P0.4 | Add coverage reporting to CI (soft/report-only gate initially) | TS §5.2 | 0.5 |
@@ -298,4 +298,5 @@ affected, and the merge commit/PR that carried it. Per §0 rule 1, a task is not
 
 | Date | Change | Task(s) | Commit / PR |
 |------|--------|---------|-------------|
+| 2026-09-19 | P0.1 done → ☑. Added Docker-based `ci.yml` (node:20-alpine checks job + real demo/live image build), `.nvmrc`, `eslint.config.mjs` (flat config; `next lint` was interactive/unusable in CI), and `type-check` script. Turned the lint gate on: fixed all 18 lint errors, removed 28 dead-code warnings (unused imports/vars + unused eslint-disable directives). Downgraded 2 experimental react-hooks RC rules to `warn` and deferred 8 exhaustive-deps + 2 no-img + 1 no-location warnings to P1 (documented in eslint.config.mjs) — fixing effects/images without a test net is unsafe. Provenance guard deliberately excluded from CI (needs live Supabase secrets; requires Node ≥ 22). | P0.1 | _this PR_ |
 | 2026-09-09 | Plan created; all tasks ☐ (not started). Added maintenance protocol (§0), status column, and this changelog. | P0–P5 | _this PR_ |

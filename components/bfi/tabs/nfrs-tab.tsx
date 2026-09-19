@@ -435,7 +435,7 @@ function DisclosurePreview({ data }: { data: DashboardSsrData }) {
           GHG Accounting and Reporting Standard, Category 15.
         </p>
         <p className="mt-3 text-sm text-slate-300">
-          The portfolio's weighted PCAF data quality score is{" "}
+          The portfolio&apos;s weighted PCAF data quality score is{" "}
           <span
             className={
               qualityScoreColors[

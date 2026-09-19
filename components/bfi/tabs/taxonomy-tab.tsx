@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { DashboardSsrData } from "@/components/bfi/dashboard";
 import {
   Badge,
@@ -8,12 +8,10 @@ import {
   Panel,
   ProgressBar,
   SegmentToggle,
-  StatRow,
 } from "@/components/bfi/shared/primitives";
 import {
   PortfolioFunnelChart,
   TaxonomyPieChart,
-  TAXONOMY_FILL,
   type FunnelStage,
 } from "@/components/bfi/charts";
 import { InfoTip } from "@/components/bfi/shared/info-tip";
@@ -157,7 +155,7 @@ export function TaxonomyTab({ data }: { data: DashboardSsrData }) {
           <div className="mt-5 rounded-md border border-line/60 bg-panel/40 p-3 text-xs text-slate-400">
             <span className="font-semibold text-slate-300">Why two views matter: </span>
             By count, retail loans dominate and most of the book is unclassified
-            because residential mortgages and personal loans fall outside NRB's
+            because residential mortgages and personal loans fall outside NRB&apos;s
             taxonomy. By value (NPR), the green/amber/red breakdown of the
             commercial book is what NRB will actually examine.
           </div>
@@ -230,7 +228,7 @@ function Funnel({ data }: { data: DashboardSsrData }) {
             <span className="font-semibold text-white">
               {f.facilityMatchedLoans.toLocaleString()}
             </span>{" "}
-            of the bank's loans. That is{" "}
+            of the bank&apos;s loans. That is{" "}
             <span className="font-semibold text-white">
               {formatPercent(totalPct / 100)}
             </span>{" "}
