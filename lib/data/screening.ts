@@ -13,7 +13,6 @@
 import {
   Borrower,
   BorrowerScreening,
-  MatchedFacility,
 } from "@/lib/types/bfi";
 import { EDGAR_NEPAL } from "@/lib/data/edgar-snapshot";
 import {
@@ -26,69 +25,6 @@ type EdgarNationalTotal = {
   year: number;
   totalTco2: number;
 };
-
-// ---------------------------------------------------------------------------
-// Fallback constants (used when no token or live fetch fails)
-// ---------------------------------------------------------------------------
-
-const SECTOR_BENCHMARK_FALLBACK: Record<
-  string,
-  { value: number; label: string }
-> = {
-  "Manufacturing - Cement": {
-    value: 0.75,
-    label: "tCO₂ per tonne cement (industry benchmark)",
-  },
-  "Energy - Hydropower": {
-    value: 15,
-    label: "tCO₂ per MW operational (life-cycle)",
-  },
-  "Manufacturing - Steel": {
-    value: 1.83,
-    label: "tCO₂ per tonne steel (industry benchmark)",
-  },
-  "Manufacturing - FMCG": {
-    value: 20000,
-    label: "tCO₂ per typical facility-year",
-  },
-  "Manufacturing - Chemicals": {
-    value: 15000,
-    label: "tCO₂ per typical facility-year",
-  },
-  "Manufacturing - Textiles": {
-    value: 40000,
-    label: "tCO₂ per typical facility-year",
-  },
-  "Agriculture - Processing": {
-    value: 25000,
-    label: "tCO₂ per typical facility-year",
-  },
-  "Manufacturing - Brick": {
-    value: 12000,
-    label: "tCO₂ per typical kiln-year",
-  },
-  "Manufacturing - Plastics": {
-    value: 4000,
-    label: "tCO₂ per typical facility-year",
-  },
-  Construction: {
-    value: 3000,
-    label: "tCO₂ per typical project-year",
-  },
-};
-
-function intensityForCement(borrower: Borrower) {
-  if (borrower.nrbSector !== "Manufacturing - Cement") return null;
-  const totalCap = borrower.facilities.reduce(
-    (s, f) => s + (f.cementCapacityMtpa ?? 0),
-    0
-  );
-  if (totalCap <= 0) return null;
-  return {
-    value: borrower.totalCo2eTonnes / (totalCap * 1_000_000),
-    label: "tCO₂ per tonne cement (this borrower)",
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Ownership / risk / recommendation helpers

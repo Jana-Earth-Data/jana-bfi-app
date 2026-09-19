@@ -51,8 +51,6 @@
  * them to the tenant, portfolio, and Supabase.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import ExcelJS from "exceljs";
 import {
   PDFDocument,
@@ -563,10 +561,6 @@ export function buildGreenStatementReport(
 
 function fmtNpr(v: number): string {
   return `NPR ${new Intl.NumberFormat("en-US").format(Math.round(v))}`;
-}
-
-function fmtNprMillion(v: number): string {
-  return `${new Intl.NumberFormat("en-US").format(Math.round(v))}`;
 }
 
 /**

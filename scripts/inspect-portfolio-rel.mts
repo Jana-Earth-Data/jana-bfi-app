@@ -3,7 +3,8 @@
  *   node --experimental-strip-types --experimental-transform-types \
  *     scripts/inspect-portfolio-rel.mts
  */
-// @ts-ignore - relative resolution at runtime
+// @ts-expect-error - relative .ts import resolved at runtime by Node's
+// experimental type-stripping, not by tsc; the extension is intentional.
 import { getPortfolio } from "../lib/data/portfolio.ts";
 
 const t0 = Date.now();

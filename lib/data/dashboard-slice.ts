@@ -137,14 +137,13 @@ export async function buildDashboardSlice(
   );
 
   const screenings: Record<string, BorrowerScreening> = {};
-  let edgarOk = false;
   let openaqOk = false;
-  let edgarYear: number | undefined;
 
   // EDGAR national CO2 comes from the polygon-clipped snapshot (always
-  // available, no API call). The badge reflects that source.
-  edgarOk = EDGAR_NEPAL.nepalTotalTco2 > 0;
-  edgarYear = EDGAR_NEPAL.year;
+  // available, no API call). The badge reflects that source. Both are fixed
+  // for the life of this call — the snapshot does not change mid-request.
+  const edgarOk = EDGAR_NEPAL.nepalTotalTco2 > 0;
+  const edgarYear = EDGAR_NEPAL.year;
 
   if (token) {
     // Build live screenings in parallel — only OpenAQ requires the token now.

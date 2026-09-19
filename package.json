@@ -13,7 +13,8 @@
     "predev:demo": "node scripts/ensure-precompute.mjs",
     "dev:demo": "JANA_DEMO=1 next dev",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit",
     "check:provenance": "node scripts/check-seeded-rows.mjs"
   },
   "dependencies": {

@@ -41,7 +41,6 @@ export async function pollForToken(
 ): Promise<TokenResponse> {
   const pollInterval = Math.max(interval, 5) * 1000;
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     if (signal?.aborted) throw new Error("Login cancelled.");
 

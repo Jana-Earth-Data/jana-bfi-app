@@ -35,7 +35,7 @@ import { findActivityById } from "@/lib/regulatory/taxonomy/activities";
 import { isProjectFinanceLoanWithOverride } from "@/lib/regulatory/esdd/pf-loan-gate";
 import { ANNEX5B_ALL } from "@/lib/regulatory/esdd/annex5b-pf-questions";
 import { inferEmissionsFlag } from "@/lib/regulatory/climate/infer";
-import { apiError, requireOfficer, requireCaptureClient } from "@/lib/api/route-helpers";
+import { requireOfficer, requireCaptureClient } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 

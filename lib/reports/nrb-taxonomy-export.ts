@@ -15,7 +15,6 @@
  * builders remain pure and unit-testable. The route reads the tenant
  * cookie and resolves branding once, then hands it off.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import ExcelJS from "exceljs";
 import {
