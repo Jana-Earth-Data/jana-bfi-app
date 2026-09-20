@@ -128,9 +128,9 @@ the build, or (as they accrue) the tests.
 | S | # | Task | Source | Effort |
 |---|---|------|--------|--------|
 | ☑ | P0.1 | Create `.github/workflows/ci.yml` — runs on push + PR. `checks` job runs in `node:20-alpine`: `npm ci`, `lint`, `type-check`, `prebuild` (8 guards). `docker-build` job builds the real production image both ways (`JANA_DEMO=1` demo + `JANA_DEMO=0` live), subsuming `build:demo`/`build:live`. All testing runs in Docker — no local toolchain. | PRA §5.2, CRR §4.5 | 1 |
-| ☐ | P0.2 | Install Vitest + `@vitest/coverage-v8` + `@testing-library/react` + `msw`; add `vitest.config.ts` wired to `@/` alias | TS §2 | 1 |
-| ☐ | P0.3 | Add `test`, `test:unit`, `test:watch`, `test:coverage` scripts to `package.json` | TS §5.1 | 0.5 |
-| ☐ | P0.4 | Add coverage reporting to CI (soft/report-only gate initially) | TS §5.2 | 0.5 |
+| ☑ | P0.2 | Install Vitest + `@vitest/coverage-v8` + `@testing-library/react` (+ `@testing-library/dom`) + `msw` + `jsdom` + `@vitejs/plugin-react`; add `vitest.config.mts` (`.mts` so the ESM config loads without flipping the CJS root to `type:module`) wired to the `@/` alias, `node` env default, `hookTimeout` 60s, and a `tests/global-setup.ts` that runs the existing `precompute-portfolio` step ONCE (writing the gz `getPortfolio()` prefers) so the goldens gunzip (~300ms) instead of re-synthesizing per file — the fix for the CI hook-timeout under Vitest's per-file worker isolation. | TS §2 | 1 |
+| ☑ | P0.3 | Add `test`, `test:unit`, `test:watch`, `test:coverage` scripts to `package.json` | TS §5.1 | 0.5 |
+| ☑ | P0.4 | Add `Test (report-only coverage)` step to the CI `checks` job (`npm run test:coverage`, v8, NO threshold gate yet — gate arrives P1.5). `tests/vitest-globals.d.ts` gives `tsc` the Vitest globals without an explicit `types` array. | TS §5.2 | 0.5 |
 | ☐ | P0.5 | Add branch protection on `main`/`development` requiring CI to pass | PRA §5.2 | 0.5 |
 | ☐ | P0.6 | `npm audit` step + fix/pin wide semver ranges | CRR §6.1, §6.2 | 0.5 |
 
@@ -169,6 +169,17 @@ method strings. (Full statement: `NFRS_REMEDIATION_BACKLOG.md` §0.)
 | ☐ | N0.9 | **Correct the disclosure-preview citation.** `nfrs-tab.tsx:468–473` cites "NFRS draft §17(b)", which supports no financed-emissions claim in either standard — verify + correct or remove. | Backlog N0.9; GA §7.2 | shared | shared | 0.25 |
 | ☐ | N0.10 | **CI guard: no policy constants / duplicated aggregators outside `lib/regulatory`.** Extend the existing `scripts/check-*.mjs` pattern to prevent regression of N0.1–N0.7. | Backlog N0.10; §0 principle | — | — | 1 |
 
+**Baseline pinned (done — precedes the N0 edits above).** Characterization
+("golden") tests now freeze today's disclosed figures so every N0 change is a
+reviewed diff, not an accident: `tests/golden/demo-portfolio.golden.test.ts`
+(totals, NRB taxonomy count + NPR-weighted, scoping funnel, DQ 1–5 distribution,
+15-row sector table, 2021–2025 trend), `tests/golden/live-overlay.golden.test.ts`
+(the demo/live aggregator equivalence N0.1 will collapse), and
+`tests/golden/pcaf-scoring.golden.test.ts` (score histogram for N0.4; the
+70,000-loan retail-pool contribution of 2,044,419 tCO₂e for N0.5). Captured
+deterministically (seed `0xb1f0b1f0`), verified identical across runs. Headline
+baseline: **80,035 loans → 9,774,371 tCO₂e**, weighted DQ 3.8.
+
 **Dependencies:** P0 (CI + guards to enforce N0.10). Test obligation folds into
 P1 — do not close PR0 as "done" until the P1 tests for the collapsed
 `summarise()` and evidence-driven scoring exist.
@@ -190,7 +201,7 @@ is the heart of a banking product.
 | ☐ | P1.2 | Tier 1 tests — ESDD scoring (`esdd/scoring.ts`, `annex5b-pf-scoring.ts`): answer combos → each risk-class boundary | TS §4.1 | 2 |
 | ☐ | P1.3 | Tier 1 tests — Taxonomy (`taxonomy/activities.ts`, `dnsh.ts`): table-driven, per-activity Green/Amber/Red + DNSH | TS §4.1 | 3 |
 | ☐ | P1.4 | Tier 1 tests — CAP (`cap/library.ts`), hydro (`capacity.ts`), loan-category derive, PRNG determinism | TS §4.1 | 1.5 |
-| ☐ | P1.5 | **Flip the hard gate:** `lib/regulatory/**` → 100% line + branch in `vitest.config.ts`, enforced in CI | TS §5.2 | 0.5 |
+| ☐ | P1.5 | **Flip the hard gate:** `lib/regulatory/**` → 100% line + branch in `vitest.config.mts`, enforced in CI | TS §5.2 | 0.5 |
 | ☐ | P1.6 | Tier 2 tests — API route handlers with mocked Supabase: happy path + auth-fail (no cross-tenant leak) + bad-input, for all 41 routes | TS §4.2 | 4 |
 | ☐ | P1.7 | Fix any bugs surfaced by P1.1–P1.6 (expect some; this is the point) | — | buffer 2 |
 
@@ -532,6 +543,7 @@ affected, and the merge commit/PR that carried it. Per §0 rule 1, a task is not
 
 | Date | Change | Task(s) | Commit / PR |
 |------|--------|---------|-------------|
+| 2026-09-19 | **Test harness + PR0 baseline goldens (P0.2–P0.4 done → ☑).** Added Vitest (`vitest.config.mts` — `.mts` so the ESM config loads without making the CJS root `type:module`; `@/`→root alias mirroring tsconfig; `node` env default with per-file jsdom opt-in; v8 coverage **report-only**, no gate until P1.5; `hookTimeout` 60s for the ~15s synthesizer) + `@vitest/coverage-v8`, `@testing-library/react`+`dom`, `msw`, `jsdom`, `@vitejs/plugin-react`. Added `test`/`test:unit`/`test:watch`/`test:coverage` scripts and a `Test (report-only coverage)` step to the CI `checks` job. `tests/vitest-globals.d.ts` supplies the Vitest globals to `tsc` without an explicit `types` array (which would break the app's ambient types). Wrote the PR0 characterization goldens under `tests/golden/` pinning today's disclosed figures (**80,035 loans → 9,774,371 tCO₂e**, DQ 3.8, taxonomy/funnel/sector/trend, demo↔live aggregator equivalence, PCAF score histogram, 70,000-loan retail-pool = 2,044,419 tCO₂e) so every N0 edit is a reviewed diff. A `tests/global-setup.ts` runs the existing `precompute-portfolio` step ONCE before any worker (writing the gz `getPortfolio()` prefers), so the three goldens gunzip (~300ms each) instead of re-synthesizing — without it, Vitest's per-file worker isolation re-ran the ~50-80s synthesis per file and every `beforeAll` timed out on the (slower) GitHub Actions runner. Whole suite now ~21s. 24/24 tests green in `node:20-alpine`; deterministic across runs. PR0 code deferred to a follow-up PR. Boy-scout: P1.5's stale `vitest.config.ts` → `.mts`. | P0.2, P0.3, P0.4; PR0 baseline | _this PR_ |
 | 2026-09-19 | **NFRS remediation backlog integrated as PR-phases.** Scheduled the six tiers of `docs/NFRS_REMEDIATION_BACKLOG.md` into this plan as new **Production-Regulatory** phases: PR0 Regulatory integrity (§3a, N0.1–N0.10), PR1 B62 compliance (§4a, N1.1–N1.12), PR2 the bank's own footprint (§4b, N2.1–N2.6), PR3 three missing pillars (§6a, N3.1–N3.8), PR4 presentation mechanics (§7a, N4.1–N4.5), PRD documentation & accuracy (§8a, ND.1–ND.11; ND.2 already ☑). Updated the phase overview (§2), dependency graph (§9 — PR0 sits **between P0 and P1** so P1 cannot freeze integrity bugs), risk register (§10 — added the "P1 freezes an integrity bug" and "number depends on code path" risks), and milestones (§11 — renumbered to M1–M8 with M2 Integrity as the true gate before real bank data). Backlog file updated with the tier→phase cross-reference table; it remains the per-task detail source, PROJECT_PLAN carries status. Documentation-only; no regulatory code touched. | PR0–PR4, PRD | _this PR_ |
 | 2026-09-19 | Boy-scout fix: baseline §1 corrected "10 build guard scripts" → **8** (matches the actual `prebuild` chain: check-dockerignore-build-scripts, check-build-wiring, check-demo-imports, check-demo-mode-gate, check-docker-demo-flag, check-capture-client, check-demo-officers, precompute-guard). | — | _this PR_ |
 | 2026-09-19 | P0.1 done → ☑. Added Docker-based `ci.yml` (node:20-alpine checks job + real demo/live image build), `.nvmrc`, `eslint.config.mjs` (flat config; `next lint` was interactive/unusable in CI), and `type-check` script. Turned the lint gate on: fixed all 18 lint errors, removed 28 dead-code warnings (unused imports/vars + unused eslint-disable directives). Downgraded 2 experimental react-hooks RC rules to `warn` and deferred 8 exhaustive-deps + 2 no-img + 1 no-location warnings to P1 (documented in eslint.config.mjs) — fixing effects/images without a test net is unsafe. Provenance guard deliberately excluded from CI (needs live Supabase secrets; requires Node ≥ 22). | P0.1 | f35c4ea (PR #48 → dev, #49 → main) |
