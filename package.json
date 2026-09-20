@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "precompute-portfolio": "tsx scripts/precompute-portfolio.ts",
-    "prebuild": "node scripts/check-dockerignore-build-scripts.mjs && node scripts/check-build-wiring.mjs && node scripts/check-demo-imports.mjs && node scripts/check-demo-mode-gate.mjs && node scripts/check-docker-demo-flag.mjs && node scripts/check-capture-client.mjs && node scripts/check-demo-officers.mjs && node scripts/precompute-guard.mjs",
+    "prebuild": "node scripts/check-dockerignore-build-scripts.mjs && node scripts/check-build-wiring.mjs && node scripts/check-demo-imports.mjs && node scripts/check-demo-mode-gate.mjs && node scripts/check-docker-demo-flag.mjs && node scripts/check-capture-client.mjs && node scripts/check-demo-officers.mjs && node scripts/check-regulatory-boundary.mjs && node scripts/precompute-guard.mjs",
     "check:demo": "node scripts/check-demo-imports.mjs",
     "build": "next build",
     "build:demo": "JANA_DEMO=1 npm run build",
@@ -25,39 +25,39 @@
     "manual:build": "node docs/build_manual_v03.js docs/Jana_Financed_Emissions_Dashboard_User_Manual_Demo_v0.3.docx"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.107.0",
-    "exceljs": "^4.4.0",
-    "leaflet": "^1.9.4",
-    "next": "^15.5.18",
-    "pdf-lib": "^1.17.1",
+    "@supabase/supabase-js": "2.109.0",
+    "exceljs": "4.4.0",
+    "leaflet": "1.9.4",
+    "next": "15.5.25",
+    "pdf-lib": "1.17.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "react-leaflet": "^5.0.0",
-    "recharts": "^2.15.1"
+    "react-leaflet": "5.0.0",
+    "recharts": "2.15.4"
   },
   "devDependencies": {
-    "@testing-library/dom": "^10.4.2",
-    "@testing-library/react": "^16.3.3",
-    "@types/leaflet": "^1.9.21",
-    "@types/node": "^22.10.2",
-    "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2",
-    "@vitejs/plugin-react": "^6.1.1",
-    "@vitest/coverage-v8": "^5.0.1",
-    "autoprefixer": "^10.4.20",
-    "docx": "^9.5.1",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@types/leaflet": "1.9.22",
+    "@types/node": "22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "@vitest/coverage-v8": "5.0.1",
+    "autoprefixer": "10.6.1",
+    "docx": "9.7.1",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.2",
-    "jsdom": "^30.1.0",
-    "msw": "^2.15.0",
-    "playwright": "^1.62.1",
-    "postcss": "^8.5.10",
-    "tailwindcss": "^3.4.16",
-    "tsx": "^4.23.7",
-    "typescript": "^5.7.2",
-    "vitest": "^5.0.1"
+    "jsdom": "30.1.0",
+    "msw": "2.15.0",
+    "playwright": "1.63.0",
+    "postcss": "8.5.28",
+    "tailwindcss": "3.4.19",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vitest": "5.0.1"
   },
   "overrides": {
-    "postcss": "^8.5.10"
+    "postcss": "8.5.28"
   }
 }

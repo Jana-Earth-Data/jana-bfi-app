@@ -61,7 +61,7 @@ import {
   type PDFImage,
 } from "pdf-lib";
 import type { BfiDemoData, Loan, NrbTaxonomyColor } from "@/lib/types/bfi";
-import type { TenantConfig } from "@/lib/tenants";
+import type { TenantConfig, BankClass as TenantBankClass } from "@/lib/tenants";
 import type {
   ExportBranding,
   TaxonomyAssessmentRow,
@@ -228,18 +228,23 @@ export function annex4bRowForLoan(
  * alongside NIB Ltd). A per-BFI submission fills in ONE of the class
  * columns based on the submitting institution's own licence.
  *
- * Both demo tenants (First Bank of Nepal, Laxmi Sunrise) are Class A
- * commercial banks — so the demo submission is always filed against
- * the Class A column. When adding a Class B/C tenant later, expose a
- * `bankClass` field on TenantConfig and read it here.
+ * The class is a property of the institution's NRB licence, so it is carried
+ * on TenantConfig (`bankClass`, defined in lib/tenants/types) and this function
+ * simply reads it. It previously returned "A" unconditionally, ignoring its
+ * argument (N0.8) — which would have silently mis-filed a Class B/C tenant into
+ * the Class A column. Both demo tenants are Class A, so this fix does not move
+ * any currently-disclosed figure; it removes the latent per-tenant bug.
+ *
+ * `BankClass` is re-exported here as an alias of the tenant-owned type so the
+ * existing downstream imports (`import { BankClass } from "@/lib/reports/…"`)
+ * keep resolving without a churn diff.
  */
-export type BankClass = "A" | "B" | "C" | "other";
+export type BankClass = TenantBankClass;
 
-export function bankClassForTenant(_tenant: Pick<TenantConfig, "id">): BankClass {
-  // Both currently-registered tenants are Class A commercial banks.
-  // This lookup is intentionally isolated so the eventual per-tenant
-  // class metadata has one place to plug in.
-  return "A";
+export function bankClassForTenant(
+  tenant: Pick<TenantConfig, "bankClass">,
+): BankClass {
+  return tenant.bankClass;
 }
 
 // ---------------------------------------------------------------------------
@@ -372,7 +377,7 @@ function toNprMillion(nprValue: number): number {
  * one green-share number across both flows.
  */
 export function buildGreenStatementReport(
-  tenant: Pick<TenantConfig, "id" | "branding">,
+  tenant: Pick<TenantConfig, "id" | "branding" | "bankClass">,
   demoData: BfiDemoData,
   assessments: TaxonomyAssessmentRow[],
 ): GreenStatementReport {

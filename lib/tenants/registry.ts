@@ -43,6 +43,8 @@ export const REGISTRY: Record<TenantId, TenantConfig> = {
       primaryColorHex: "#0F5132",  // Jana brand green (matches demo docs)
       accentColorHex: "#1B6B3D",
     },
+    // First Bank of Nepal is a Class A commercial bank.
+    bankClass: "A",
     branchCodePrefix: "FBN",
     // Default tenant intentionally has no code — visitors reach it via
     // the "Continue as First Bank of Nepal (demo)" button on the landing
@@ -63,6 +65,8 @@ export const REGISTRY: Record<TenantId, TenantConfig> = {
       primaryColorHex: "#F5951E",
       accentColorHex: "#E37B15",
     },
+    // Laxmi Sunrise Bank is a Class A commercial bank.
+    bankClass: "A",
     branchCodePrefix: "LSB",
     // Access codes handed to Laxmi Sunrise. Rotatable — to invalidate a
     // code, remove the string from this array on the next deploy. Multiple
