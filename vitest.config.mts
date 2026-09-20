@@ -51,10 +51,13 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["tests/**/*.{test,spec}.{ts,tsx}"],
-    // The 80K-loan synthesis + aggregation is CPU-bound but deterministic
-    // (~15–17s). Give both the tests AND the beforeAll hooks (where the goldens
-    // call getPortfolio()) generous headroom over Vitest's 5s test / 10s hook
-    // defaults, or every golden's beforeAll would time out at 10s.
+    // globalSetup synthesizes the ~80K-loan portfolio ONCE (writing the gz that
+    // getPortfolio() prefers) before any worker starts. Without it, Vitest's
+    // per-file worker isolation would re-run the ~50-80s synthesis for each
+    // golden file's beforeAll — which blew past a 60s hookTimeout on the slower
+    // GitHub Actions runner (CI run 35483664854). With the shared gz, each
+    // beforeAll just gunzips (~300ms), so these timeouts are generous headroom.
+    globalSetup: ["tests/global-setup.ts"],
     testTimeout: 30_000,
     hookTimeout: 60_000,
     coverage: {
