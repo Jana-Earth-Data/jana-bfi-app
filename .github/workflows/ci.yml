@@ -20,8 +20,9 @@
 #     live). This subsumes the plan's `build:demo` / `build:live` requirement
 #     using the production Dockerfile rather than a bare `next build`.
 #
-# As tests accrue (Phase P1), a `test` step is added to the `checks` job and a
-# coverage gate is wired in — see PROJECT_PLAN.md P0.2–P0.4.
+# The `checks` job runs the Vitest suite (report-only coverage, no gate) as of
+# P0.4. The coverage THRESHOLD gate on lib/regulatory/** is turned on later in
+# P1.5 — see PROJECT_PLAN.md P0.2–P0.4 and P1.5.
 # ============================================================================
 
 name: CI
@@ -63,6 +64,14 @@ jobs:
 
       - name: Type-check
         run: npm run type-check
+
+      # Vitest suite with v8 coverage. Report-only: `vitest.config.mts` sets NO
+      # coverage threshold yet, so a low-coverage run cannot fail the build (the
+      # gate on lib/regulatory/** arrives in P1.5). This step exists now (P0.4)
+      # so the harness — and, as they land, the PR0 characterization goldens —
+      # run on every push against the exact Node version we ship on.
+      - name: Test (report-only coverage)
+        run: npm run test:coverage
 
       # The 7 prebuild guards (check-dockerignore-build-scripts, check-build-
       # wiring, check-demo-imports, check-demo-mode-gate, check-docker-demo-
