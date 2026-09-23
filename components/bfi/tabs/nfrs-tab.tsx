@@ -24,16 +24,23 @@ import {
 } from "@/components/bfi/ui";
 import { InfoTip, PcafScoreInfoTip } from "@/components/bfi/shared/info-tip";
 import { NPR_PER_USD } from "@/lib/units";
+import {
+  LATEST_FULL_YEAR,
+  LATEST_YEAR,
+  LATEST_YEAR_PARTIAL_THROUGH,
+  isFullyReportedYear,
+} from "@/lib/reporting/periods";
 import { NrbTaxonomyExportButton } from "@/components/bfi/reports/nrb-taxonomy-export-button";
 import { NrbsisGreenStatementButton } from "@/components/bfi/reports/nrbsis-green-statement-button";
 
 export function NfrsTab({ data }: { data: DashboardSsrData }) {
   const s = data.portfolio;
   const trend = s.trend ?? [];
-  // YoY compares the last TWO fully-reported years. 2025 is partial through
-  // October (Climate TRACE coverage), so we explicitly skip it for YoY.
+  // YoY compares the last TWO fully-reported years. The trailing year is
+  // partial (Climate TRACE coverage; see lib/regulatory/reporting/period.ts),
+  // so we explicitly skip it for YoY.
   const yoy = useMemo(() => {
-    const fullYears = trend.filter((p) => p.year < 2025);
+    const fullYears = trend.filter((p) => isFullyReportedYear(p.year));
     if (fullYears.length < 2) return null;
     const last = fullYears[fullYears.length - 1];
     const prev = fullYears[fullYears.length - 2];
@@ -69,10 +76,10 @@ export function NfrsTab({ data }: { data: DashboardSsrData }) {
         />
         <KpiCard
           label="Most recent fully-reported year"
-          value="2024"
+          value={String(LATEST_FULL_YEAR)}
           sublabel={
             trend.length > 1
-              ? `Trend ${trend[0].year}–${trend[trend.length - 1].year} · 2025 partial (Climate TRACE through Oct)`
+              ? `Trend ${trend[0].year}–${trend[trend.length - 1].year} · ${LATEST_YEAR} partial (Climate TRACE through ${LATEST_YEAR_PARTIAL_THROUGH.slice(0, 3)})`
               : data.meta.asOfDate ?? ""
           }
         />
@@ -413,8 +420,9 @@ function DisclosurePreview({ data }: { data: DashboardSsrData }) {
   const facilityShareValue =
     (s.funnel?.facilityMatchedOutstandingNpr ?? 0) /
     Math.max(1, s.funnel?.inScopeOutstandingNpr ?? 1);
-  // Disclosure narrative uses the latest fully-reported year, not the partial 2025.
-  const fullYears = trend.filter((p) => p.year < 2025);
+  // Disclosure narrative uses the latest fully-reported year, not the partial
+  // trailing year (see lib/regulatory/reporting/period.ts).
+  const fullYears = trend.filter((p) => isFullyReportedYear(p.year));
   const disclosureYear = fullYears[fullYears.length - 1] ?? latestYear;
   const disclosureTotal =
     disclosureYear?.totalAttributedCo2eTonnes ?? total;

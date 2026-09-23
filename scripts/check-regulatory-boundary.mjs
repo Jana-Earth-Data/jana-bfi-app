@@ -87,7 +87,12 @@ const BASELINE = {
   // No grandfather entry remains, so any NEW `NPR_PER_USD =` definition outside
   // lib/regulatory now fails the build.
   "retail-emissions-factor": ["lib/demo/portfolio.ts"],
-  "as-of-date": ["lib/demo/synth-util.ts"],
+  // as-of-date: RELOCATED by N0.7 (PR0-b). The reporting-period boundary now
+  // lives, derived from ingested coverage and dated, in
+  // lib/regulatory/reporting/period.ts (AS_OF_DATE); lib/reporting/periods.ts
+  // only re-exports it, and the demo's loan-lifecycle anchor was renamed to
+  // SYNTH_ANCHOR_DATE. No grandfather entry remains, so any NEW `AS_OF_DATE =`
+  // definition outside lib/regulatory now fails the build.
   // ev-floor-million: the demo aggregator floors enterprise value at
   // Math.max(1_000_000, …) (portfolio.ts:344) while the live aggregator uses a
   // different floor, Math.max(1, … || 1) (bfi.ts:189) — that very divergence is

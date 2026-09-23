@@ -16,6 +16,8 @@
  * Response shape:
  *   {
  *     ok: true,
+ *     // Reporting-period as-of date (last day of ingested coverage), sourced
+ *     // from lib/regulatory/reporting/period.ts via data.meta.asOfDate (N0.7).
  *     asOfDate: "2025-10-31",
  *     distribution: [{ score: 1, loanCount, outstandingNpr, attributedCo2eTonnes }, ...],
  *     weightedScore: 3.2,

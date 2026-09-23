@@ -15,8 +15,16 @@
  * means moving this file could never strand production code.
  */
 
-/** Reference "as-of" date for the demo dashboard. */
-export const AS_OF_DATE = "2026-05-01";
+/**
+ * Anchor date the fabricated loan lifecycle is generated relative to — the
+ * synthetic "today" from which disbursement and maturity dates are offset
+ * backward/forward (see portfolio.ts). This is demo scaffolding for inventing a
+ * plausible book, NOT the disclosure's reporting as-of date: that is a
+ * regulatory primitive and lives in lib/regulatory/reporting/period.ts
+ * (AS_OF_DATE), which the demo's meta.asOfDate now reads (N0.7). Kept at the
+ * prior value so loan dates — and therefore the goldens — are unchanged.
+ */
+export const SYNTH_ANCHOR_DATE = "2026-05-01";
 
 /**
  * Mulberry32 — small, fast, deterministic PRNG.

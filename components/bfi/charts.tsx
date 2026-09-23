@@ -20,6 +20,7 @@ import {
   YAxis,
 } from "recharts";
 import { PortfolioTrendPoint } from "@/lib/types/bfi";
+import { LATEST_YEAR } from "@/lib/reporting/periods";
 
 type SectorItem = {
   sector: string;
@@ -183,11 +184,11 @@ export function EmissionsTrendChart({
     unclassified: p.byTaxonomy.unclassified,
     total: p.totalAttributedCo2eTonnes,
   }));
-  // Mark any year >= 2025 as partial (Climate TRACE Nepal coverage runs
-  // through October 2025). The reference area + tooltip annotation tells the
-  // viewer the visual dip on the right edge is a coverage artifact, not a
-  // real emissions decline.
-  const partialFromYear = 2025;
+  // Mark the trailing partial year (Climate TRACE Nepal coverage runs through
+  // October of LATEST_YEAR; see lib/regulatory/reporting/period.ts). The
+  // reference area + tooltip annotation tells the viewer the visual dip on the
+  // right edge is a coverage artifact, not a real emissions decline.
+  const partialFromYear = LATEST_YEAR;
   const hasPartial = rows.some((r) => r.year >= partialFromYear);
   return (
     <div className="h-64 w-full">

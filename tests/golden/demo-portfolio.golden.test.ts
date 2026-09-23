@@ -42,7 +42,14 @@ describe("demo portfolio · population counts", () => {
 
   it("stamps the pinned demo metadata", () => {
     expect(data.meta.bankName).toBe("First Bank of Nepal");
-    expect(data.meta.asOfDate).toBe("2026-05-01");
+    // N0.7 (reviewed change): meta.asOfDate is now the reporting-period as-of
+    // date (last day of ingested coverage, LATEST_YEAR through October) sourced
+    // from lib/regulatory/reporting/period.ts, not the demo's loan-lifecycle
+    // anchor (SYNTH_ANCHOR_DATE, still 2026-05-01). This reconciles the
+    // disclosed as-of with the /api/pcaf/scores docstring example (2025-10-31).
+    // No KPI moves: loan dates still derive from SYNTH_ANCHOR_DATE, so counts,
+    // tonnes, and DQ below are unchanged.
+    expect(data.meta.asOfDate).toBe("2025-10-31");
     expect(data.meta.isMock).toBe(true);
   });
 });

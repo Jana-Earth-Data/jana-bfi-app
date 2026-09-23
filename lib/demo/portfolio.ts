@@ -30,7 +30,7 @@ import {
   TaxonomyBreakdown,
 } from "@/lib/types/bfi";
 import {
-  AS_OF_DATE,
+  SYNTH_ANCHOR_DATE,
   BRANCHES,
   isoDateOffsetDays,
   logUniform,
@@ -40,7 +40,7 @@ import {
   rangeInt,
 } from "@/lib/demo/synth-util";
 import { nprToUsd, roundNpr, usdToNpr } from "@/lib/units";
-import { TREND_YEARS } from "@/lib/reporting/periods";
+import { AS_OF_DATE, TREND_YEARS } from "@/lib/reporting/periods";
 import { getBorrowerCatalog, SmeBorrower } from "@/lib/demo/entities";
 import {
   assetClassForLoanCategory,
@@ -429,8 +429,8 @@ function generateLoansForCategory(
       return rangeInt(24, 120, r);
     })();
     const maturityOffset = disbursedOffset + termMonths * 30;
-    const disbursedDate = isoDateOffsetDays(AS_OF_DATE, disbursedOffset);
-    const maturityDate = isoDateOffsetDays(AS_OF_DATE, maturityOffset);
+    const disbursedDate = isoDateOffsetDays(SYNTH_ANCHOR_DATE, disbursedOffset);
+    const maturityDate = isoDateOffsetDays(SYNTH_ANCHOR_DATE, maturityOffset);
 
     // ~1.5% of commercial loans in "under-review" for ESRM tab; 0.5% in "approved" pending disbursement.
     let status: LoanStatus = "active";
