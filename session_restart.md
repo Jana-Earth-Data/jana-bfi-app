@@ -2,9 +2,14 @@
 
 ## Working branch
 
-`feature/20260907_1` (created this session, cut from `development`)
+`feature/20260923_1` (cut from `development` on 2026-09-23, at merge commit
+`e241d07`).
 
-Old branch `feature/20260825_1` has been deleted locally and remotely.
+Old branch `feature/20260907_1` has been merged to `development` (PR #54) and
+deleted locally and remotely. `feature/20260825_1` was deleted earlier.
+
+**Not yet on `main`** — PR0-a is on `development` only; a `development → main`
+PR (which is what Vercel deploys) is deferred by request.
 
 ## What we were doing
 
