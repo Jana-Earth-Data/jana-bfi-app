@@ -82,7 +82,10 @@ const POLICY_PATTERNS = [
  * so a small line drift from an unrelated edit does not spuriously fail.
  */
 const BASELINE = {
-  "npr-per-usd": ["lib/units.ts"],
+  // npr-per-usd: RELOCATED by N0.6 (PR0-b). The FX rate now lives, dated and
+  // sourced, in lib/regulatory/fx/rates.ts; lib/units.ts only re-exports it.
+  // No grandfather entry remains, so any NEW `NPR_PER_USD =` definition outside
+  // lib/regulatory now fails the build.
   "retail-emissions-factor": ["lib/demo/portfolio.ts"],
   "as-of-date": ["lib/demo/synth-util.ts"],
   // ev-floor-million: the demo aggregator floors enterprise value at
