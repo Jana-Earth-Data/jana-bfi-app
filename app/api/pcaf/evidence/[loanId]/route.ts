@@ -24,7 +24,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { demoPcafNameFixtures } from "@/lib/demo/provider";
+import { demoPcafEvidenceRecords } from "@/lib/demo/provider";
 import { getBfiDemoData } from "@/lib/api/bfi";
 
 import { resolveCurrentTenant } from "@/lib/tenants";
@@ -132,12 +132,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const records = (rows ?? []).map(rowToRecord);
   const year = disclosureYear();
-  const inferred = inferPcafAvailability(
-    borrower,
-    loan.category,
-    await demoPcafNameFixtures(),
-  );
-  const resolved = resolveAvailability(inferred, records, year, {
+
+  // Real officer rows first, then the demo seed. recordFor() takes the first
+  // match, so a genuine review always wins over the illustrative seed; in a
+  // live build the seed is empty and only the officer's own rows count.
+  const evidenceFor = await demoPcafEvidenceRecords();
+  const seeded = evidenceFor ? evidenceFor(borrower) : [];
+  const evidence = [...records, ...seeded];
+
+  const inferred = inferPcafAvailability(borrower, loan.category);
+  const resolved = resolveAvailability(inferred, evidence, year, {
     loanId,
     isProjectFinance,
   });

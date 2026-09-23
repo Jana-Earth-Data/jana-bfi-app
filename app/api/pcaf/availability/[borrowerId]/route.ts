@@ -1,13 +1,14 @@
 /**
  * PCAF Data Availability — per-borrower officer confirmation / override.
  *
- * The demo default is to *infer* the four PCAF §5 decision-tree flags
+ * The demo default is to *infer* the observable PCAF §5 decision-tree flags
  * (`inferPcafAvailability` — Climate TRACE match → physical_activity,
- * publiclyListed → revenue, name-substring match → publishes_verified /
- * unverified).  This route lets an officer confirm or override that
- * inference after reviewing the borrower's actual annual report /
- * ISO 14064 assurance statement — the whole point of the P24 collection
- * UI.
+ * publiclyListed → revenue) and then raise the two published-emissions flags
+ * only where a verified evidence document exists (`resolveAvailability` —
+ * seeded in the demo, none in a live build).  This route lets an officer
+ * confirm or override that answer after reviewing the borrower's actual
+ * annual report / ISO 14064 assurance statement — the whole point of the P24
+ * collection UI.
  *
  * Endpoints:
  *
@@ -46,7 +47,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { demoPcafNameFixtures } from "@/lib/demo/provider";
+import { demoPcafEvidenceRecords } from "@/lib/demo/provider";
 import { getBfiDemoData } from "@/lib/api/bfi";
 
 import { resolveCurrentTenant } from "@/lib/tenants";
@@ -58,6 +59,9 @@ import {
   inferPcafAvailability,
   resolvePcafAvailability,
 } from "@/lib/regulatory/pcaf/scoring";
+import { resolveAvailability } from "@/lib/regulatory/pcaf/evidence-matrix";
+import type { PcafEvidenceRecord } from "@/lib/regulatory/pcaf/evidence-matrix";
+import { LATEST_FULL_YEAR } from "@/lib/regulatory/reporting/period";
 import type {
   PcafDataAvailability,
   PcafComputationResult,
@@ -154,6 +158,33 @@ function findLoanForBorrower(
   );
 }
 
+/**
+ * The inferred + evidence-resolved availability, before the officer's saved
+ * override. Mirrors the build-time pcafFor() derivation exactly so the
+ * inferredFlags this route reports match the ones baked into the portfolio:
+ * infer the observable flags, then raise the two published-emissions flags from
+ * evidence — seeded in a demo build, none in live — through the same
+ * resolveAvailability the officer's own review flows through. `evidenceFor` is
+ * resolved once by the caller (it awaits the demo provider).
+ */
+function inferredWithEvidence(
+  borrower: Borrower,
+  loan: Loan | undefined,
+  evidenceFor: ((b: Borrower) => PcafEvidenceRecord[]) | undefined,
+): PcafDataAvailability {
+  const inferred = inferPcafAvailability(borrower, loan?.category);
+  const assetClass = assetClassForLoanCategory(loan?.category);
+  return resolveAvailability(
+    inferred,
+    evidenceFor ? evidenceFor(borrower) : [],
+    LATEST_FULL_YEAR,
+    {
+      loanId: loan?.id ?? `${borrower.id}-no-loan`,
+      isProjectFinance: assetClass === "project-finance",
+    },
+  ).flags;
+}
+
 function autoInferenceSources(borrower: Borrower) {
   return {
     dataTier: borrower.dataTier ?? null,
@@ -218,10 +249,10 @@ export async function GET(_req: Request, { params }: Params) {
   }
 
   const loan = findLoanForBorrower(data.loans, borrowerId);
-  const inferredFlags = inferPcafAvailability(
+  const inferredFlags = inferredWithEvidence(
     borrower,
-    loan?.category,
-    await demoPcafNameFixtures(),
+    loan,
+    await demoPcafEvidenceRecords(),
   );
 
   const tenant = await resolveCurrentTenant();
@@ -312,10 +343,18 @@ export async function POST(request: Request, { params }: Params) {
   const loan = findLoanForBorrower(data.loans, borrowerId);
   const loanCategory = body.loanCategory ?? loan?.category;
 
-  const inferredFlags = inferPcafAvailability(
+  // The body may override the loan category for the citation compute; reflect
+  // that in the loan handed to the evidence resolver so the asset-class routing
+  // (project-finance vs not) matches. The two published-emissions flags come
+  // from borrower-scoped documents, so this only affects activity scope.
+  const effectiveLoan =
+    loan && loanCategory !== loan.category
+      ? ({ ...loan, category: loanCategory } as Loan)
+      : loan;
+  const inferredFlags = inferredWithEvidence(
     borrower,
-    loanCategory,
-    await demoPcafNameFixtures(),
+    effectiveLoan,
+    await demoPcafEvidenceRecords(),
   );
   const savedFlags: PcafDataAvailability = {
     borrower_publishes_verified: !!flagsIn.borrower_publishes_verified,

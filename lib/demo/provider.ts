@@ -34,7 +34,8 @@
  * A live build has no toggle because it has nothing to toggle.
  */
 
-import type { BfiDemoData } from "@/lib/types/bfi";
+import type { BfiDemoData, Borrower } from "@/lib/types/bfi";
+import type { PcafEvidenceRecord } from "@/lib/regulatory/pcaf/evidence-matrix";
 
 /**
  * Everything the application is allowed to ask the demo layer for.
@@ -49,13 +50,15 @@ export type DemoProvider = {
   /** Drop the in-process cache. Used by the seed routes after a rewrite. */
   invalidatePortfolioCache(): void;
   /**
-   * Borrower-name substrings that grant a PCAF Score 1 or 2 without any
-   * evidence behind them. Pure scaffolding: they exist so the demo has
-   * examples at the top of the data-quality ladder. Injected into
-   * inferPcafAvailability() rather than compiled into it, so the regulatory
-   * module contains no fabricated content.
+   * Seeded PCAF evidence records for a borrower — the fabricated document
+   * review that puts the demo's exemplars at the top of the data-quality
+   * ladder. A verified assurance opinion (→ Score 1) or GHG inventory
+   * (→ Score 2) for the seeded borrowers, empty otherwise. Handed to
+   * resolveAvailability() — the same resolver a live officer's review flows
+   * through — rather than asserting a score directly, so the regulatory module
+   * contains no fabricated content and demo/live derive scores identically.
    */
-  pcafNameFixtures(): { verified: string[]; unverified: string[] };
+  pcafEvidenceRecords(borrower: Borrower): PcafEvidenceRecord[];
   /**
    * A plausible PM2.5 reading for a facility, when no real station reading is
    * available. Previously generated inline inside buildScreening(), which is
@@ -67,6 +70,18 @@ export type DemoProvider = {
     lng: number;
     municipality?: string | null;
   }): { pm25: number; readingDate: string; stationName: string };
+  /**
+   * Demo-only reduction-target fixture. Whether an above-threshold borrower
+   * has a documented GHG reduction target is a FACT a live bank records, not
+   * arithmetic — so lib/regulatory/climate/infer.ts no longer fabricates it
+   * (N0.3). This returns the demo seed (~15% share, canned commitments) that
+   * is injected into inferEmissionsFlag / summarisePortfolioClimate so demo
+   * output is unchanged. A live build has no seed, so those functions assert
+   * no target until an officer records a real one.
+   */
+  reductionTargetSeed(
+    borrowerId: string,
+  ): { onFile: boolean; details: string | null };
 };
 
 /**
@@ -124,27 +139,48 @@ export async function getActiveDemoProvider(): Promise<DemoProvider | null> {
 }
 
 /**
- * Convenience for the production call sites of inferPcafAvailability().
+ * Convenience for the request-time call site that re-scores officer-reviewed
+ * borrowers (lib/api/pcaf-overlay.ts).
  *
- * Returns undefined in a live build OR when demo mode is off, which is
- * exactly what that function wants when nothing should be asserted. Exists so
- * the four call sites read identically -- if they diverged, the availability
- * panel and the portfolio could infer different flags for the same borrower
- * and neither would be obviously wrong.
+ * Returns the seeded PCAF evidence records for a borrower in an active demo
+ * build, or `undefined` in a live build / demo-off — which is exactly what the
+ * overlay wants when nothing should be seeded: a live borrower's Score 1/2
+ * rests only on the officer's own verified documents. Resolving through the
+ * provider keeps the demo boundary intact (lib/api may not import lib/demo
+ * directly) and keeps the overlay's derivation identical to the build-time
+ * pcafFor(), so the score an officer saw when they saved matches the one baked
+ * into the portfolio.
  *
- * Gating on mode as well as build matters here even though demo-off means an
- * empty portfolio today. These fixtures grant PCAF Score 1 and 2 on a name
- * match -- four hardcoded borrower names are the sole source of the top of
- * the score histogram. Once real borrowers are imported, a name collision
- * with "Ghorahi" or "Butwal Power" would silently hand a real loan a verified
- * -disclosure score it has not earned, and PCAF scores drive a disclosed
- * number. The gate costs nothing and closes that off before the import lands.
+ * Gating on mode as well as build matters even though demo-off means an empty
+ * portfolio today. The seed grants PCAF Score 1 and 2 to a handful of named
+ * borrowers; once real borrowers are imported, a name collision with "Ghorahi"
+ * or "Butwal Power" must not silently seed a real loan a verified-disclosure
+ * score it has not earned. The gate costs nothing and closes that off before
+ * the import lands.
  */
-export async function demoPcafNameFixtures(): Promise<
-  { verified: string[]; unverified: string[] } | undefined
+export async function demoPcafEvidenceRecords(): Promise<
+  ((borrower: Borrower) => PcafEvidenceRecord[]) | undefined
 > {
   const provider = await getActiveDemoProvider();
-  return provider?.pcafNameFixtures();
+  return provider ? (b: Borrower) => provider.pcafEvidenceRecords(b) : undefined;
+}
+
+/**
+ * Convenience for the call sites that compute the reduction-target flag.
+ *
+ * Returns a per-borrower seed function in an active demo build, or `undefined`
+ * in a live build / demo-off — which is exactly what inferEmissionsFlag,
+ * getBorrowerClimateBundle and summarisePortfolioClimate want when nothing
+ * should be asserted (N0.3). Resolve it once, then pass it into the sync
+ * regulatory function; the same gate on build AND mode that protects the PCAF
+ * name fixtures protects this fixture too, so a live import cannot conjure a
+ * fabricated reduction target onto a real borrower.
+ */
+export async function demoReductionTargetSeed(): Promise<
+  ((borrowerId: string) => { onFile: boolean; details: string | null }) | undefined
+> {
+  const provider = await getActiveDemoProvider();
+  return provider ? (id: string) => provider.reductionTargetSeed(id) : undefined;
 }
 
 /**

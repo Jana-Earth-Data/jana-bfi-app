@@ -40,6 +40,7 @@ import ctSnapshot from "@/data/ct-nepal-2024.json";
 import { EDGAR_NEPAL } from "@/lib/data/edgar-snapshot";
 import { ClimateRiskPanel } from "@/components/bfi/esrm/climate-risk-panel";
 import { inferEmissionsFlag } from "@/lib/regulatory/climate/infer";
+import type { BorrowerEmissionsFlag } from "@/lib/regulatory/climate/types";
 import { HydroDocMatrixPanel } from "@/components/bfi/hydro/doc-matrix-panel";
 import { PcafAvailabilityPanel } from "@/components/bfi/pcaf/availability-panel";
 import { CapPanel } from "@/components/bfi/cap/cap-panel";
@@ -491,6 +492,7 @@ export function EsrmTab({ data }: { data: DashboardSsrData }) {
                 selectedLoanId={selectedLoanId}
                 onSelect={setSelectedLoanId}
                 managerRows={managerRows}
+                emissionsFlags={data.emissionsFlags}
               />
             </Panel>
           )}
@@ -526,6 +528,9 @@ export function EsrmTab({ data }: { data: DashboardSsrData }) {
             <ScreeningWorkbench
               row={selectedRow}
               prebuiltScreening={data.screenings[selectedRow.borrower.id]}
+              prebuiltEmissionsFlag={
+                data.emissionsFlags[selectedRow.borrower.id]
+              }
               liveEnrichment={data.liveEnrichment}
               isMock={data.meta.isMock}
               managerRow={managerRows.get(selectedRow.loan.id) ?? null}
@@ -756,11 +761,20 @@ function ApplicationsList({
   selectedLoanId,
   onSelect,
   managerRows,
+  emissionsFlags,
 }: {
   apps: LoanRow[];
   selectedLoanId: string | null;
   onSelect: (id: string) => void;
   managerRows: Map<string, ManagerRow>;
+  /**
+   * Server-computed per-borrower emissions flags (see DashboardSsrData). The
+   * reduction-target seed (N0.3) is a demo-only fixture applied server-side,
+   * so we read it from here rather than calling inferEmissionsFlag() in this
+   * client component (which would ship the fixture to the browser). Absent-key
+   * fallback is the seedless inference — the honest live default.
+   */
+  emissionsFlags: Record<string, BorrowerEmissionsFlag>;
 }) {
   return (
     <div className="-m-2 max-h-[640px] overflow-y-auto">
@@ -770,8 +784,11 @@ function ApplicationsList({
           const m = managerRows.get(r.loan.id);
           const pct = m && m.total > 0 ? m.answered / m.total : 0;
           // NRB ESRM 2022 §4.3 — small badge when the borrower is above
-          // 25k tCO2e/yr without a documented reduction target.
-          const climateFlag = inferEmissionsFlag(r.borrower);
+          // 25k tCO2e/yr without a documented reduction target. Flag is
+          // computed server-side (N0.3); fall back to seedless inference for
+          // any borrower not in the map.
+          const climateFlag =
+            emissionsFlags[r.borrower.id] ?? inferEmissionsFlag(r.borrower);
           const climateBadge =
             climateFlag.exceedsReportingThreshold &&
             !climateFlag.reductionTargetOnFile;
@@ -1513,6 +1530,7 @@ function WorkbenchSubtabStrip({
 function ScreeningWorkbench({
   row,
   prebuiltScreening,
+  prebuiltEmissionsFlag,
   liveEnrichment,
   isMock,
   managerRow,
@@ -1524,6 +1542,12 @@ function ScreeningWorkbench({
 }: {
   row: LoanRow;
   prebuiltScreening?: import("@/lib/types/bfi").BorrowerScreening;
+  /**
+   * Server-computed emissions flag for this borrower (N0.3). Threaded to
+   * ClimateRiskPanel so its first synchronous paint reflects the demo
+   * reduction-target seed without the client component importing the fixture.
+   */
+  prebuiltEmissionsFlag?: BorrowerEmissionsFlag;
   liveEnrichment?: { edgar: boolean; openaq: boolean; edgarYear?: number };
   isMock: boolean;
   managerRow: ManagerRow | null;
@@ -1788,7 +1812,10 @@ function ScreeningWorkbench({
                 inference from sector + facility emissions; the panel also
                 refreshes from /api/climate/borrower/[borrowerId] to overlay
                 any persisted officer override. */}
-            <ClimateRiskPanel borrower={borrower} />
+            <ClimateRiskPanel
+              borrower={borrower}
+              prebuiltEmissionsFlag={prebuiltEmissionsFlag}
+            />
 
             <div className="mt-3">
               <StatRow

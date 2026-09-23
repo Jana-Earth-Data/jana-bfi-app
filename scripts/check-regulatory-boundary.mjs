@@ -67,7 +67,20 @@ const POLICY_PATTERNS = [
   {
     id: "ev-floor-million",
     pattern: /Math\.max\(\s*1_000_000\b/,
-    what: "an enterprise-value floor duplicated across aggregators (N0.1)",
+    what: "an enterprise-value floor duplicated across aggregators (belongs in lib/regulatory/pcaf/attribution.ts with a PCAF §4.2 citation — N0.2)",
+  },
+  {
+    // N0.1: the demo portfolio roll-up `buildSummary()` and the live re-overlay
+    // roll-up `recomputeSummary()` were a duplicated aggregator pair. They are
+    // collapsed into the single shared `summarise()` in
+    // lib/regulatory/pcaf/aggregation.ts; the historical name `recomputeSummary`
+    // survives only as a thin re-export wrapper in lib/api/bfi.ts. A second
+    // hand-rolled `buildSummary()` reappearing anywhere outside lib/regulatory
+    // is the mechanical signal that the pair has been re-created — exactly the
+    // drift this boundary removes. Fails immediately (no grandfather).
+    id: "duplicate-aggregator",
+    pattern: /\bfunction\s+buildSummary\b/,
+    what: "a second portfolio aggregator (the roll-up lives once in lib/regulatory/pcaf/aggregation.ts as summarise() — N0.1)",
   },
 ];
 
@@ -82,15 +95,32 @@ const POLICY_PATTERNS = [
  * so a small line drift from an unrelated edit does not spuriously fail.
  */
 const BASELINE = {
-  "npr-per-usd": ["lib/units.ts"],
-  "retail-emissions-factor": ["lib/demo/portfolio.ts"],
-  "as-of-date": ["lib/demo/synth-util.ts"],
-  // ev-floor-million: the demo aggregator floors enterprise value at
-  // Math.max(1_000_000, …) (portfolio.ts:344) while the live aggregator uses a
-  // different floor, Math.max(1, … || 1) (bfi.ts:189) — that very divergence is
-  // finding N0.1. Only the demo literal matches this pattern; grandfather it by
-  // file until N0.1 collapses both aggregators into one lib/regulatory helper.
-  "ev-floor-million": ["lib/demo/portfolio.ts"],
+  // npr-per-usd: RELOCATED by N0.6 (PR0-b). The FX rate now lives, dated and
+  // sourced, in lib/regulatory/fx/rates.ts; lib/units.ts only re-exports it.
+  // No grandfather entry remains, so any NEW `NPR_PER_USD =` definition outside
+  // lib/regulatory now fails the build.
+  // retail-emissions-factor: RELOCATED by N0.5 (PR0-c). The Score-5 retail
+  // proxy intensity (RETAIL_TCO2E_PER_NPR) now lives, with its illustrative
+  // provenance caveat attached, in lib/regulatory/pcaf/retail.ts; the demo
+  // synthesizer (portfolio.ts) imports retailProxyEmissionsTonnes() and
+  // RETAIL_PROXY_CITATION from there. No factor literal remains outside
+  // lib/regulatory. No grandfather entry remains, so any NEW
+  // `RETAIL_TCO2E_PER_NPR =` definition outside lib/regulatory now fails the
+  // build. This was the last grandfathered occurrence — BASELINE is now empty.
+  // as-of-date: RELOCATED by N0.7 (PR0-b). The reporting-period boundary now
+  // lives, derived from ingested coverage and dated, in
+  // lib/regulatory/reporting/period.ts (AS_OF_DATE); lib/reporting/periods.ts
+  // only re-exports it, and the demo's loan-lifecycle anchor was renamed to
+  // SYNTH_ANCHOR_DATE. No grandfather entry remains, so any NEW `AS_OF_DATE =`
+  // definition outside lib/regulatory now fails the build.
+  // ev-floor-million: RELOCATED by N0.2 (PR0-b). The enterprise-value floor
+  // that the demo aggregator (portfolio.ts) and the live re-overlay aggregator
+  // (bfi.ts) previously duplicated — with divergent values — now lives once,
+  // cited to PCAF Part A §4.2, in lib/regulatory/pcaf/attribution.ts
+  // (pcafAttributionFactor / flooredEnterpriseValueUsd). Both aggregators call
+  // that helper; no floor literal remains outside lib/regulatory. No
+  // grandfather entry remains, so any NEW Math.max(1_000_000, …) floor outside
+  // lib/regulatory now fails the build.
 };
 
 function walk(dir, out = []) {
@@ -161,6 +191,6 @@ if (newViolations.length > 0) {
 console.log(
   `[check-regulatory-boundary] no new policy outside lib/regulatory` +
     (grandfathered.length
-      ? ` (${grandfathered.length} grandfathered occurrence(s) pending N0.1–N0.7).`
+      ? ` (${grandfathered.length} grandfathered occurrence(s) pending relocation).`
       : "."),
 );
