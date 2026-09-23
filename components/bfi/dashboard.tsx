@@ -19,6 +19,7 @@ import {
 import { LoanRow } from "@/lib/data/portfolio-query";
 import type { Officer } from "@/lib/tenants";
 import type { ClimatePortfolioSummary } from "@/lib/regulatory/climate/infer";
+import type { BorrowerEmissionsFlag } from "@/lib/regulatory/climate/types";
 
 export type DashboardSsrData = {
   meta: BfiDemoMeta;
@@ -30,6 +31,16 @@ export type DashboardSsrData = {
   facilityBorrowers: Borrower[]; // borrowers with facility data (for ESRM/maps)
   /** Pre-computed screenings keyed by borrower ID (covers the applications queue). */
   screenings: Record<string, BorrowerScreening>;
+  /**
+   * Pre-computed per-borrower emissions flags (NRB ESRM 2022 §4.3), keyed by
+   * borrower ID, for the same borrower set as `screenings`. Computed
+   * server-side so the reduction-target seed (a demo-only fixture, N0.3) is
+   * applied there rather than shipped to the browser: client components read
+   * this map instead of calling inferEmissionsFlag() directly. Absent-key
+   * lookups fall back to the seedless inference, which is the honest live
+   * default (no target asserted until an officer records one).
+   */
+  emissionsFlags: Record<string, BorrowerEmissionsFlag>;
   /**
    * Portfolio-level climate risk summary (NRB ESRM 2022 §4.4).
    * Powers the NFRS "above threshold without target" callout and any

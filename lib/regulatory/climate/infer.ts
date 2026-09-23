@@ -190,7 +190,7 @@ function rollupRating(
 }
 
 // ---------------------------------------------------------------------------
-// Deterministic hash for reduction-target seeding
+// Deterministic hash for the assessed-at timestamp
 // ---------------------------------------------------------------------------
 
 function stableHash(s: string): number {
@@ -200,6 +200,34 @@ function stableHash(s: string): number {
   }
   return h >>> 0; // uint32
 }
+
+// ---------------------------------------------------------------------------
+// Reduction-target seam (N0.3)
+// ---------------------------------------------------------------------------
+//
+// Whether an above-threshold borrower has a documented GHG reduction target is
+// DATA, not arithmetic — in a live deployment it is a fact the ESRM officer
+// records (persisted in `bfi_climate_risk_assessments.reduction_target_on_file`;
+// see the API override in app/api/climate/borrower/[id]/route.ts). It must NOT
+// be fabricated inside lib/regulatory, or a live build inherits invented
+// reduction targets on a disclosure surface (backlog N0.3, §0 principle).
+//
+// So the reduction-target value is INJECTED. `inferEmissionsFlag` accepts an
+// optional seed keyed by borrower id; when absent — the live default — the flag
+// is `false` / `null` and the officer override (empty by default) is the sole
+// source. The demo passes `demoReductionTargetSeed` from lib/demo/climate-seed
+// to reproduce the previous ~15% distribution, so demo output is unchanged.
+
+/** A documented reduction target for one borrower, or its absence. */
+export type ReductionTargetSeed = {
+  onFile: boolean;
+  details: string | null;
+};
+
+/** Injected per-borrower reduction-target provider (demo fixture or override). */
+export type ReductionTargetSeedFn = (borrowerId: string) => ReductionTargetSeed;
+
+const NO_REDUCTION_TARGET: ReductionTargetSeed = { onFile: false, details: null };
 
 // ---------------------------------------------------------------------------
 // Public inference API
@@ -233,44 +261,30 @@ export function estimateAnnualTco2e(b: Borrower): number | null {
  * reduction plan." Banks are expected to flag borrowers that cross the
  * threshold without a reduction target on file.
  *
- * Seeding rule (demo only): 10-20% of above-threshold borrowers are
- * flagged as having a reduction target on file. The rest are the
- * compliance-relevant population the NFRS callout enumerates.
+ * Whether a reduction target is on file is INJECTED, not computed here — see
+ * the "Reduction-target seam" note above. `seed` provides it per borrower;
+ * when omitted (the live default) no target is asserted, and a below-threshold
+ * borrower never carries one (§4.3 does not require it).
  */
-export function inferEmissionsFlag(b: Borrower): BorrowerEmissionsFlag {
+export function inferEmissionsFlag(
+  b: Borrower,
+  seed?: ReductionTargetSeedFn,
+): BorrowerEmissionsFlag {
   const estimated = estimateAnnualTco2e(b);
   const exceeds =
     estimated !== null &&
     estimated >= NRB_ESRM_GHG_REPORTING_THRESHOLD_TCO2E;
 
-  // Deterministic 15% probability of a reduction target on file among
-  // above-threshold borrowers. Below-threshold borrowers get no target
-  // (they're not required to have one per §4.3).
-  let reductionTargetOnFile = false;
-  let targetDetails: string | null = null;
-  if (exceeds) {
-    const h = stableHash(`${b.id}:reduction-target`);
-    // 15% share — every ~7th borrower. Verbatim shape 10-20% per task.
-    reductionTargetOnFile = h % 100 < 15;
-    if (reductionTargetOnFile) {
-      // Vary the target text so the ESRM tab renders plausibly-different
-      // commitments. All variants align to NRB ESRM 2022 §4.3 wording
-      // (measure / disclose / set targets / mitigate).
-      const variants = [
-        "Board-approved 25% reduction in Scope 1+2 by 2030 (2020 baseline)",
-        "10% intensity reduction per unit output by 2028; annual disclosure via NFRS",
-        "Net-zero pathway aligned to NDC 2020; interim 30% reduction by 2030",
-        "Committed to SBTi 1.5C pathway; validation in progress",
-      ];
-      targetDetails = variants[h % variants.length];
-    }
-  }
+  // A reduction target is only meaningful for above-threshold borrowers, and
+  // only when a provider (demo fixture or persisted officer override) supplies
+  // one. Absent a seed, lib/regulatory asserts nothing.
+  const target = exceeds && seed ? seed(b.id) : NO_REDUCTION_TARGET;
 
   return {
     estimatedAnnualTco2e: estimated ?? 0,
     exceedsReportingThreshold: exceeds,
-    reductionTargetOnFile,
-    targetDetails,
+    reductionTargetOnFile: target.onFile,
+    targetDetails: target.details,
   };
 }
 
@@ -303,12 +317,18 @@ export function inferClimateRisk(b: Borrower): BorrowerClimateRisk {
   };
 }
 
-/** Combined bundle — what the API endpoint and UI panel consume. */
-export function getBorrowerClimateBundle(b: Borrower): BorrowerClimateBundle {
+/**
+ * Combined bundle — what the API endpoint and UI panel consume. `seed`
+ * (optional) supplies the reduction-target fact; see `inferEmissionsFlag`.
+ */
+export function getBorrowerClimateBundle(
+  b: Borrower,
+  seed?: ReductionTargetSeedFn,
+): BorrowerClimateBundle {
   return {
     borrowerId: b.id,
     climateRisk: inferClimateRisk(b),
-    emissionsFlag: inferEmissionsFlag(b),
+    emissionsFlag: inferEmissionsFlag(b, seed),
   };
 }
 
@@ -333,10 +353,14 @@ export type ClimatePortfolioSummary = {
  * or a bounded string[].
  *
  * The "above threshold without target" count is the compliance-relevant
- * flag NRB ESRM 2022 §4.3 asks banks to surface.
+ * flag NRB ESRM 2022 §4.3 asks banks to surface. `seed` (optional) supplies
+ * the reduction-target facts; absent it, every above-threshold borrower is
+ * counted as "without target" (the honest live default until officers record
+ * targets) — see `inferEmissionsFlag`.
  */
 export function summarisePortfolioClimate(
   borrowers: Borrower[],
+  seed?: ReductionTargetSeedFn,
 ): ClimatePortfolioSummary {
   const scoped = borrowers.filter(
     (b) => b.kind !== "retail-pool" && b.nrbSector,
@@ -349,7 +373,7 @@ export function summarisePortfolioClimate(
 
   for (const b of scoped) {
     const climate = inferClimateRisk(b);
-    const flag = inferEmissionsFlag(b);
+    const flag = inferEmissionsFlag(b, seed);
     if (climate.physicalRisks.length > 0) borrowersWithPhysicalRisk += 1;
     if (climate.transitionRisks.length > 0) borrowersWithTransitionRisk += 1;
     if (flag.exceedsReportingThreshold) {

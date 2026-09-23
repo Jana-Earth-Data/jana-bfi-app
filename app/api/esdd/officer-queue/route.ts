@@ -35,6 +35,7 @@ import { findActivityById } from "@/lib/regulatory/taxonomy/activities";
 import { isProjectFinanceLoanWithOverride } from "@/lib/regulatory/esdd/pf-loan-gate";
 import { ANNEX5B_ALL } from "@/lib/regulatory/esdd/annex5b-pf-questions";
 import { inferEmissionsFlag } from "@/lib/regulatory/climate/infer";
+import { demoReductionTargetSeed } from "@/lib/demo/provider";
 import { requireOfficer, requireCaptureClient } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
@@ -451,6 +452,10 @@ export async function GET() {
   // ------------------------------------------------------------------
   // 6. Build a LoanCard for every candidate loan, then bucket.
   // ------------------------------------------------------------------
+  // Reduction-target seed (N0.3): demo build supplies the ~15% fixture; live
+  // build supplies nothing, so the card's reductionTargetOnFile stays false
+  // until an officer records a real target.
+  const reductionSeed = await demoReductionTargetSeed();
   const cards: LoanCard[] = [];
   for (const loanId of candidateLoanIds) {
     const loan = loanById.get(loanId);
@@ -512,7 +517,7 @@ export async function GET() {
       reason = "Ready for review";
     }
 
-    const climateFlag = inferEmissionsFlag(borrower);
+    const climateFlag = inferEmissionsFlag(borrower, reductionSeed);
 
     cards.push({
       loanId,

@@ -21,6 +21,7 @@ import {
   PCAF_NAME_FIXTURES_UNVERIFIED,
   synthAirQuality,
 } from "./fixtures";
+import { demoReductionTargetSeed } from "./climate-seed";
 import type { DemoProvider } from "./provider";
 
 export const demoProvider: DemoProvider = {
@@ -31,4 +32,5 @@ export const demoProvider: DemoProvider = {
     unverified: PCAF_NAME_FIXTURES_UNVERIFIED,
   }),
   synthAirQuality,
+  reductionTargetSeed: demoReductionTargetSeed,
 };

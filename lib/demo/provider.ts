@@ -67,6 +67,18 @@ export type DemoProvider = {
     lng: number;
     municipality?: string | null;
   }): { pm25: number; readingDate: string; stationName: string };
+  /**
+   * Demo-only reduction-target fixture. Whether an above-threshold borrower
+   * has a documented GHG reduction target is a FACT a live bank records, not
+   * arithmetic — so lib/regulatory/climate/infer.ts no longer fabricates it
+   * (N0.3). This returns the demo seed (~15% share, canned commitments) that
+   * is injected into inferEmissionsFlag / summarisePortfolioClimate so demo
+   * output is unchanged. A live build has no seed, so those functions assert
+   * no target until an officer records a real one.
+   */
+  reductionTargetSeed(
+    borrowerId: string,
+  ): { onFile: boolean; details: string | null };
 };
 
 /**
@@ -145,6 +157,24 @@ export async function demoPcafNameFixtures(): Promise<
 > {
   const provider = await getActiveDemoProvider();
   return provider?.pcafNameFixtures();
+}
+
+/**
+ * Convenience for the call sites that compute the reduction-target flag.
+ *
+ * Returns a per-borrower seed function in an active demo build, or `undefined`
+ * in a live build / demo-off — which is exactly what inferEmissionsFlag,
+ * getBorrowerClimateBundle and summarisePortfolioClimate want when nothing
+ * should be asserted (N0.3). Resolve it once, then pass it into the sync
+ * regulatory function; the same gate on build AND mode that protects the PCAF
+ * name fixtures protects this fixture too, so a live import cannot conjure a
+ * fabricated reduction target onto a real borrower.
+ */
+export async function demoReductionTargetSeed(): Promise<
+  ((borrowerId: string) => { onFile: boolean; details: string | null }) | undefined
+> {
+  const provider = await getActiveDemoProvider();
+  return provider ? (id: string) => provider.reductionTargetSeed(id) : undefined;
 }
 
 /**

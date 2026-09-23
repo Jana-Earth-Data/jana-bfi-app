@@ -22,14 +22,22 @@ import {
   Borrower,
   BorrowerScreening,
 } from "@/lib/types/bfi";
+import type { BorrowerEmissionsFlag } from "@/lib/regulatory/climate/types";
 import type { DashboardSsrData } from "@/components/bfi/dashboard";
 import {
   buildScreening,
   buildScreeningLive,
 } from "@/lib/data/screening";
 import { EDGAR_NEPAL } from "@/lib/data/edgar-snapshot";
-import { getActiveDemoProvider, getDemoProvider } from "@/lib/demo/provider";
-import { summarisePortfolioClimate } from "@/lib/regulatory/climate/infer";
+import {
+  demoReductionTargetSeed,
+  getActiveDemoProvider,
+  getDemoProvider,
+} from "@/lib/demo/provider";
+import {
+  inferEmissionsFlag,
+  summarisePortfolioClimate,
+} from "@/lib/regulatory/climate/infer";
 
 const INITIAL_PAGE_SIZE = 50;
 const TOP_N = 20;
@@ -170,8 +178,23 @@ export async function buildDashboardSlice(
 
   // Portfolio-level climate risk summary (NRB ESRM 2022 §4.4). Computes
   // the "above threshold without target" callout counts once at slice
-  // build time so the NFRS tab doesn't need a per-page fetch.
-  const climateSummary = summarisePortfolioClimate(data.borrowers);
+  // build time so the NFRS tab doesn't need a per-page fetch. The
+  // reduction-target seed is injected (N0.3): a demo build supplies the
+  // ~15% fixture; a live build supplies nothing, so every above-threshold
+  // borrower counts as "without target" until an officer records a real one.
+  const reductionSeed = await demoReductionTargetSeed();
+  const climateSummary = summarisePortfolioClimate(data.borrowers, reductionSeed);
+
+  // Per-borrower emissions flags for the screening/application set, computed
+  // here so the reduction-target seed (N0.3) is applied server-side. The ESRM
+  // tab and climate-risk panel are client components that must NOT import the
+  // demo seed (it would ship the fixture to the browser and cross the demo
+  // boundary), so they read this map instead of calling inferEmissionsFlag()
+  // themselves. Same borrower set as `screenings`.
+  const emissionsFlags: Record<string, BorrowerEmissionsFlag> = {};
+  for (const b of screeningBorrowers) {
+    emissionsFlags[b.id] = inferEmissionsFlag(b, reductionSeed);
+  }
 
   const slice: DashboardSlicePartial = {
     meta: data.meta,
@@ -182,6 +205,7 @@ export async function buildDashboardSlice(
     applications: apps,
     facilityBorrowers,
     screenings,
+    emissionsFlags,
     climateSummary,
     liveEnrichment: token ? { edgar: edgarOk, openaq: openaqOk, edgarYear } : undefined,
     distinctValues: {

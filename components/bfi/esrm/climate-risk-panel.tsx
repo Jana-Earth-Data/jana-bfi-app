@@ -28,6 +28,7 @@ import {
   NGFS_CHRONIC_PHYSICAL,
   NRB_ESRM_GHG_REPORTING_THRESHOLD_TCO2E,
   type BorrowerClimateBundle,
+  type BorrowerEmissionsFlag,
   type ClimateRiskRating,
   type NgfsPhysicalRiskCategory,
 } from "@/lib/regulatory/climate/types";
@@ -50,12 +51,32 @@ function isChronic(cat: NgfsPhysicalRiskCategory): boolean {
   return (NGFS_CHRONIC_PHYSICAL as string[]).includes(cat);
 }
 
-export function ClimateRiskPanel({ borrower }: { borrower: Borrower }) {
+export function ClimateRiskPanel({
+  borrower,
+  prebuiltEmissionsFlag,
+}: {
+  borrower: Borrower;
+  /**
+   * Server-computed emissions flag (N0.3). The demo reduction-target seed is a
+   * demo-only fixture applied server-side; this client component must not
+   * import it, so the parent passes the pre-computed flag for the first
+   * synchronous paint. Absent (live / not threaded) → the seedless inference,
+   * which asserts no target — the honest default — and the API refresh below
+   * still overlays any persisted officer override.
+   */
+  prebuiltEmissionsFlag?: BorrowerEmissionsFlag;
+}) {
   // Seed from the deterministic in-memory inference so the panel renders
-  // instantly on first paint — no loading flash for the manager.
-  const [bundle, setBundle] = useState<BorrowerClimateBundle>(() =>
-    getBorrowerClimateBundle(borrower),
-  );
+  // instantly on first paint — no loading flash for the manager. The
+  // reduction-target portion of the emissions flag comes from the
+  // server-computed prop when supplied (N0.3), so the demo seed is reflected
+  // without shipping the fixture to the browser.
+  const [bundle, setBundle] = useState<BorrowerClimateBundle>(() => {
+    const seeded = getBorrowerClimateBundle(borrower);
+    return prebuiltEmissionsFlag
+      ? { ...seeded, emissionsFlag: prebuiltEmissionsFlag }
+      : seeded;
+  });
 
   // Refresh from the API — overlays any persisted override captured in
   // the bfi_climate_risk_assessments table (see

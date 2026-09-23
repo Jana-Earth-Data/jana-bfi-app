@@ -34,6 +34,7 @@ import {
   inferClimateRisk,
   inferEmissionsFlag,
 } from "@/lib/regulatory/climate/infer";
+import { demoReductionTargetSeed } from "@/lib/demo/provider";
 import type {
   BorrowerClimateRisk,
   BorrowerEmissionsFlag,
@@ -101,7 +102,11 @@ export async function GET(_req: Request, { params }: Params) {
     );
   }
 
-  const inferred = getBorrowerClimateBundle(borrower);
+  // Reduction-target seed (N0.3): demo build supplies the ~15% fixture; live
+  // build supplies nothing, so the base inference asserts no target and the
+  // Supabase override below becomes the sole source.
+  const reductionSeed = await demoReductionTargetSeed();
+  const inferred = getBorrowerClimateBundle(borrower, reductionSeed);
   let climateRisk: BorrowerClimateRisk = inferred.climateRisk;
   let emissionsFlag: BorrowerEmissionsFlag = inferred.emissionsFlag;
 
@@ -146,7 +151,7 @@ export async function GET(_req: Request, { params }: Params) {
 
   // Fallback: if we lost the flag object above, recompute from borrower.
   if (!emissionsFlag) {
-    emissionsFlag = inferEmissionsFlag(borrower);
+    emissionsFlag = inferEmissionsFlag(borrower, reductionSeed);
   }
 
   return NextResponse.json({

@@ -87,7 +87,7 @@ Nothing else should ship before these. They are the reason the gap analysis is m
 |---|---|------|-----|-------|------|------|-----|
 | ☐ | N0.1 | **Collapse the duplicated aggregator pair.** One `summarise()` in `lib/regulatory`, called by both providers. Delete `recomputeSummary()`. | Disclosed total depends on serving path | `demo/portfolio.ts:502`, `api/bfi.ts:239` | shared | shared | 2 |
 | ☐ | N0.2 | **Single EV floor policy**, defined and documented once in `lib/regulatory/pcaf`, cited to PCAF Part A. Remove both local floors. | Two denominators, two answers | `demo/portfolio.ts:345`, `api/bfi.ts:190` | shared | shared | 1 |
-| ☐ | N0.3 | **Move the demo-only reduction-target hash out of `lib/regulatory`.** `stableHash(...) % 100 < 15` with four canned strings currently sits in `lib/regulatory/climate/infer.ts:250` and a live build inherits it. | Fabricated data in the live path; feeds the NFRS climate callout | `regulatory/climate/infer.ts:250-268` | demo seed | removed | 1 |
+| ☑ | N0.3 | **Move the demo-only reduction-target hash out of `lib/regulatory`.** DONE: `stableHash(...) % 100 < 15` + four canned strings relocated from `lib/regulatory/climate/infer.ts` to `lib/demo/climate-seed.ts`. `inferEmissionsFlag`/`getBorrowerClimateBundle`/`summarisePortfolioClimate` take an optional injected `ReductionTargetSeedFn` and assert no target when absent (honest live default). Demo injects via the provider (`demoReductionTargetSeed`); the two client components (`esrm-tab`, `climate-risk-panel`) read a server-computed `emissionsFlags` map on `DashboardSsrData` rather than importing the fixture. All 24 goldens frozen; boundary guards pass. | Fabricated data in the live path; feeds the NFRS climate callout | `regulatory/climate/infer.ts:250-268` | demo seed | removed | 1 |
 | ☐ | N0.4 | **Replace name-substring scoring with evidence-driven scoring.** Demo seeds evidence documents; `pcaf/scoring.ts` reads evidence. Delete `PCAF_NAME_FIXTURES_*` and the second list in `entities.ts:212`. | Only route to Score 1/2 is a hardcoded name | `demo/fixtures.ts:41-60`, `demo/entities.ts:212`, `pcaf/scoring.ts:52-54,161` | seeded evidence | shared | 3 |
 | ☐ | N0.5 | **Retail factor: derive or disclose.** `RETAIL_TCO2E_PER_NPR = 6e-6` was tuned so the headline "stays under 10M tCO2e". Either source it to a published factor with a citation, or exclude retail from the disclosed figure and say so. | A disclosure figure tuned to a chart | `demo/portfolio.ts:256-265` | shared | shared | 1.5 |
 | ☑ | N0.6 | **Fixed (PR0-b).** The undated `NPR_PER_USD = 133.5` moved out of `lib/units.ts` into `lib/regulatory/fx/rates.ts` as a dated, sourced `REPORTING_FX_RATE` (`FxRate {nprPerUsd, asOf, source}`; 133.5 as of 2024-07-15, NRB FY2023/24-close reference), satisfying S1 §24's rate-and-date requirement; `units.ts` re-exports it so the value is unchanged (arithmetic-neutral). Guard `npr-per-usd` grandfather removed. See PROJECT_PLAN §13. | Undated constant in a disclosed figure | `lib/units.ts:19` → `lib/regulatory/fx/rates.ts` | shared | shared | 1.5 |
@@ -119,9 +119,12 @@ This is what turns "we publish a financed-emissions figure" into "we satisfy the
 | ☐ | N1.10 | **Derived methodology disclosure** replacing the hardcoded string: which option, which denominator, which factor source, per loan and in aggregate. | B62(d), §29(a)(iii) | shared | shared | 2 |
 | ☐ | N1.11 | **Extent of primary-activity data and extent of verified data**, as disclosed metrics. The PCAF evidence matrix already holds most of the inputs. | B55–B56 | shared | shared | 2 |
 | ☐ | N1.12 | **Consolidation approach** (equity share or control) as a configured, disclosed per-bank property. | B27 | shared | shared | 1 |
+| ☐ | N1.13 | **Per-tenant reporting FX rate and reporting period — wire the live override N0.6/N0.7 left stubbed.** Today live and demo share the *same pinned constants*: `REPORTING_FX_RATE` (133.5, as-of 2024-07-15) in `lib/regulatory/fx/rates.ts` and the derived `AS_OF_DATE`/`TREND_YEARS` in `lib/regulatory/reporting/period.ts`. Both files' "WHAT A LIVE DEPLOYMENT DOES" docstrings (`fx/rates.ts:24-30`, `period.ts` docstring + `AS_OF_DATE`) describe a live bank sourcing its *own* dated rate and deriving the period from *ingested Climate TRACE coverage* — **that behaviour is aspirational, not implemented; there is no tenant override.** Add `TenantConfig.reportingFxRate` (an `FxRate`) and `TenantConfig.reportingPeriod` (mirroring the N0.8 `bankClass` pattern), and have the live aggregator (`api/bfi.ts` `recomputeSummary`/`fetchLiveAndOverlay`) read the tenant values and derive `TREND_YEARS`/`LATEST_YEAR`/as-of from the coverage actually fetched, falling back to the pinned constants when unset. Demo tenants leave both unset → identical arithmetic (goldens frozen). Then replace the aspirational docstrings with a pointer to this task. **N0.6 and N0.7 deliberately made this possible** — the dated `FxRate` object and the derived, single-source `AS_OF_DATE` are the seams — without wiring the override, which is a live-path capability, not a demo-integrity fix. | S1 §24 (rate + date), B62 currency; §29(a)(iii) as-of | unset → pinned fallback (no movement) | reads tenant `reportingFxRate` + derives period from ingested coverage | 2 |
 
 **Exit criterion:** the financed-emissions disclosure satisfies B62(a)–(d) in full, and every figure in it
-can be traced to an input and a method.
+can be traced to an input and a method. A live tenant discloses its *own* dated FX rate and a reporting
+period derived from its ingested coverage; the `lib/regulatory` docstrings describe implemented behaviour,
+not an aspiration (N1.13).
 
 ---
 
@@ -226,7 +229,7 @@ data quality that Tier N1 is what establishes.
 | Tier | Days |
 |---|---|
 | N0 — integrity | 10.5 |
-| N1 — B62 compliance | 32 |
+| N1 — B62 compliance | 34 |
 | N2 — own footprint | 11.25 |
 | N3 — three pillars (excl. N3.8) | 25 |
 | N3.8 — scenario analysis | 20+ |
