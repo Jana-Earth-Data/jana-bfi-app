@@ -13,6 +13,7 @@
 
 import { apiFetchAll } from "@/lib/api/client";
 import { pcafAttributionFactor } from "@/lib/regulatory/pcaf/attribution";
+import { summarise } from "@/lib/regulatory/pcaf/aggregation";
 import { TREND_YEARS } from "@/lib/reporting/periods";
 import { getDemoProvider } from "@/lib/demo/provider";
 import { isDemoMode } from "@/lib/demo/mode";
@@ -22,8 +23,6 @@ import {
   Borrower,
   PcafAttribution,
   PortfolioSummary,
-  PortfolioTrendPoint,
-  TaxonomyBreakdown,
   Loan,
 } from "@/lib/types/bfi";
 
@@ -229,222 +228,25 @@ function overlayLive(
   };
 }
 
-// AGGREGATOR-PAIR: this function mirrors buildSummary() in lib/data/portfolio.ts.
-// The two share ~90% of aggregation logic (taxonomy breakdown, sector breakdown,
-// data-quality distribution, multi-year trend). Any change to attribution shape,
-// sector bucketing, taxonomy bucketing, or trend-per-year logic MUST be applied
-// in BOTH functions or mock-mode and live-mode paths will silently diverge.
-// The ~10% difference between them handles mock synthesis vs. live overlay
-// specifics — do not consolidate without cataloguing each intentional divergence.
-// Track consolidation in a post-demo issue.
-// Exported so lib/api/pcaf-overlay.ts can rebuild aggregates through the same
-// path rather than adding a third implementation to the pair described above.
+// ONE COMPUTATION, TWO PROVIDERS (backlog N0.1). The portfolio roll-up that used
+// to live here (recomputeSummary) and its demo twin (buildSummary in
+// lib/demo/portfolio.ts) shared ~90 % of their logic and a hand-maintained "keep
+// these in step" comment — the exact drift risk the regulatory boundary exists
+// to remove. The two are now collapsed into the single shared computation
+// `summarise()` in lib/regulatory/pcaf/aggregation.ts; both providers call it, so
+// a disclosed total can no longer depend on which path produced it.
+//
+// This re-export keeps the historical name `recomputeSummary` so the existing
+// live call sites are unchanged: the live overlay above (overlayLive) and
+// lib/api/pcaf-overlay.ts both import { recomputeSummary } from "@/lib/api/bfi".
+// It is a function declaration (not a const alias) so it stays hoisted for the
+// overlayLive call above, which precedes this line.
 export function recomputeSummary(
   loans: Loan[],
   borrowers: Borrower[],
   attributions: PcafAttribution[]
 ): PortfolioSummary {
-  // Mirror the synthesizer's aggregation logic, but on whatever borrowers we have now.
-  const borrowerMap = new Map(borrowers.map((b) => [b.id, b]));
-  const attrByLoan = new Map(attributions.map((a) => [a.loanId, a]));
-  // Loan lookup by id. Built once so the data-quality-bucket loop below is a
-  // Map get() per attribution instead of a full loans.find() scan — at 80K
-  // loans that inner scan was O(n^2) (~6.4B comparisons) and dominated the
-  // officer-PCAF overlay's recompute, adding ~10s of blocking CPU to every
-  // force-dynamic homepage render. See the dqBuckets loop.
-  const loanById = new Map(loans.map((l) => [l.id, l]));
-
-  const totalLoans = loans.length;
-  const totalOutstandingNpr = loans.reduce((s, l) => s + l.outstandingNpr, 0);
-  const totalOutstandingUsd = loans.reduce((s, l) => s + l.outstandingUsd, 0);
-  const totalAttributedCo2eTonnes = attributions.reduce(
-    (s, a) => s + a.attributedCo2eTonnes,
-    0
-  );
-
-  let weightedSum = 0;
-  let weightedDenom = 0;
-  for (const a of attributions) {
-    if (a.attributedCo2eTonnes <= 0) continue;
-    weightedSum += a.dataQualityScore * a.attributedCo2eTonnes;
-    weightedDenom += a.attributedCo2eTonnes;
-  }
-  const weightedDataQuality =
-    weightedDenom > 0
-      ? Math.round((weightedSum / weightedDenom) * 10) / 10
-      : 0;
-
-  const taxonomyBreakdown: TaxonomyBreakdown = {
-    green: 0,
-    amber: 0,
-    red: 0,
-    unclassified: 0,
-  };
-  const taxonomyBreakdownValue: TaxonomyBreakdown = {
-    green: 0,
-    amber: 0,
-    red: 0,
-    unclassified: 0,
-  };
-  for (const l of loans) {
-    taxonomyBreakdown[l.nrbTaxonomy]++;
-    taxonomyBreakdownValue[l.nrbTaxonomy] += l.outstandingNpr;
-  }
-
-  const sectorMap = new Map<
-    string,
-    { co2e: number; count: number; npr: number }
-  >();
-  for (const loan of loans) {
-    const b = borrowerMap.get(loan.borrowerId);
-    if (!b || b.kind === "retail-pool") continue;
-    const a = attrByLoan.get(loan.id);
-    const prev = sectorMap.get(b.nrbSector) ?? { co2e: 0, count: 0, npr: 0 };
-    sectorMap.set(b.nrbSector, {
-      co2e: prev.co2e + (a?.attributedCo2eTonnes ?? 0),
-      count: prev.count + 1,
-      npr: prev.npr + loan.outstandingNpr,
-    });
-  }
-  const sectorBreakdown = Array.from(sectorMap.entries())
-    .map(([sector, v]) => ({
-      sector,
-      attributedCo2e: Math.round(v.co2e),
-      loanCount: v.count,
-      outstandingNpr: v.npr,
-    }))
-    .sort((a, b) => b.attributedCo2e - a.attributedCo2e);
-
-  const inScopeLoans = loans.filter(
-    (l) => !(l.category ?? "").startsWith("retail-")
-  );
-  const facilityMatchedLoans = inScopeLoans.filter((l) => {
-    const b = borrowerMap.get(l.borrowerId);
-    return b && b.dataTier === "facility";
-  });
-  const inScopeOutstandingNpr = inScopeLoans.reduce(
-    (s, l) => s + l.outstandingNpr,
-    0
-  );
-  const facilityMatchedOutstandingNpr = facilityMatchedLoans.reduce(
-    (s, l) => s + l.outstandingNpr,
-    0
-  );
-
-  const dqBuckets = new Map<
-    1 | 2 | 3 | 4 | 5,
-    {
-      count: number;
-      outstandingUsd: number;
-      outstandingNpr: number;
-      co2: number;
-    }
-  >();
-  for (const a of attributions) {
-    const prev =
-      dqBuckets.get(a.dataQualityScore) ?? {
-        count: 0,
-        outstandingUsd: 0,
-        outstandingNpr: 0,
-        co2: 0,
-      };
-    const loan = loanById.get(a.loanId);
-    dqBuckets.set(a.dataQualityScore, {
-      count: prev.count + 1,
-      outstandingUsd: prev.outstandingUsd + (loan?.outstandingUsd ?? 0),
-      outstandingNpr: prev.outstandingNpr + (loan?.outstandingNpr ?? 0),
-      co2: prev.co2 + a.attributedCo2eTonnes,
-    });
-  }
-  const dataQualityDistribution = [1, 2, 3, 4, 5].map((s) => {
-    const v =
-      dqBuckets.get(s as 1 | 2 | 3 | 4 | 5) ?? {
-        count: 0,
-        outstandingUsd: 0,
-        outstandingNpr: 0,
-        co2: 0,
-      };
-    return {
-      score: s as 1 | 2 | 3 | 4 | 5,
-      loanCount: v.count,
-      outstandingUsd: Math.round(v.outstandingUsd),
-      outstandingNpr: Math.round(v.outstandingNpr),
-      attributedCo2eTonnes: Math.round(v.co2),
-    };
-  });
-
-  // Trend: aggregate emissionsByYear weighted by attributionFactor.
-  // Shares TREND_YEARS with the synthesizer rather than restating the range:
-  // the two were identical literals kept in step by a comment, which would
-  // have diverged the first time coverage changed on one side only.
-  const trendYears = TREND_YEARS;
-  const trend: PortfolioTrendPoint[] = trendYears.map((y) => {
-    let total = 0;
-    const tx: TaxonomyBreakdown = {
-      green: 0,
-      amber: 0,
-      red: 0,
-      unclassified: 0,
-    };
-    for (const loan of loans) {
-      const b = borrowerMap.get(loan.borrowerId);
-      if (!b) continue;
-      const a = attrByLoan.get(loan.id);
-      if (!a) continue;
-      let yearTotal = 0;
-      if (b.kind === "retail-pool") {
-        // Retail loans use the revenue-proxy attribution from pcafFor() —
-        // flat year-over-year. Include them so the trend chart's
-        // Unclassified band matches the Data Quality Distribution panel.
-        yearTotal = a.attributedCo2eTonnes;
-      } else if (b.facilities.length > 0) {
-        let perFacility = 0;
-        for (const f of b.facilities) {
-          const pt = f.emissionsByYear?.find((p) => p.year === y);
-          perFacility += pt?.co2eTonnes ?? f.annualCo2eTonnes;
-        }
-        yearTotal = a.attributionFactor * perFacility;
-      } else {
-        yearTotal = a.attributedCo2eTonnes;
-      }
-      total += yearTotal;
-      tx[loan.nrbTaxonomy] += yearTotal;
-    }
-    return {
-      year: y,
-      totalAttributedCo2eTonnes: Math.round(total),
-      byTaxonomy: {
-        green: Math.round(tx.green),
-        amber: Math.round(tx.amber),
-        red: Math.round(tx.red),
-        unclassified: Math.round(tx.unclassified),
-      },
-    };
-  });
-
-  return {
-    totalLoans,
-    totalOutstandingUsd: Math.round(totalOutstandingUsd),
-    totalOutstandingNpr,
-    totalAttributedCo2eTonnes: Math.round(totalAttributedCo2eTonnes),
-    weightedDataQuality,
-    taxonomyBreakdown,
-    taxonomyBreakdownValue,
-    sectorBreakdown,
-    funnel: {
-      totalLoans,
-      inScopeLoans: inScopeLoans.length,
-      facilityMatchedLoans: facilityMatchedLoans.length,
-      facilityMatchedBorrowers: new Set(
-        facilityMatchedLoans.map((l) => l.borrowerId)
-      ).size,
-      totalOutstandingNpr,
-      inScopeOutstandingNpr,
-      facilityMatchedOutstandingNpr,
-    },
-    dataQualityDistribution,
-    trend,
-  };
+  return summarise(loans, borrowers, attributions);
 }
 
 async function fetchLiveAndOverlay(

@@ -17,17 +17,12 @@
 import {
   Borrower,
   BfiDemoData,
-  DataQualityDistribution,
   Loan,
   LoanCategory,
   LoanStatus,
   NrbTaxonomyColor,
   PcafAttribution,
   PcafMethodology,
-  PortfolioFunnel,
-  PortfolioSummary,
-  PortfolioTrendPoint,
-  TaxonomyBreakdown,
 } from "@/lib/types/bfi";
 import {
   SYNTH_ANCHOR_DATE,
@@ -40,7 +35,7 @@ import {
   rangeInt,
 } from "@/lib/demo/synth-util";
 import { nprToUsd, roundNpr, usdToNpr } from "@/lib/units";
-import { AS_OF_DATE, TREND_YEARS } from "@/lib/reporting/periods";
+import { AS_OF_DATE } from "@/lib/reporting/periods";
 import { getBorrowerCatalog, SmeBorrower } from "@/lib/demo/entities";
 import {
   assetClassForLoanCategory,
@@ -53,6 +48,7 @@ import {
 } from "@/lib/demo/fixtures";
 import { SCORE_FOR_OPTION } from "@/lib/regulatory/pcaf/types";
 import { pcafAttributionFactor } from "@/lib/regulatory/pcaf/attribution";
+import { summarise } from "@/lib/regulatory/pcaf/aggregation";
 
 // ---------------------------------------------------------------------------
 // Portfolio scale and mix
@@ -484,241 +480,13 @@ function generateLoansForCategory(
 // ---------------------------------------------------------------------------
 // Aggregation
 // ---------------------------------------------------------------------------
-
-function emptyTaxonomy(): TaxonomyBreakdown {
-  return { green: 0, amber: 0, red: 0, unclassified: 0 };
-}
-
-// AGGREGATOR-PAIR: this function mirrors recomputeSummary() in lib/api/bfi.ts.
-// The two share ~90% of aggregation logic (taxonomy breakdown, sector breakdown,
-// data-quality distribution, multi-year trend). Any change to attribution shape,
-// sector bucketing, taxonomy bucketing, or trend-per-year logic MUST be applied
-// in BOTH functions or mock-mode and live-mode paths will silently diverge.
-// The ~10% difference between them handles mock synthesis vs. live overlay
-// specifics — do not consolidate without cataloguing each intentional divergence.
-// Track consolidation in a post-demo issue.
-function buildSummary(
-  loans: Loan[],
-  borrowers: Borrower[],
-  attributions: PcafAttribution[]
-): PortfolioSummary {
-  const borrowerMap = new Map(borrowers.map((b) => [b.id, b]));
-  const totalLoans = loans.length;
-  const totalOutstandingNpr = loans.reduce((s, l) => s + l.outstandingNpr, 0);
-  const totalOutstandingUsd = loans.reduce((s, l) => s + l.outstandingUsd, 0);
-  const totalAttributedCo2eTonnes = attributions.reduce(
-    (s, a) => s + a.attributedCo2eTonnes,
-    0
-  );
-
-  // Weighted average data quality across loans that produced attributed emissions
-  let weightedSum = 0;
-  let weightedDenom = 0;
-  for (const a of attributions) {
-    if (a.attributedCo2eTonnes <= 0) continue;
-    weightedSum += a.dataQualityScore * a.attributedCo2eTonnes;
-    weightedDenom += a.attributedCo2eTonnes;
-  }
-  const weightedDataQuality =
-    weightedDenom > 0
-      ? Math.round((weightedSum / weightedDenom) * 10) / 10
-      : 0;
-
-  const taxonomyBreakdown = emptyTaxonomy();
-  const taxonomyBreakdownValue = emptyTaxonomy();
-  for (const l of loans) {
-    taxonomyBreakdown[l.nrbTaxonomy]++;
-    taxonomyBreakdownValue[l.nrbTaxonomy] += l.outstandingNpr;
-  }
-
-  // Sector breakdown — only over loans that have a borrower with a real sector (skip retail pool)
-  const sectorMap = new Map<
-    string,
-    { co2e: number; count: number; npr: number }
-  >();
-  loans.forEach((loan) => {
-    const b = borrowerMap.get(loan.borrowerId);
-    if (!b || b.kind === "retail-pool") return;
-    const a = attributions.find((x) => x.loanId === loan.id);
-    const prev = sectorMap.get(b.nrbSector) ?? { co2e: 0, count: 0, npr: 0 };
-    sectorMap.set(b.nrbSector, {
-      co2e: prev.co2e + (a?.attributedCo2eTonnes ?? 0),
-      count: prev.count + 1,
-      npr: prev.npr + loan.outstandingNpr,
-    });
-  });
-  const sectorBreakdown = Array.from(sectorMap.entries())
-    .map(([sector, v]) => ({
-      sector,
-      attributedCo2e: Math.round(v.co2e),
-      loanCount: v.count,
-      outstandingNpr: v.npr,
-    }))
-    .sort((a, b) => b.attributedCo2e - a.attributedCo2e);
-
-  // Funnel
-  const inScopeLoans = loans.filter(
-    (l) => !(l.category ?? "").startsWith("retail-")
-  );
-  const facilityMatchedLoans = inScopeLoans.filter((l) => {
-    const b = borrowerMap.get(l.borrowerId);
-    return b && (b.dataTier === "facility");
-  });
-  const inScopeOutstandingNpr = inScopeLoans.reduce(
-    (s, l) => s + l.outstandingNpr,
-    0
-  );
-  const facilityMatchedOutstandingNpr = facilityMatchedLoans.reduce(
-    (s, l) => s + l.outstandingNpr,
-    0
-  );
-  // Count unique facility-tier borrowers that actually appear in the loan book
-  const facilityMatchedBorrowerIds = new Set<string>();
-  for (const l of facilityMatchedLoans) {
-    facilityMatchedBorrowerIds.add(l.borrowerId);
-  }
-
-  const funnel: PortfolioFunnel = {
-    totalLoans,
-    inScopeLoans: inScopeLoans.length,
-    facilityMatchedLoans: facilityMatchedLoans.length,
-    facilityMatchedBorrowers: facilityMatchedBorrowerIds.size,
-    totalOutstandingNpr,
-    inScopeOutstandingNpr,
-    facilityMatchedOutstandingNpr,
-  };
-
-  // Data quality distribution
-  const dqBuckets = new Map<
-    1 | 2 | 3 | 4 | 5,
-    {
-      count: number;
-      outstandingUsd: number;
-      outstandingNpr: number;
-      co2: number;
-    }
-  >();
-  for (const a of attributions) {
-    const s = a.dataQualityScore;
-    const prev =
-      dqBuckets.get(s) ?? {
-        count: 0,
-        outstandingUsd: 0,
-        outstandingNpr: 0,
-        co2: 0,
-      };
-    const loan = loans.find((l) => l.id === a.loanId);
-    dqBuckets.set(s, {
-      count: prev.count + 1,
-      outstandingUsd: prev.outstandingUsd + (loan?.outstandingUsd ?? 0),
-      outstandingNpr: prev.outstandingNpr + (loan?.outstandingNpr ?? 0),
-      co2: prev.co2 + a.attributedCo2eTonnes,
-    });
-  }
-  const dataQualityDistribution: DataQualityDistribution = [1, 2, 3, 4, 5].map(
-    (s) => {
-      const v =
-        dqBuckets.get(s as 1 | 2 | 3 | 4 | 5) ?? {
-          count: 0,
-          outstandingUsd: 0,
-          outstandingNpr: 0,
-          co2: 0,
-        };
-      return {
-        score: s as 1 | 2 | 3 | 4 | 5,
-        loanCount: v.count,
-        outstandingUsd: Math.round(v.outstandingUsd),
-        outstandingNpr: Math.round(v.outstandingNpr),
-        attributedCo2eTonnes: Math.round(v.co2),
-      };
-    }
-  );
-
-  // Multi-year trend — aggregate per-year emissions from borrowers' time series,
-  // weighted by current attribution factor (a reasonable approximation since
-  // exact loan-time-series doesn't exist in this demo).
-  const trendMap = new Map<number, TaxonomyBreakdown & { total: number }>();
-  for (const year of TREND_YEARS) {
-    trendMap.set(year, { ...emptyTaxonomy(), total: 0 });
-  }
-  // Index attributions by loanId once — .find() per loan is O(N*M) and became
-  // hot after retail loans (70k) were folded into the trend below.
-  const attrByLoanId = new Map(attributions.map((a) => [a.loanId, a]));
-  for (const loan of loans) {
-    const b = borrowerMap.get(loan.borrowerId);
-    if (!b) continue;
-    const a = attrByLoanId.get(loan.id);
-    if (!a) continue;
-    // Retail (retail-pool) borrowers are attributed via the revenue-proxy in
-    // pcafFor() above — flat year-over-year emissions. Include them in the
-    // trend so the Unclassified band matches the Data Quality Distribution
-    // panel's Score 5 total.
-    if (b.kind === "retail-pool") {
-      for (const year of TREND_YEARS) {
-        const ye = trendMap.get(year)!;
-        ye.total += a.attributedCo2eTonnes;
-        ye[loan.nrbTaxonomy] += a.attributedCo2eTonnes;
-      }
-      continue;
-    }
-    const fac = b.facilities[0];
-    const series = fac?.emissionsByYear ?? null;
-    for (const year of TREND_YEARS) {
-      const ye = trendMap.get(year)!;
-      let yearTotal: number;
-      if (series) {
-        const found = series.find((p) => p.year === year);
-        yearTotal = found
-          ? a.attributionFactor *
-            series.reduce(
-              (s, p) => s + (p.year === year ? p.co2eTonnes : 0),
-              0
-            ) *
-            (b.facilities.length || 1) /
-            (b.facilities.length || 1)
-          : a.attributedCo2eTonnes;
-        // sum across all facilities for this year:
-        let totalThisYear = 0;
-        for (const f of b.facilities) {
-          const pt = f.emissionsByYear?.find((p) => p.year === year);
-          totalThisYear += pt?.co2eTonnes ?? f.annualCo2eTonnes;
-        }
-        yearTotal = a.attributionFactor * totalThisYear;
-      } else {
-        // sector-benchmark — assume flat
-        yearTotal = a.attributedCo2eTonnes;
-      }
-      ye.total += yearTotal;
-      ye[loan.nrbTaxonomy] += yearTotal;
-    }
-  }
-  const trend: PortfolioTrendPoint[] = Array.from(trendMap.entries())
-    .map(([year, v]) => ({
-      year,
-      totalAttributedCo2eTonnes: Math.round(v.total),
-      byTaxonomy: {
-        green: Math.round(v.green),
-        amber: Math.round(v.amber),
-        red: Math.round(v.red),
-        unclassified: Math.round(v.unclassified),
-      },
-    }))
-    .sort((a, b) => a.year - b.year);
-
-  return {
-    totalLoans,
-    totalOutstandingUsd: Math.round(totalOutstandingUsd),
-    totalOutstandingNpr,
-    totalAttributedCo2eTonnes: Math.round(totalAttributedCo2eTonnes),
-    weightedDataQuality,
-    taxonomyBreakdown,
-    taxonomyBreakdownValue,
-    sectorBreakdown,
-    funnel,
-    dataQualityDistribution,
-    trend,
-  };
-}
+//
+// The portfolio roll-up (buildSummary) that used to live here was collapsed
+// into the single shared computation `summarise()` in
+// lib/regulatory/pcaf/aggregation.ts (backlog N0.1) — the same function the
+// live re-overlay path calls (via recomputeSummary in lib/api/bfi.ts). The
+// demo synthesizer now calls summarise() below, so the demo and live disclosed
+// totals can never diverge.
 
 // ---------------------------------------------------------------------------
 // Top-level memoized portfolio
@@ -818,7 +586,7 @@ function buildPortfolio(): BfiDemoData {
     return pcafFor(l, b);
   });
 
-  const portfolio = buildSummary(loans, borrowers, attributions);
+  const portfolio = summarise(loans, borrowers, attributions);
 
   return {
     meta: {

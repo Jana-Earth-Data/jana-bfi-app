@@ -69,6 +69,19 @@ const POLICY_PATTERNS = [
     pattern: /Math\.max\(\s*1_000_000\b/,
     what: "an enterprise-value floor duplicated across aggregators (belongs in lib/regulatory/pcaf/attribution.ts with a PCAF §4.2 citation — N0.2)",
   },
+  {
+    // N0.1: the demo portfolio roll-up `buildSummary()` and the live re-overlay
+    // roll-up `recomputeSummary()` were a duplicated aggregator pair. They are
+    // collapsed into the single shared `summarise()` in
+    // lib/regulatory/pcaf/aggregation.ts; the historical name `recomputeSummary`
+    // survives only as a thin re-export wrapper in lib/api/bfi.ts. A second
+    // hand-rolled `buildSummary()` reappearing anywhere outside lib/regulatory
+    // is the mechanical signal that the pair has been re-created — exactly the
+    // drift this boundary removes. Fails immediately (no grandfather).
+    id: "duplicate-aggregator",
+    pattern: /\bfunction\s+buildSummary\b/,
+    what: "a second portfolio aggregator (the roll-up lives once in lib/regulatory/pcaf/aggregation.ts as summarise() — N0.1)",
+  },
 ];
 
 /**
