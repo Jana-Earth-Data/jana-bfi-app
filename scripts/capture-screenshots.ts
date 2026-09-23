@@ -29,6 +29,12 @@
  *   npx tsx scripts/capture-screenshots.ts --tenant default
  *   npx tsx scripts/capture-screenshots.ts --out docs/proposal-screenshots
  *
+ *   # User's Manual figures, default tenant, element-scoped:
+ *   npx tsx scripts/capture-screenshots.ts --profile manual --base http://localhost:3001
+ *
+ *   If the default tenant seeds different loan ids than the Laxmi tenant,
+ *   pass them: --cement-loan L-xxxxxxx --hydro-loan L-xxxxxxx
+ *
  * OUTPUT
  *   docs/proposal-screenshots/01-my-work.png ... 08-nfrs-disclosure.png
  *   plus a manifest.md listing each file with its caption, ready to paste
@@ -48,9 +54,22 @@ function arg(flag: string, fallback: string): string {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 }
 
+/** Which set to capture.
+ *
+ *  proposal — the wide, full-viewport screens behind Appendix A of a bank
+ *             proposal. Laxmi-branded by default, because that is who the
+ *             proposal is addressed to.
+ *  manual   — the tighter, element-scoped screens the User's Manual needs,
+ *             captured from the DEFAULT tenant so the manual is not branded
+ *             for one bank when it is handed to another.
+ */
+const PROFILE = arg("--profile", "proposal") as "proposal" | "manual";
+
 const BASE = arg("--base", "http://localhost:3001").replace(/\/$/, "");
-const TENANT = arg("--tenant", "laxmi_sunrise");
-const OUT_DIR = path.resolve(arg("--out", "docs/proposal-screenshots"));
+const TENANT = arg("--tenant", PROFILE === "manual" ? "default" : "laxmi_sunrise");
+const OUT_DIR = path.resolve(
+  arg("--out", PROFILE === "manual" ? "docs/manual-screenshots" : "docs/proposal-screenshots"),
+);
 
 /** Laxmi's ESG officer. Owns the seeded demo loans, so the workbench renders
  *  editable rather than behind the P36 read-only lock. */
@@ -58,8 +77,8 @@ const OFFICER_ID = TENANT === "laxmi_sunrise" ? "off-laxmi-02" : "off-default-02
 
 /** Seeded loans. Cement carries the escalated ESDD + CAP items; hydro is the
  *  project-finance case that unlocks the Annex 5b wizard. */
-const CEMENT_LOAN = "L-0079959";
-const HYDRO_LOAN = "L-0080028";
+const CEMENT_LOAN = arg("--cement-loan", "L-0079959");
+const HYDRO_LOAN = arg("--hydro-loan", "L-0080028");
 
 /** 2x scale keeps text crisp when the PNG is placed in a print PDF. */
 const VIEWPORT = { width: 1600, height: 1000 };
@@ -137,13 +156,6 @@ async function openTab(page: Page, label: string) {
 async function selectLoan(page: Page, borrowerFragment: string) {
   const row = page.locator("button", { hasText: borrowerFragment }).first();
   await row.click();
-  await settle(page);
-}
-
-/** Switch the per-loan workbench sub-tab (Overview / CAP / PCAF / ...). */
-async function openSubtab(page: Page, label: string) {
-  const strip = page.locator("[data-tour='workbench-subtabs']");
-  await strip.getByText(label, { exact: false }).first().click();
   await settle(page);
 }
 
@@ -373,9 +385,183 @@ async function capture(browser: Browser, shot: Shot): Promise<boolean> {
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// Manual profile
+//
+// A manual instructs; a proposal sells. These shots are scoped to the single
+// control each section of the User's Manual describes, rather than to the
+// whole viewport, so the reader's eye lands on the thing the paragraph is
+// talking about. Numbering follows the manual's Parts, not the proposal's
+// narrative order.
+// ---------------------------------------------------------------------------
+const MANUAL_SHOTS: Shot[] = [
+  {
+    file: "01-header.png",
+    caption:
+      "Part 1. The header: bank mark, tab strip, guided-tour selector, " +
+      "settings, and the Demo menu. In demonstration mode the DEMO MODE " +
+      "banner sits alongside them.",
+    url: "/",
+    selector: "[data-tour='header']",
+    prepare: dismissTour,
+  },
+  {
+    file: "02-my-work-queue.png",
+    caption:
+      "Part 2. My Work. My loans holds everything assigned to the officer; " +
+      "Available to claim holds the unassigned pool. Opening a loan from the " +
+      "pool claims it.",
+    url: "/",
+    selector: "[data-tour='my-work-queue']",
+    prepare: async (page) => {
+      await dismissTour(page);
+      await openTab(page, "My Work");
+    },
+  },
+  {
+    file: "03-followups-panel.png",
+    caption:
+      "Part 2.3. Follow-ups due. Corrective actions and monitoring reports " +
+      "falling due in the next thirty days, bucketed overdue, this week, and " +
+      "this month.",
+    url: "/",
+    selector: "[data-tour='followups-panel']",
+    prepare: async (page) => {
+      await dismissTour(page);
+      await openTab(page, "My Work");
+    },
+  },
+  {
+    file: "04-loan-book.png",
+    caption:
+      "Part 3. Loan Book. The full portfolio with filtering by taxonomy " +
+      "colour, business unit, sector, and free text.",
+    url: "/",
+    selector: "[data-tour='loan-table']",
+    prepare: async (page) => {
+      await dismissTour(page);
+      await openTab(page, "Loan Book");
+    },
+  },
+  {
+    file: "05-escalation-banner.png",
+    caption:
+      "Part 4.2. The escalation banner. Every loan screened above Low risk, " +
+      "with the driving questions inline, raised automatically above the " +
+      "manager's queue.",
+    url: "/",
+    selector: "[data-tour='escalation-banner']",
+    prepare: async (page) => {
+      await dismissTour(page);
+      await openTab(page, "Manager");
+    },
+  },
+  {
+    file: "06-overdue-caps-banner.png",
+    caption:
+      "Part 4.2. The overdue corrective actions banner. Portfolio-wide, and " +
+      "independent of which loan the manager is looking at.",
+    url: "/",
+    selector: "[data-tour='overdue-caps-banner']",
+    prepare: async (page) => {
+      await dismissTour(page);
+      await openTab(page, "Manager");
+    },
+  },
+  {
+    file: "07-workbench-subtabs.png",
+    caption:
+      "Part 4.4. The per-loan workbench. The compliance stripe summarises the " +
+      "loan; the sub-tabs beneath it hold every obligation attached to it.",
+    url: "/",
+    selector: "[data-tour='screening-workbench']",
+    prepare: async (page) => {
+      await dismissTour(page);
+      await openTab(page, "Manager");
+      await selectLoan(page, "Hongshi");
+    },
+  },
+  {
+    file: "08-esdd-wizard.png",
+    caption:
+      "Part 5. The ESDD wizard. One Annex 5 question with NRB's four answer " +
+      "options, the guidance notes beneath it, the remarks field, and the " +
+      "evidence attachment panel.",
+    url: `/esdd/${CEMENT_LOAN}?tourStep=1`,
+    selector: "[data-tour='esdd-wizard']",
+    prepare: dismissTour,
+  },
+  {
+    file: "09-taxonomy-wizard.png",
+    caption:
+      "Part 6. The Green Finance Taxonomy wizard. Activity selection from the " +
+      "NRB 2024 catalogue, with Do No Significant Harm checks called out " +
+      "separately.",
+    url: `/taxonomy/${CEMENT_LOAN}?tourStep=1`,
+    selector: "[data-tour='taxonomy-wizard']",
+    prepare: dismissTour,
+  },
+  {
+    file: "10-pf-screening.png",
+    caption:
+      "Part 7. Annex 5b project finance screening, mapped to the eight IFC " +
+      "Performance Standards. Shown only on project-finance loans.",
+    url: `/pf-screening/${HYDRO_LOAN}?tourStep=1`,
+    selector: "[data-tour='pf-screening-wizard']",
+    prepare: dismissTour,
+  },
+  {
+    file: "11-pcaf-availability.png",
+    caption:
+      "Part 8.2. The PCAF availability panel. Each flag records the answer " +
+      "(Exists or Does not exist) separately from its source (AUTO where the " +
+      "platform inferred it, MANUAL where an officer set it).",
+    url: `/pcaf/${CEMENT_LOAN}?tourStep=1`,
+    selector: "[data-tour='pcaf-availability-panel']",
+    prepare: dismissTour,
+  },
+  {
+    file: "12-cap-wizard.png",
+    caption:
+      "Part 9. The corrective action plan wizard at /cap/[loanId]: time-bound " +
+      "items with owners and deadlines, E&S covenants, and periodic " +
+      "monitoring under sections 7.3.5 and 7.3.7.",
+    url: `/cap/${CEMENT_LOAN}`,
+    selector: "[data-tour='cap-wizard']",
+    prepare: dismissTour,
+  },
+  {
+    file: "13-nfrs-headline.png",
+    caption:
+      "Part 11. The disclosure surface. Total financed emissions, the " +
+      "disclosure year, the weighted PCAF data quality score, and in-scope " +
+      "exposure.",
+    url: "/",
+    selector: "[data-tour='nfrs-headline']",
+    prepare: async (page) => {
+      await dismissTour(page);
+      await openTab(page, "NFRS");
+    },
+  },
+  {
+    file: "14-nrbsis-annex4b.png",
+    caption:
+      "Part 11.3. The NRBSIS Annex 4b Green Finance Statement, generated from " +
+      "the portfolio in one click as bank-branded Excel, PDF, or JSON.",
+    url: "/",
+    selector: "[data-tour='nrbsis-green-statement']",
+    prepare: async (page) => {
+      await dismissTour(page);
+      await openTab(page, "NFRS");
+    },
+  },
+];
+
 async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
+  console.log(`profile: ${PROFILE}`);
   console.log(`base   : ${BASE}`);
   console.log(`tenant : ${TENANT}  (officer ${OFFICER_ID})`);
   console.log(`out    : ${OUT_DIR}`);
@@ -394,7 +580,7 @@ async function main() {
   }
 
   const browser = await chromium.launch();
-  const all = [...SHOTS, ...EXTRAS];
+  const all = PROFILE === "manual" ? MANUAL_SHOTS : [...SHOTS, ...EXTRAS];
   let ok = 0;
   for (const shot of all) {
     if (await capture(browser, shot)) ok++;
@@ -403,9 +589,11 @@ async function main() {
 
   // Manifest, ready to paste into Appendix A.
   const manifest = [
-    "# Appendix A: Platform Screenshots",
+    PROFILE === "manual"
+      ? "# User's Manual figures"
+      : "# Appendix A: Platform Screenshots",
     "",
-    `_Captured from the ${TENANT} tenant at ${VIEWPORT.width}x${VIEWPORT.height}, ${SCALE}x scale._`,
+    `_Captured from the ${TENANT} tenant at ${VIEWPORT.width}x${VIEWPORT.height}, ${SCALE}x scale on ${new Date().toISOString().slice(0, 10)}._`,
     "",
     ...all.map(
       (s, i) => `**Figure ${i + 1}.** ${s.caption}\n\n![${s.caption}](${s.file})\n`

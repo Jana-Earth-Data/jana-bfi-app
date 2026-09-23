@@ -301,6 +301,29 @@ Stored in `lib/regulatory/esdd/annex5-questions.ts`.
   `cCount`, `mean = totalWeight / applicable`.
 - Overall derivation:
 
+> **Superseded by P46 (23 Aug 2026).** The table below is the July 2026
+> as-built state and is retained as a historical record. It is **not**
+> what `scoring.ts` does today. The rules now reproduce NRB's ESRR
+> criteria directly:
+>
+> | Condition | Risk class | Recommendation | Escalation |
+> |---|---|---|---|
+> | Any 'c' (Q2.4 excluded) | high | approve-with-conditions | true |
+> | Any 'b', no 'c' | medium | approve-with-conditions | true |
+> | All 'a'/'d' | low | approve | false |
+>
+> Three changes matter. (1) **A single 'c' is HIGH** — the old "≥2 'c'"
+> threshold under-rated real loans. (2) **A single 'b' is MEDIUM and
+> therefore escalates** — `escalationFlag = riskClass !== "low"` per NRB
+> ESRM Guideline 2022 §7.3.6, so the old `false` in the medium row was
+> wrong. (3) **The 'extreme' level is gone.** NRB's ESRR has exactly
+> three levels and stops at HIGH; that value is stored in
+> `computed_risk_class` and shown to the bank as the NRB rating, so a
+> fourth level put a rating in that field that appears nowhere in the
+> Guideline. Severity above a single 'c' is now reported separately as
+> `criticalFindingCount` for triage, which does not overwrite the
+> regulator's scale.
+
   | Condition | Risk class | Recommendation | Escalation |
   |---|---|---|---|
   | ≥3 'c' or max section mean ≥ 2.5 | extreme | approve-with-conditions | true |
@@ -310,14 +333,17 @@ Stored in `lib/regulatory/esdd/annex5-questions.ts`.
 
 - Rationale is a plain-English sentence citing the c-answered question
   ids (e.g. `1.1, 2.3`) so a reviewer can trace back to the specific
-  evidence failure.
+  evidence failure. (Post-P46: when there are no 'c' answers the
+  rationale surfaces the 'b' answers instead, so an escalated MEDIUM
+  loan does not appear in the manager banner with no reason listed.)
 
 ### 5.3 Section 3 highlights (worth surfacing in a meeting)
 
 - Q3.2 (labour) guidance explicitly says any evidence of child labor or
   forced labor is an automatic escalation regardless of other
-  mitigation. The scoring engine already respects this because any 'c'
-  answer flags escalation; but a demo talking-point.
+  mitigation. The scoring engine already respects this: any 'c' answer
+  rates the loan HIGH, and every rating above LOW escalates (P46). A
+  demo talking-point.
 - Q3.4 (stakeholder consultation) cites Nepal's 2007 ratification of ILO
   Convention 169 and expects FPIC documentation for projects on or near
   indigenous land.
@@ -398,8 +424,11 @@ Wire the Review step to the scoring engine already written:
 4. Post-save: navigate to a read-only screening summary page (or back to
    the ESRM tab with the loan in the application queue updated).
 5. Surface the escalation flag prominently — a top banner if
-   `escalationFlag = true` with "Escalated to credit committee per NRB
-   ESRM guidance."
+   `escalationFlag = true`. **Wording corrected by P46:** escalation
+   runs to the **next-higher credit approval authority**, not "the
+   credit committee", per NRB ESRM Guideline 2022 §7.3.6. The banner
+   fires for MEDIUM as well as HIGH, since `escalationFlag =
+   riskClass !== "low"`.
 
 ### 7.3 Phase 4 — Taxonomy wizard (~4 days)
 

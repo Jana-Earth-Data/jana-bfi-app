@@ -53,9 +53,13 @@ The demo team has verified the structural correctness of the following:
   option structure is verbatim. **This is the highest-confidence
   content in the codebase.** Reviewer confirms wording; no restructure
   expected.
-- **Escalation logic** — any 'c' answer triggers credit-committee
-  escalation per NRB ESRM guidance. Scoring engine implemented and
+- **Escalation logic** — ~~any 'c' answer triggers credit-committee
+  escalation per NRB ESRM guidance.~~ Scoring engine implemented and
   tested. Reviewer confirms rules.
+  **Superseded — see §8.** The rule as built is now `escalationFlag =
+  riskClass !== "low"` per NRB ESRM Guideline 2022 §7.3.6, and
+  escalation goes to the next-higher credit approval authority, not
+  "the credit committee".
 - **Taxonomy structure** — Green / Amber / Red / Unclassified colours
   plus DNSH concept. Structure verified against the October 2024 source.
 - **DNSH library structure** — extracted into a single central library
@@ -364,3 +368,18 @@ here so the demo team understands why the plan pivoted from
 - **NRBSIS filing template is Annex 4b** of the taxonomy PDF (R6 §1,
   taxonomy PDF p. 144). No separate NRBSIS XBRL schema is required —
   see §6.1 above.
+- **Escalation is MEDIUM-or-HIGH, not "any 'c'"** (P46, 23 Aug 2026).
+  NRB ESRM Guideline 2022 §7.3.6 (p. 18) reads verbatim: *"All
+  transactions rated as MEDIUM or HIGH (ESRR) will be escalated to the
+  one-level higher related credit approval authority."* Under the
+  `ESRR_criteria` sheet of NRB's ESDD Excel tool the rating is: all
+  (a)/(d) → LOW; any (b) with no (c) → MEDIUM; any (c) → HIGH; Q2.4
+  excluded. So a **'b' answer escalates too**, and `scoring.ts` now
+  implements `escalationFlag = riskClass !== "low"`. Two corrections
+  follow: the old "any 'c' answer" framing under-triggered (it missed
+  every MEDIUM-on-'b' loan), and escalation runs to the **next-higher
+  credit approval authority**, which is not necessarily the credit
+  committee. The earlier "two 'c' answers in Section 3" rule is gone.
+  The ESRR also has exactly three levels and stops at HIGH — the old
+  fourth level ('extreme') was removed, since that value was stored in
+  `computed_risk_class` and shown to the bank as the NRB rating.

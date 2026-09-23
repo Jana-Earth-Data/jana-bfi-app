@@ -2,11 +2,11 @@
 
 Source-to-code cross-reference. Every regulatory concept in the demo traces back to a paragraph, table, or annex in one of the PDFs under `docs/regulatory-sources/`. This file exists so an analyst can quickly locate where a specific NRB / NFRS / PCAF / IFC rule lives in the codebase.
 
-Paths are relative to the repo root (`/`). All paths listed here have been verified to exist as of `2026-08-03`.
+Paths are relative to the repo root (`/`). All paths listed here have been verified to exist as of `2026-09-15`.
 
 ---
 
-## 1. NRB ESRM Guideline 2022 (Circular 22)
+## 1. NRB ESRM Guideline (2022)
 
 Local: `01-nrb-esrm/nrb-esrm-guideline-2022.pdf`
 
@@ -14,7 +14,7 @@ Local: `01-nrb-esrm/nrb-esrm-guideline-2022.pdf`
 - **§5 Critical sectors list** → `lib/regulatory/esdd/sector-slug.ts`
 - **§7.3 8-step E&S procedure (screen → categorise → ESDD → rate → decide → escalate → monitor → report)** → `components/bfi/esrm/officer-work-queue.tsx`, `components/bfi/esdd/wizard.tsx`
 - **§7.3.4 ESRR aggregation rule (Low / Medium / High from a/b/c/d answers, Q2.4 excluded)** → `lib/regulatory/esdd/scoring.ts`
-- **§7.3.5 Corrective Action Plans + covenants** → `components/bfi/cap/cap-panel.tsx`, `lib/regulatory/cap/library.ts`, `lib/regulatory/cap/types.ts`, `scripts/supabase-cap.sql`, `app/api/cap/[loanId]/route.ts`
+- **§7.3.5 Corrective Action Plans + covenants** → `components/bfi/cap/cap-panel.tsx`, `components/bfi/cap/cap-wizard.tsx`, `lib/regulatory/cap/library.ts`, `lib/regulatory/cap/types.ts`, `scripts/supabase-cap.sql`, `app/api/cap/[loanId]/route.ts`; dedicated route at `app/cap/[loanId]/page.tsx` (added by P44, matching the ESDD / Taxonomy / PF / PCAF wizard-route pattern)
 - **§7.3.6 Escalation rule ("one level higher" for Medium/High)** → `components/bfi/esrm/officer-work-queue.tsx`, manager queue at `app/api/manager/queue/route.ts`
 - **§7.3.7 Monitoring** → `components/bfi/followups/followups-panel.tsx`, `app/api/followups/route.ts` (backing evidence attachments in `components/bfi/shared/evidence-attachments.tsx` and `app/api/evidence/route.ts`)
 - **§7.3.8 Annual NRB reporting** → `lib/reports/nrbsis-green-statement.ts`, `components/bfi/reports/nrbsis-green-statement-button.tsx`, `app/api/reports/nrbsis-green-statement/route.ts`
@@ -71,6 +71,7 @@ Local: `04-pcaf/pcaf-part-a-3rd-edition-2025.pdf`
 - **§5.4–5.6 CRE, Mortgages, Motor Vehicle Loans** → asset-class enum in `lib/regulatory/pcaf/types.ts`
 - **§5.9 Sovereign debt** → asset-class enum only (not scored in the demo)
 - **§4.4 Weighted DQS + disclosure obligations** → `components/bfi/pcaf/availability-panel.tsx` (per-loan DQS), `components/bfi/tabs/nfrs-tab.tsx` (portfolio weighted DQS)
+- **§4.4 Evidence behind a data-availability claim** → `lib/regulatory/pcaf/evidence-matrix.ts`. Defines the document catalogue and per-document status lifecycle that sets the availability flags, so a Score 1 rests on a named, collected document rather than an assertion. Shape mirrors `lib/regulatory/hydro/doc-matrix.ts`. Flags that genuinely are inferable (facility match, listed status) stay inferred and are combined in `resolveAvailability()`
 - **§6.2 Optional undrawn-commitment reporting (new in 3rd edition)** → `lib/data/portfolio.ts`
 - **Emission-factor conventions per sector (implicit in §5)** → seed data in `app/api/admin/seed-demo-data/route.ts` and `lib/mock/bfi-data.ts`
 
@@ -96,19 +97,23 @@ Local: `05-ifc-performance-standards/ifc-performance-standards-handbook-2012-en.
   - "IFC PS8 …" — Cultural heritage
 - Rendered in `components/bfi/pf-screening/wizard.tsx` at route `app/pf-screening/[loanId]/page.tsx`; scoring in `lib/regulatory/esdd/annex5b-pf-scoring.ts`
 
+**Attribution warning — the escalation and termination logic is Jana's, not NRB's.** Annex 5b publishes the questionnaire but **no aggregation formula, no escalation grid, and no termination grid**. The Low / Medium / High flag thresholds (`<5` / `5–15` / `>15`) and the **twelve** `ifcPsTerminationTrigger` red-line items in `annex5b-pf-questions.ts` are Jana's own synthesis of the IFC Performance Standards text, chosen to align with IFC PS supervision practice. `annex5b-pf-scoring.ts` says so in its header. Label them as Jana synthesis in any customer-facing material; never present them as NRB canon.
+
 ## 6. IFC EHS Guidelines
 
 Local: `06-ifc-ehs-guidelines/*.pdf` and `.html`
 
 - **Hydropower GPN (`hydropower-gpn-2018.pdf`)** → backs hydropower sector questions and `components/bfi/hydro/doc-matrix-panel.tsx`
-- **Cement & Lime Manufacturing (`cement-and-lime-manufacturing-2022.pdf`)** → cement supplement questions (C.1–C.3) inside `lib/regulatory/esdd/annex5-questions.ts` (or its successor sector-supplement file if renamed per `research/02-circular-22-authoritative.md` §5.5)
+- **Cement & Lime Manufacturing (`cement-and-lime-manufacturing-2022.pdf`)** → formerly backed cement supplement questions (C.1–C.3); now research-only (see status note below)
 - **Integrated Steel Mills / Foundries (`integrated-steel-mills-2007.pdf`, `foundries-2007.pdf`)** → steel supplement questions (S.1–S.3)
 - **Textile Manufacturing (hub HTML)** → textile supplement questions (T.1–T.3)
 - **Chemicals (hub HTML)** → chemicals supplement questions (Ch.1–Ch.3); analyst must pick correct sub-sector guideline per borrower
 - **Annual + Perennial Crop Production (`annual-crop-production-2016.pdf`, `perennial-crop-production-2016.pdf`)** → agriculture supplement questions (A.1–A.4)
 - **General EHS Guidelines (hub HTML)** → composite anchor for brick sector (no dedicated brick guideline) together with the MinErgy/ICIMOD Nepal Brick Policy Framework in `08-sector-context/`
 
-Note: `research/02-circular-22-authoritative.md` §5.5 flags that the sector supplements are Jana-authored (not verbatim NRB), anchored to IFC EHS. If they have been renamed since (e.g. `JANA_SECTOR_SUPPLEMENTS` per the recommendation), grep for `hydro.H\.`, `cement.C\.`, `textile.T\.`, `steel.S\.`, `chem.Ch\.`, `brick.B\.`, `agri.A\.` under `lib/regulatory/esdd/` to relocate them.
+**Status note (2026-09-15): the sector supplements no longer exist in code.** `research/02-circular-22-authoritative.md` §5.5 flagged them as Jana-authored rather than verbatim NRB, and the `ANNEX5_SECTOR_SUPPLEMENTS` export has since been **removed** from `lib/regulatory/esdd/annex5-questions.ts` to keep that file verbatim-conformant with the Guideline. The 2022 Guideline defines only the sector-agnostic 13-question ESDD checklist; there is no sector-specific a/b/c/d checklist anywhere in it. Annex 2 (Hydropower) is a documentation matrix and parameter table, not a scored checklist.
+
+So the sector references above (C.1–C.3, S.1–S.3, T.1–T.3, Ch.1–Ch.3, A.1–A.4) describe **retired** content. The IFC EHS guidelines remain REFERENCE-tier background; sector-specific capture now belongs to the NRB Green Finance Taxonomy (2024) classification flow, not ESRM. Do not grep for the old ids expecting to find them.
 
 ## 7. Nepal legislation
 
@@ -154,9 +159,9 @@ Handy when you're touching a file and need to know which PDFs to have open on th
 |---|---|
 | `lib/regulatory/esdd/annex5-questions.ts` | NRB ESRM 2022 §Annex 5 (verbatim) + §7.3.4 ESRR rule |
 | `lib/regulatory/esdd/annex5b-pf-questions.ts` | NRB ESRM 2022 §Annex 5b + IFC PS1–PS8 (2012) |
-| `lib/regulatory/esdd/annex5b-pf-scoring.ts` | NRB ESRM 2022 §Annex 5b scoring conventions |
+| `lib/regulatory/esdd/annex5b-pf-scoring.ts` | IFC PS1–PS8 (2012) — **Jana synthesis.** NRB publishes no aggregation formula or termination grid for Annex 5b; the flag thresholds and the 12 termination-trigger items are Jana editorial defaults |
 | `lib/regulatory/esdd/loan-category-derive.ts` | NRB ESRM 2022 §5 (applicability) |
-| `lib/regulatory/esdd/scoring.ts` | NRB Circular 22 Excel `ESRR_criteria` sheet |
+| `lib/regulatory/esdd/scoring.ts` | NRB ESRM 2022 §7.3.6 (escalation) + the `ESRR_criteria` sheet of NRB's ESDD Excel tool |
 | `lib/regulatory/esdd/sector-slug.ts` | NRB ESRM 2022 §5 critical-sector list |
 | `lib/regulatory/taxonomy/activities.ts` | NRB Green Finance Taxonomy 2024 Annex 2 (17-sector, ~94 sub-sector) |
 | `lib/regulatory/taxonomy/dnsh.ts` | NRB Green Finance Taxonomy 2024 §2.3 Table 1 |
@@ -164,6 +169,7 @@ Handy when you're touching a file and need to know which PDFs to have open on th
 | `lib/regulatory/cap/*` | NRB ESRM 2022 Annexes 8 + 9 |
 | `lib/regulatory/pcaf/scoring.ts` | PCAF Part A 3rd Ed §4 + §5.2 + §5.3 |
 | `lib/regulatory/pcaf/types.ts` | PCAF Part A 3rd Ed §5.1–5.10 (asset-class enum) |
+| `lib/regulatory/pcaf/evidence-matrix.ts` | PCAF Part A 3rd Ed §4.4 (evidence behind availability flags) |
 | `lib/reports/nrbsis-green-statement.ts` | NRB ESRM 2022 Annex 11 |
 | `lib/reports/nrb-taxonomy-export.ts` | NRB Green Finance Taxonomy 2024 Annex 4b |
 | `components/bfi/esdd/wizard.tsx` | NRB ESRM 2022 §7.3 + Annex 5 |
@@ -175,6 +181,8 @@ Handy when you're touching a file and need to know which PDFs to have open on th
 | `components/bfi/tabs/esrm-tab.tsx` | NRB ESRM 2022 §7 + Annex 4 |
 | `components/bfi/tabs/taxonomy-tab.tsx` | NRB Green Finance Taxonomy 2024 Annex 2 |
 | `components/bfi/cap/cap-panel.tsx` | NRB ESRM 2022 §7.3.5 + Annexes 8 + 9 |
+| `components/bfi/cap/cap-wizard.tsx` | NRB ESRM 2022 §7.3.5 + Annexes 8 / 9 / 10 |
+| `app/cap/[loanId]/page.tsx` | NRB ESRM 2022 §7.3.5 + Annexes 8 + 9 (P44 route) |
 | `components/bfi/hydro/doc-matrix-panel.tsx` | NRB ESRM 2022 Annex 2 + MoFE Hydropower EIA Manual 2018 |
 | `components/bfi/esrm/climate-risk-panel.tsx` | NRB ESRM 2022 Q2.5 + pre-Annex 2 climate chapter |
 | `components/bfi/esrm/officer-work-queue.tsx` | NRB ESRM 2022 §7.3.6 escalation |

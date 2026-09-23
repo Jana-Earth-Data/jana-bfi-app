@@ -31,11 +31,21 @@ Not every PDF in this pack carries the same weight. Each manifest entry below is
 
 - **LOAD-BEARING** — code cites this document directly. If you want to understand *any* implementation question (a specific ESDD question, a taxonomy criterion, a PCAF option, a disclosure column), you must read the load-bearing source. **~7 files.** These are the non-negotiable reads.
 
-- **REFERENCE** — the research pack corroborates from this document but no application code cites it directly. Read when you need to defend a design decision, cross-check wording, or dig deeper on the methodology. **~15 files.** Common examples: earlier PCAF editions, sector EHS Guidelines that inform the research but were removed from the wizard per Circular 22 verbatim conformance.
+- **REFERENCE** — the research pack corroborates from this document but no application code cites it directly. Read when you need to defend a design decision, cross-check wording, or dig deeper on the methodology. **~15 files.** Common examples: earlier PCAF editions, sector EHS Guidelines that inform the research but were removed from the wizard to keep it verbatim-conformant with the NRB ESRM Guideline (2022).
 
 - **CONTEXT** — background reading. Industry commentary, historical editions superseded by newer ones, adoption trackers, third-party explainers, HTML captures of source pages. Read for orientation, customer conversations, and general framing — not needed to touch the code. **~20 files.**
 
 The tier appears on a `- **Tier:**` line inside every manifest entry below.
+
+---
+
+## Citation convention — Guideline vs. Circular 22
+
+One distinction trips up nearly everyone new to this pack, so it is worth stating once.
+
+**The operative citation for every ESRM rule the demo implements is the NRB Guideline on Environmental & Social Risk Management (ESRM) for Banks and Financial Institutions, Second Edition, February 2022** — short form **NRB ESRM Guideline (2022)**. That is the document Annex 5, Annex 5b, §7.3 and Annexes 8–11 live in, and it is what code comments and UI strings should cite.
+
+**NRB Circular 22** (Directive 22, FY 2074/75, 2018) is the circular that *required* BFIs to perform ESDD and that attached the now-superseded 2018 edition of the guideline, plus the interactive Excel checklist. Cite it **only** as the historical mandate — "required since Circular 22, 2018" — or as provenance for the Excel. Never cite it as the source of Annex 5 or Annex 5b content: the 2022 edition added Q1.4 and Q2.5 and introduced Annex 5b, none of which exist in the Circular 22 attachment at all.
 
 ---
 
@@ -163,8 +173,9 @@ The single most important folder in this pack. Everything the demo calls "ESRM" 
 #### NRB Circular 22 ESDD Checklist (interactive Excel)
 
 - **Publisher / issuer:** Nepal Rastra Bank
-- **Tier:** LOAD-BEARING — the Excel is the interactive tool NRB distributes and is the canonical wording source. `lib/regulatory/esdd/annex5-questions.ts` cites its cells verbatim (`Tempor!A1:A4` for loan categories; `C20`, `C21`, `C22`, etc. for Annex 5 questions). Where the Excel and PDF diverge, the Excel wins.
-- **Date:** Distributed with Circular 22 (FY 2074/75); still operative
+- **Tier:** LOAD-BEARING — the interactive tool NRB distributes. `lib/regulatory/esdd/annex5-questions.ts` cites its cells verbatim (`Tempor!A1:A4` for loan categories; `C20`, `C21`, `C22`, etc. for Annex 5 questions), and `scoring.ts` implements its `ESRR_criteria` sheet.
+- **Precedence — read this before citing it.** The Excel is **not** the operative source of Annex 5 content; the **NRB ESRM Guideline (2022)** is. The Excel was distributed with Circular 22 and tracks the superseded 2018 edition, so it does not contain the 2022-only questions Q1.4 (land acquisition / involuntary resettlement) or Q2.5 (climate change). Its role in `annex5-questions.ts` is narrow: where the 2022 checklist text is identical to 2018, the Excel is the **tie-breaker on punctuation and capitalisation only**. Do not cite it as the authority for a rule.
+- **Date:** Distributed with Circular 22 (FY 2074/75); tracks the 2018 edition, superseded on content by the February 2022 Guideline
 - **URL:** Linked from the checklist HTML page above
 - **Local filename:** `01-nrb-esrm/NRB_Circular_22_ESDD_Checklist.xls`
 - **How the demo uses it:** Primary source for `lib/regulatory/esdd/annex5-questions.ts` and `lib/regulatory/esdd/scoring.ts` (ESRR_criteria sheet). Cross-checked verbatim in `research/02-circular-22-authoritative.md`.
@@ -331,7 +342,7 @@ Sector-specific technical guidelines the demo's supplementary sector questions r
 #### Good Practice Note: EHS Approaches for Hydropower Projects
 
 - **Publisher / issuer:** IFC
-- **Tier:** REFERENCE — sector supplement research per `research/05-nepal-sector-esrm-hunt.md`. Sector supplements were removed from `annex5-questions.ts` per Circular 22 verbatim conformance, so this document informs research and hydropower doc-matrix framing rather than the wizard itself.
+- **Tier:** REFERENCE — sector supplement research per `research/05-nepal-sector-esrm-hunt.md`. Sector supplements were removed from `annex5-questions.ts` to keep that file verbatim-conformant with the NRB ESRM Guideline (2022), so this document informs research and hydropower doc-matrix framing rather than the wizard itself.
 - **Date:** March 2018
 - **Pages:** ~200
 - **URL:** https://www.ifc.org/en/insights-reports/2018/publications-gpn-ehshydropwer
@@ -341,7 +352,7 @@ Sector-specific technical guidelines the demo's supplementary sector questions r
 #### EHS Guidelines for Cement and Lime Manufacturing
 
 - **Publisher / issuer:** IFC / WBG
-- **Tier:** REFERENCE — cement sector supplement research (see `research/05-nepal-sector-esrm-hunt.md`). Not implemented in the wizard per Circular 22 verbatim conformance.
+- **Tier:** REFERENCE — cement sector supplement research (see `research/05-nepal-sector-esrm-hunt.md`). Not implemented in the wizard, which stays verbatim-conformant with the NRB ESRM Guideline (2022).
 - **Date:** 2022 (updated)
 - **URL:** https://www.ifc.org/content/dam/ifc/doc/2022/2022-cement-lime-manufacturing-ehs-guidelines-en.pdf
 - **Local filename:** `06-ifc-ehs-guidelines/cement-and-lime-manufacturing-2022.pdf`
@@ -360,7 +371,7 @@ Sector-specific technical guidelines the demo's supplementary sector questions r
 #### EHS Guidelines for Integrated Steel Mills
 
 - **Publisher / issuer:** IFC / WBG
-- **Tier:** REFERENCE — steel sector supplement research. Not cited in code (sector supplements were removed per Circular 22 verbatim conformance).
+- **Tier:** REFERENCE — steel sector supplement research. Not cited in code (sector supplements were removed to keep the checklist verbatim-conformant with the NRB ESRM Guideline (2022)).
 - **Date:** 2007
 - **URL:** https://www.ifc.org/content/dam/ifc/doc/2000/2007-integrated-steel-mills-ehs-guidelines-en.pdf
 - **Local filename:** `06-ifc-ehs-guidelines/integrated-steel-mills-2007.pdf`
