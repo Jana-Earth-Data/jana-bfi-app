@@ -67,7 +67,7 @@ const POLICY_PATTERNS = [
   {
     id: "ev-floor-million",
     pattern: /Math\.max\(\s*1_000_000\b/,
-    what: "an enterprise-value floor duplicated across aggregators (N0.1)",
+    what: "an enterprise-value floor duplicated across aggregators (belongs in lib/regulatory/pcaf/attribution.ts with a PCAF §4.2 citation — N0.2)",
   },
 ];
 
@@ -93,12 +93,14 @@ const BASELINE = {
   // only re-exports it, and the demo's loan-lifecycle anchor was renamed to
   // SYNTH_ANCHOR_DATE. No grandfather entry remains, so any NEW `AS_OF_DATE =`
   // definition outside lib/regulatory now fails the build.
-  // ev-floor-million: the demo aggregator floors enterprise value at
-  // Math.max(1_000_000, …) (portfolio.ts:344) while the live aggregator uses a
-  // different floor, Math.max(1, … || 1) (bfi.ts:189) — that very divergence is
-  // finding N0.1. Only the demo literal matches this pattern; grandfather it by
-  // file until N0.1 collapses both aggregators into one lib/regulatory helper.
-  "ev-floor-million": ["lib/demo/portfolio.ts"],
+  // ev-floor-million: RELOCATED by N0.2 (PR0-b). The enterprise-value floor
+  // that the demo aggregator (portfolio.ts) and the live re-overlay aggregator
+  // (bfi.ts) previously duplicated — with divergent values — now lives once,
+  // cited to PCAF Part A §4.2, in lib/regulatory/pcaf/attribution.ts
+  // (pcafAttributionFactor / flooredEnterpriseValueUsd). Both aggregators call
+  // that helper; no floor literal remains outside lib/regulatory. No
+  // grandfather entry remains, so any NEW Math.max(1_000_000, …) floor outside
+  // lib/regulatory now fails the build.
 };
 
 function walk(dir, out = []) {

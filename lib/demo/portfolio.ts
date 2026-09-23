@@ -52,6 +52,7 @@ import {
   PCAF_NAME_FIXTURES_UNVERIFIED,
 } from "@/lib/demo/fixtures";
 import { SCORE_FOR_OPTION } from "@/lib/regulatory/pcaf/types";
+import { pcafAttributionFactor } from "@/lib/regulatory/pcaf/attribution";
 
 // ---------------------------------------------------------------------------
 // Portfolio scale and mix
@@ -336,14 +337,12 @@ function pcafFor(loan: Loan, borrower: Borrower): PcafAttribution {
     };
   }
 
-  // 4. Compute the attribution factor (loan / EV) — PCAF Part A §4.2.
-  //    Floors mirror the previous implementation so a tiny synthetic EV
-  //    can't produce a >100 % share.
-  const ev =
-    borrower.facilities.length > 0
-      ? Math.max(1_000_000, borrower.enterpriseValueUsd)
-      : Math.max(50_000, borrower.enterpriseValueUsd);
-  const af = loan.outstandingUsd / ev;
+  // 4. Compute the attribution factor (loan / EV) — PCAF Part A §4.2. The
+  //    enterprise-value floor (the guard that stops a tiny synthetic EV
+  //    producing a >100 % share) lives once, cited, in
+  //    lib/regulatory/pcaf/attribution.ts and is shared with the live
+  //    re-overlay aggregator (lib/api/bfi.ts).
+  const af = pcafAttributionFactor(loan.outstandingUsd, borrower);
   const attributed = af * borrower.totalCo2eTonnes;
 
   // 5. Pick the legacy `methodology` label — kept for the ESRM tab's

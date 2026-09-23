@@ -12,6 +12,7 @@
  */
 
 import { apiFetchAll } from "@/lib/api/client";
+import { pcafAttributionFactor } from "@/lib/regulatory/pcaf/attribution";
 import { TREND_YEARS } from "@/lib/reporting/periods";
 import { getDemoProvider } from "@/lib/demo/provider";
 import { isDemoMode } from "@/lib/demo/mode";
@@ -186,7 +187,6 @@ function overlayLive(
   const attributions: PcafAttribution[] = base.loans.map((loan) => {
     const b = byId.get(loan.borrowerId)!;
     const prev = base.attributions.find((a) => a.loanId === loan.id)!;
-    const ev = Math.max(1, b.enterpriseValueUsd || 1);
     if (
       (loan.category ?? "").startsWith("retail-") ||
       b.kind === "retail-pool"
@@ -198,7 +198,11 @@ function overlayLive(
       // sector-benchmark — already correct (no facility tier)
       return prev;
     }
-    const af = loan.outstandingUsd / ev;
+    // Facility-tier re-overlay only reaches here, so the shared PCAF §4.2
+    // attribution factor (lib/regulatory/pcaf/attribution.ts) applies the
+    // facility EV floor — the same floor the demo aggregator uses. No local
+    // floor literal lives in this file (N0.2).
+    const af = pcafAttributionFactor(loan.outstandingUsd, b);
     return {
       ...prev,
       attributionFactor: af,
