@@ -466,10 +466,13 @@ function DisclosurePreview({ data }: { data: DashboardSsrData }) {
         </div>
         <p className="mt-2 text-sm text-slate-300">{data.meta.pcafMethodologyNote}</p>
         <p className="mt-3 text-xs text-slate-500">
-          Reference: PCAF Global GHG Accounting and Reporting Standard (Part A,
-          Chapter 5), IFRS S2 §29, NFRS draft §17(b). Underlying facility data:
-          Climate TRACE Nepal facility emissions; Global Cement and Concrete
-          Tracker (July 2025); Global Energy Monitor.
+          Methodology: PCAF Global GHG Accounting and Reporting Standard (Part
+          A, Chapter 5), the allocation method chosen to meet the financial-sector
+          financed-emissions requirement in IFRS S2 Appendix B (B58–B63; B62(d)
+          asks that the allocation method be disclosed). PCAF is a chosen method,
+          not a requirement of either standard. Underlying facility data: Climate
+          TRACE Nepal facility emissions; Global Cement and Concrete Tracker
+          (July 2025); Global Energy Monitor.
         </p>
       </div>
     </div>

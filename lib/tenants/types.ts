@@ -11,6 +11,18 @@
 
 export type TenantId = "default" | "laxmi_sunrise";
 
+/**
+ * NRB BFI licence class — the column axis of the Annex 4b Green Finance
+ * Statement. A = commercial bank, B = development bank, C = finance company,
+ * D (microfinance) and other institutions roll into "other". A per-BFI
+ * submission fills exactly ONE class column based on the institution's own
+ * licence, so this is a property of the *tenant*, not of the report code.
+ *
+ * Defined here (not in lib/reports) so the tenant model owns it and the report
+ * layer reads it — the dependency runs reports → tenants, never the reverse.
+ */
+export type BankClass = "A" | "B" | "C" | "other";
+
 /** Officer roles surfaced in the officer-picker (Phase 2 UI). */
 export type OfficerRole =
   | "loan_officer"
@@ -50,6 +62,12 @@ export type TenantConfig = {
   /** Stable identifier. Persisted on every captured row. */
   id: TenantId;
   branding: TenantBranding;
+  /**
+   * NRB BFI licence class for this institution. Determines which Annex 4b
+   * column the Green Finance Statement fills. Both demo tenants are Class A
+   * commercial banks; a Class B/C tenant added later sets this accordingly.
+   */
+  bankClass: BankClass;
   /**
    * Two-to-four-letter prefix used on branch codes for this bank (e.g.
    * "FBN-001", "LSB-001"). The synthesizer uses this when generating the

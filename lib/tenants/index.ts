@@ -41,4 +41,4 @@ export function listTenants(): TenantConfig[] {
   return Object.values(REGISTRY);
 }
 
-export type { TenantConfig, TenantId, Officer, OfficerRole, TenantBranding } from "./types";
+export type { TenantConfig, TenantId, Officer, OfficerRole, TenantBranding, BankClass } from "./types";

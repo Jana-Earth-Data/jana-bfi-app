@@ -1,6 +1,11 @@
 # User Manual v0.2 — Working Notes
 
-Working notes captured while drafting `Jana_Financed_Emissions_Dashboard_User_Manual_Demo_v0.2_DRAFT.docx` (November 2026).
+Working notes captured while drafting `Jana_Financed_Emissions_Dashboard_User_Manual_Demo_v0.2_DRAFT.docx` (drafted 3 August 2026; branded v0.2 PDF shipped 26 August 2026).
+
+> **Correction, 15 September 2026.** These notes originally recorded the Annex 5
+> checklist as 12 questions and dated the draft "November 2026". Both were
+> wrong and have been corrected in place. See the ESDD count note under Source
+> files consulted and the Verification section.
 
 ## Source files consulted
 
@@ -10,7 +15,16 @@ Read or grepped during the draft:
 - `docs/Jana_Financed_Emissions_Dashboard_User_Manual_Demo_v0.1.pdf` (via `pdftotext` at `/tmp/user_manual.txt`) — v0.1 tone, structure, framing, and the sections that carry forward verbatim.
 - `lib/tenants/registry.ts` — tenant display names (First Bank of Nepal default; Laxmi Sunrise Bank), officer rosters.
 - `lib/tenants/types.ts` — role labels.
-- `lib/regulatory/esdd/annex5-questions.ts` — verbatim Circular 22 ESDD questions, section counts (3 general + 5 EHS + 4 social = 12), loan-category taxonomy, and the 2022 climate addition Q2.5.
+- `lib/regulatory/esdd/annex5-questions.ts` — verbatim ESDD questions from the NRB ESRM Guideline (2022), section counts (4 general + 5 EHS + 4 social = **13**), loan-category taxonomy, and the 2022 additions Q1.4 (land acquisition / involuntary resettlement) and Q2.5 (climate change).
+
+  > **Corrected 15 September 2026 — was recorded here as 12.** At drafting time
+  > (3 Aug 2026) the file genuinely held 12 questions: Section 1 had only
+  > 1.1–1.3. P46 added Q1.4 on 23 August 2026, bringing the code into line with
+  > the 2022 Guideline's 13. The count is derived at runtime from
+  > `fullChecklist().length` (imported as `annex5FullChecklist` in
+  > `esrm-tab.tsx` and `shared/loan-table.tsx`), so the UI was correct the
+  > moment the question landed — only these notes and the v0.2 manual text
+  > carried the stale 12.
 - `lib/regulatory/esdd/annex5b-pf-questions.ts` — 148 items across PS1-PS8 (confirmed by `grep -c 'id: "annex5b'`).
 - `lib/regulatory/esdd/annex5b-pf-types.ts` — IFC PS titles, risk classes, answer scale.
 - `lib/regulatory/esdd/annex5b-pf-scoring.ts` — implied risk-class thresholds (Low/Medium/High/Critical).
@@ -27,7 +41,7 @@ Read or grepped during the draft:
 - `components/bfi/tabs/nfrs-tab.tsx` — NFRS tab (formerly NSRS); NRBSIS Green Statement panel; regulatory exports panel; disclosure preview; taxonomy breakdown; top contributors.
 - `components/bfi/tabs/loans-tab.tsx`, `taxonomy-tab.tsx` — largely unchanged from v0.1.
 - `components/bfi/esrm/officer-work-queue.tsx` — My loans / Available to claim split; auto-claim on Open click; loan card structure with ESDD, Taxonomy, PF screening, PCAF chips.
-- `components/bfi/followups/followups-panel.tsx` — Overdue / This week / This month buckets; Circular 22 §7.3.5 + §7.3.7 authority.
+- `components/bfi/followups/followups-panel.tsx` — Overdue / This week / This month buckets; NRB ESRM Guideline (2022) §7.3.5 + §7.3.7 authority (the panel cites the Guideline, not the circular).
 - `components/bfi/esdd/wizard.tsx` — 5-step wizard structure, ownership lock, tour-driven step navigation.
 - `components/bfi/taxonomy/wizard.tsx` — 4-step wizard (basics → activity → DNSH/criteria → review).
 - `components/bfi/pf-screening/wizard.tsx` — 9-step wizard (PS1-PS8 + review), termination triggers, PfScreeningResult risk classes.
@@ -47,7 +61,7 @@ Read or grepped during the draft:
 
 2. **Loan portfolio size stated as "tens of thousands" rather than "80,035".** The v0.1 figure of 80,035 loans was not found as a hardcoded constant in the current codebase (the mock generator computes it), and the numbers can drift between builds. Prose deliberately says "tens of thousands" so the manual does not go stale on the next mock-data change.
 
-3. **Cover date set to "November 2026".** v0.1 was June 2026; five months of P25-P43 feature work slot cleanly after that. Willard can override this in the branded PDF pass if he prefers a different pub date.
+3. **Cover date.** v0.1 was June 2026; the P25-P43 feature work slots after that. ~~Set to "November 2026".~~ **Corrected 15 September 2026:** November 2026 was a future date and simply wrong. The draft was written 3 August 2026 and the branded v0.2 PDF shipped 26 August 2026; the cover should carry August 2026. Willard can override this in the branded PDF pass if he prefers a different pub date.
 
 4. **NFRS effective date stated as "to be determined".** The task brief explicitly asks to avoid implying a specific reporting cycle. Prose reads: "the effective reporting cycle is to be determined once the finalised standards are pronounced." (Contrast v0.1's now-inaccurate "2026 to 2027 reporting cycle.")
 
@@ -79,7 +93,7 @@ Called out explicitly so Willard can see the "real vs promised" split.
 
 - **Settings, all categories except ESRM remarks-required per section**: My Work, Loan Book, Taxonomy (all three toggles), NFRS (all three toggles), CAP & Monitoring, Notifications, Bank. Each is labelled "Coming soon" in the Part 12 status table, matching the pill shown in the interface today. Values persist to the settings blob; the wiring to app behaviour is a follow-on.
 - **"Recently closed" section on the My Work queue**: the code has this section but the source comment notes it is "stubbed; requires a loan-status change model to populate for real". Prose says "A Recently closed section appears below when there are loans approved, declined, or withdrawn in the last 30 days" without over-promising the population.
-- **Climate-flag badge on the loan card (Circular 22 §4.3 above-threshold + no reduction target)**: shown in the source but depends on borrower record fields that are sparse in the demo. Prose says the badge "appears" when the conditions are met, without asserting how many loans will show it in the demonstration portfolio.
+- **Climate-flag badge on the loan card (NRB ESRM Guideline (2022) §4.3 above-threshold + no reduction target)**: shown in the source but depends on borrower record fields that are sparse in the demo. Prose says the badge "appears" when the conditions are met, without asserting how many loans will show it in the demonstration portfolio.
 
 ## Surfaces intentionally omitted from v0.2
 
@@ -92,7 +106,20 @@ Called out explicitly so Willard can see the "real vs promised" split.
 
 ## Verification
 
-- `pdftotext /tmp/user_manual.txt` compared against the drafted content to ensure v0.1 sections that carry forward are updated (First Bank of Nepal → "First Bank of Nepal by default, or Laxmi Sunrise Bank if the corresponding access code has been provided"; "NRB ESRM Guidelines (2018)" → "NRB Circular 22 (Second Edition, 2022)"; "NSRS" → "NFRS S1/S2"; "10 ESDD categories" → "12 questions across 3 sections"; "hydropower under 10 MW" → "all hydropower classified on lifecycle GHG"; "2026 to 2027 reporting cycle" → effective date TBD).
+- `pdftotext /tmp/user_manual.txt` compared against the drafted content to ensure v0.1 sections that carry forward are updated (First Bank of Nepal → "First Bank of Nepal by default, or Laxmi Sunrise Bank if the corresponding access code has been provided"; "NRB ESRM Guidelines (2018)" → "NRB ESRM Guideline (2022)"; "NSRS" → "NFRS S1/S2"; "10 ESDD categories" → "13 questions across 3 sections"; "hydropower under 10 MW" → "all hydropower classified on lifecycle GHG"; "2026 to 2027 reporting cycle" → effective date TBD).
+
+  > **Correction, 15 September 2026.** Two of the strings above are the
+  > *corrected* targets, not what the shipped artifact says. The v0.2 docx and
+  > the 26 Aug 2026 branded PDF as shipped carry "12 questions across 3
+  > sections" and cite "NRB Circular 22 (Second Edition, 2022)". Both are
+  > wrong: the count is 13 (P46, 23 Aug 2026), and the operative citation is
+  > the **NRB Guideline on Environmental & Social Risk Management (ESRM) for
+  > Banks and Financial Institutions, Second Edition, February 2022** — short
+  > form **NRB ESRM Guideline (2022)**. Circular 22 (Directive 22, FY 2074/75,
+  > 2018) is the circular that *required* ESDD and attached the now-superseded
+  > 2018 edition; it may be cited only as the historical mandate. Fixing the
+  > shipped text is v0.3 work, not a correction that can be made in these
+  > notes.
 - Data source citations still current: Climate TRACE v5.6 2024, EDGAR v8.1, GCCT July 2025 — grep of `lib/tooltips/tooltips.ts` and `lib/regulatory/pcaf/scoring.ts` confirms.
 - 148 items in Annex 5b — `grep -c 'id: "annex5b' lib/regulatory/esdd/annex5b-pf-questions.ts` returns 148.
 - LibreOffice conversion to PDF via `python scripts/office/soffice.py --headless --convert-to pdf`: opens cleanly at 30 pages, US Letter, ~309 KB PDF (~38 KB docx). Cover, header/footer, tables all render as expected. Only caveat: the auto-generated Table of Contents is empty until Word / LibreOffice is instructed to update fields (see judgment call 10). This is standard docx-js behaviour.
