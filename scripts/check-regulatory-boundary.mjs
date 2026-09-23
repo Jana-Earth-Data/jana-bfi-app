@@ -99,7 +99,14 @@ const BASELINE = {
   // sourced, in lib/regulatory/fx/rates.ts; lib/units.ts only re-exports it.
   // No grandfather entry remains, so any NEW `NPR_PER_USD =` definition outside
   // lib/regulatory now fails the build.
-  "retail-emissions-factor": ["lib/demo/portfolio.ts"],
+  // retail-emissions-factor: RELOCATED by N0.5 (PR0-c). The Score-5 retail
+  // proxy intensity (RETAIL_TCO2E_PER_NPR) now lives, with its illustrative
+  // provenance caveat attached, in lib/regulatory/pcaf/retail.ts; the demo
+  // synthesizer (portfolio.ts) imports retailProxyEmissionsTonnes() and
+  // RETAIL_PROXY_CITATION from there. No factor literal remains outside
+  // lib/regulatory. No grandfather entry remains, so any NEW
+  // `RETAIL_TCO2E_PER_NPR =` definition outside lib/regulatory now fails the
+  // build. This was the last grandfathered occurrence — BASELINE is now empty.
   // as-of-date: RELOCATED by N0.7 (PR0-b). The reporting-period boundary now
   // lives, derived from ingested coverage and dated, in
   // lib/regulatory/reporting/period.ts (AS_OF_DATE); lib/reporting/periods.ts
@@ -184,6 +191,6 @@ if (newViolations.length > 0) {
 console.log(
   `[check-regulatory-boundary] no new policy outside lib/regulatory` +
     (grandfathered.length
-      ? ` (${grandfathered.length} grandfathered occurrence(s) pending N0.1–N0.7).`
+      ? ` (${grandfathered.length} grandfathered occurrence(s) pending relocation).`
       : "."),
 );

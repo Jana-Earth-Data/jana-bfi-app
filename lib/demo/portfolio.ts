@@ -49,6 +49,10 @@ import {
 import { SCORE_FOR_OPTION } from "@/lib/regulatory/pcaf/types";
 import { pcafAttributionFactor } from "@/lib/regulatory/pcaf/attribution";
 import { summarise } from "@/lib/regulatory/pcaf/aggregation";
+import {
+  RETAIL_PROXY_CITATION,
+  retailProxyEmissionsTonnes,
+} from "@/lib/regulatory/pcaf/retail";
 
 // ---------------------------------------------------------------------------
 // Portfolio scale and mix
@@ -241,26 +245,6 @@ function pickSmeBorrower(
 // ---------------------------------------------------------------------------
 
 /**
- * Retail sector-average emissions factor (tCO2e per NPR of outstanding).
- *
- * Retail loans (mortgages, personal, education, vehicle) don't have
- * borrower-specific facility data — the bank lends to the retail pool, not
- * to a corporate emitter. PCAF Part A 3rd Edition §5.5.3 (mortgages) and
- * §5.6.3 (motor vehicles) allow a Score-5 revenue/economic-value proxy:
- * outstanding × sector-average emissions per unit of economic activity.
- *
- * Calibrated so the ~330B NPR retail book contributes ~2M tCO2e/yr to the
- * financed-emissions total (roughly the Score 5 bucket already shown in the
- * Data Quality Distribution panel — keeps the NFRS trend chart and the DQ
- * panel telling the same story).
- *
- * If this factor is ever re-tuned, sanity-check by running the demo and
- * confirming (a) the KPI "Total financed emissions" stays under 10M tCO2e
- * and (b) the trend chart's Unclassified band is visible but not dominant.
- */
-const RETAIL_TCO2E_PER_NPR = 6e-6;
-
-/**
  * PCAF attribution for one loan.  Delegates the score / option / citation
  * decision to `lib/regulatory/pcaf/scoring.ts` — the PCAF Part A 3rd
  * Edition (Dec 2025) rubric — and keeps the attribution-factor and
@@ -285,17 +269,21 @@ function pcafFor(loan: Loan, borrower: Borrower): PcafAttribution {
   const option = compute.option;
 
   // 3. Retail short-circuit — retail-pool borrower (mortgage / personal /
-  //    education / vehicle). PCAF Part A §5.5.3 / §5.6.3 / §5.2.3 permits a
-  //    Score-5 revenue/economic-value proxy when borrower-specific data is
+  //    education / vehicle). PCAF Part A §5.5 / §5.6 permits a Score-5
+  //    revenue/economic-value proxy when borrower-specific data is
   //    unavailable. We use attribution factor = 1.0 (the bank fully finances
   //    a personal loan) and per-loan attributed emissions =
-  //    outstandingNpr × RETAIL_TCO2E_PER_NPR. Emissions are broadly flat
+  //    outstandingNpr × the retail intensity. Emissions are broadly flat
   //    year-over-year — retail portfolios don't have year-varying facility
   //    data — so the trend aggregators below apply the same value to every
   //    year. This keeps the multi-year trend chart's Unclassified band
   //    consistent with the Data Quality Distribution panel's Score 5 total.
+  //    The intensity is the ILLUSTRATIVE `RETAIL_TCO2E_PER_NPR` policy input
+  //    (see lib/regulatory/pcaf/retail.ts for its provenance caveat — N0.5):
+  //    it is a demo assumption, not a sourced factor, and is documented as
+  //    such at its sanctioned home rather than tuned to a chart here.
   if (borrower.kind === "retail-pool") {
-    const attributed = loan.outstandingNpr * RETAIL_TCO2E_PER_NPR;
+    const attributed = retailProxyEmissionsTonnes(loan.outstandingNpr);
     return {
       loanId: loan.id,
       borrowerId: borrower.id,
@@ -304,11 +292,10 @@ function pcafFor(loan: Loan, borrower: Borrower): PcafAttribution {
       attributedCo2eTonnes: Math.round(attributed),
       dataQualityScore: 5,
       qualityNote:
-        "Retail sector-average revenue proxy (PCAF Part A §5.5.3 / §5.6.3 fallback)",
+        "Retail sector-average revenue proxy (PCAF Part A §5.5 / §5.6 fallback)",
       pcafOption: "3b",
       pcafAssetClass: assetClass,
-      pcafCitation:
-        "PCAF Part A 3rd Edition §5.5 / §5.6 — economic-activity-based proxy",
+      pcafCitation: RETAIL_PROXY_CITATION,
       pcafDataSource: "sector-average (retail proxy)",
     };
   }
