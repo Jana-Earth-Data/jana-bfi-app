@@ -51,8 +51,10 @@ import {
   inferPcafAvailability,
   resolvePcafAvailability,
 } from "@/lib/regulatory/pcaf/scoring";
+import { resolveAvailability } from "@/lib/regulatory/pcaf/evidence-matrix";
+import { LATEST_FULL_YEAR } from "@/lib/regulatory/reporting/period";
 import { recomputeSummary } from "@/lib/api/bfi";
-import { demoPcafNameFixtures } from "@/lib/demo/provider";
+import { demoPcafEvidenceRecords } from "@/lib/demo/provider";
 
 /** Flag columns as stored on bfi_pcaf_availability. */
 const FLAG_COLUMNS = [
@@ -159,10 +161,11 @@ export async function applyOfficerPcafOverlay(
     data.attributions.map((a) => [a.loanId, a]),
   );
 
-  // Resolved once: in a demo build these are the name fixtures the synthesizer
-  // used, so the score computed here matches the one baked into the portfolio.
-  // In a live build it is undefined and nothing is asserted.
-  const fixtures = await demoPcafNameFixtures();
+  // Resolved once: in a demo build this returns the seeded PCAF evidence the
+  // synthesizer used, so the score computed here matches the one baked into the
+  // portfolio. In a live build it is undefined and nothing is seeded — a
+  // borrower's Score 1/2 then rests solely on the officer's saved review below.
+  const evidenceFor = await demoPcafEvidenceRecords();
 
   const rescoredLoanIds: string[] = [];
   const nextAttributions: PcafAttribution[] = data.attributions.map((a) => a);
@@ -180,16 +183,25 @@ export async function applyOfficerPcafOverlay(
     const idx = indexByLoan.get(loan.id);
     if (!borrower || !prev || idx === undefined) continue;
 
-    // Same merge the availability panel shows the officer, so the score here
-    // matches the one they were looking at when they saved.
-    const inferred = inferPcafAvailability(
-      borrower,
-      loan.category,
-      fixtures,
-    );
-    const resolved = resolvePcafAvailability(inferred, saved);
-
     const assetClass = assetClassForLoanCategory(loan.category);
+
+    // Same derivation the build-time pcafFor() uses, so the base score here
+    // matches the one baked into the portfolio: infer the observable flags,
+    // then raise the two published-emissions flags from evidence (seeded in a
+    // demo build, none in live) through the same resolveAvailability the live
+    // officer review flows through.
+    const inferred = inferPcafAvailability(borrower, loan.category);
+    const evidenced = resolveAvailability(
+      inferred,
+      evidenceFor ? evidenceFor(borrower) : [],
+      LATEST_FULL_YEAR,
+      { loanId: loan.id, isProjectFinance: assetClass === "project-finance" },
+    ).flags;
+
+    // Then layer the officer's saved review on top: an explicit human finding
+    // outranks both inference and the demo seed, per-flag.
+    const resolved = resolvePcafAvailability(evidenced, saved);
+
     const computed = computePcafScore(
       loan,
       borrower,

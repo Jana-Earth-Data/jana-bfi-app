@@ -16,21 +16,15 @@ import {
   getPortfolio,
   invalidatePortfolioCache,
 } from "@/lib/demo/portfolio";
-import {
-  PCAF_NAME_FIXTURES_VERIFIED,
-  PCAF_NAME_FIXTURES_UNVERIFIED,
-  synthAirQuality,
-} from "./fixtures";
+import { synthAirQuality } from "./fixtures";
+import { demoPcafEvidenceRecords } from "./pcaf-evidence-seed";
 import { demoReductionTargetSeed } from "./climate-seed";
 import type { DemoProvider } from "./provider";
 
 export const demoProvider: DemoProvider = {
   getPortfolio,
   invalidatePortfolioCache,
-  pcafNameFixtures: () => ({
-    verified: PCAF_NAME_FIXTURES_VERIFIED,
-    unverified: PCAF_NAME_FIXTURES_UNVERIFIED,
-  }),
+  pcafEvidenceRecords: demoPcafEvidenceRecords,
   synthAirQuality,
   reductionTargetSeed: demoReductionTargetSeed,
 };

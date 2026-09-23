@@ -6,11 +6,13 @@
  * ----------------------
  * Two PR0 tasks reshape the PCAF attribution layer and MUST be diff-checked:
  *
- *   • N0.4 — evidence-driven scoring. Today Scores 1–2 are unlocked by a
- *     hard-coded borrower-NAME fixture list (PCAF_NAME_FIXTURES_*). N0.4 moves
- *     that to observable evidence. This suite pins the exact score histogram
- *     (how many attributions land in each PCAF 1–5 bucket) so the shape of the
- *     change is visible when the name list goes away.
+ *   • N0.4 — evidence-driven scoring (LANDED). Scores 1–2 used to be unlocked
+ *     by a hard-coded borrower-NAME fixture list (PCAF_NAME_FIXTURES_*); they
+ *     are now unlocked by seeded verified evidence documents run through the
+ *     same resolveAvailability() the live officer review uses. This suite pins
+ *     the exact score histogram (how many attributions land in each PCAF 1–5
+ *     bucket); the counts are unchanged across the move — that invariance is
+ *     the proof the change was arithmetic-neutral.
  *
  *   • N0.5 — retail emissions factor. Retail-pool loans get a Score-5
  *     revenue proxy: attributed tCO2e = outstandingNpr × RETAIL_TCO2E_PER_NPR
@@ -32,7 +34,7 @@ beforeAll(async () => {
 });
 
 describe("PCAF scoring · data-quality score histogram", () => {
-  it("pins the per-score attribution counts (N0.4 baseline)", () => {
+  it("pins the per-score attribution counts (N0.4 invariant)", () => {
     const hist: Record<number, number> = {};
     for (const a of data.attributions) {
       hist[a.dataQualityScore] = (hist[a.dataQualityScore] ?? 0) + 1;
@@ -49,10 +51,12 @@ describe("PCAF scoring · data-quality score histogram", () => {
     expect(counted).toBe(80_035);
   });
 
-  it("pins that Scores 1–2 are unlocked ONLY by the name fixtures today", () => {
-    // This is the fact N0.4 removes: exactly 5 + 39 = 44 attributions reach a
-    // best-two PCAF score, and today that is driven by the borrower-name
-    // fixture list rather than observable evidence.
+  it("pins that exactly 44 attributions reach a best-two PCAF score", () => {
+    // Post-N0.4: exactly 5 + 39 = 44 attributions reach a best-two PCAF score,
+    // now driven by seeded verified evidence documents (an assurance opinion
+    // for the Score-1 exemplar, a published GHG inventory for the Score-2 set)
+    // rather than the removed borrower-name fixture list. The count is
+    // unchanged from the pre-N0.4 baseline — the move was arithmetic-neutral.
     const bestTwo = data.attributions.filter(
       (a) => a.dataQualityScore <= 2,
     ).length;

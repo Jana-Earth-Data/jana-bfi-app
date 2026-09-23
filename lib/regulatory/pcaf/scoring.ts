@@ -39,7 +39,7 @@ import {
 } from "./types";
 
 // ---------------------------------------------------------------------------
-// Name-fixture matching
+// Published-emissions flags are not inferred here
 // ---------------------------------------------------------------------------
 //
 // PCAF Score 1 (Option 1a) requires the borrower to publish
@@ -49,14 +49,12 @@ import {
 // someone opening the annual report and looking, which is what
 // lib/regulatory/pcaf/evidence-matrix.ts records.
 //
-// This module therefore asserts neither. Callers may pass name fixtures for
-// demonstration purposes; a live build has none to pass. See
-// lib/demo/fixtures.ts for why those lists are not kept here.
-
-function matchAny(name: string, substrings: string[]): boolean {
-  const n = name.toLowerCase();
-  return substrings.some((s) => n.includes(s));
-}
+// So inferPcafAvailability() below leaves both publish flags FALSE. They are
+// set only by a verified evidence document, via resolveAvailability() in
+// evidence-matrix.ts. The demo seeds that evidence (lib/demo/pcaf-evidence-
+// seed.ts); a live build has none until an officer reviews a real report. This
+// module no longer takes name fixtures at all -- there is nothing fabricated
+// left in the scoring path (backlog N0.4).
 
 // ---------------------------------------------------------------------------
 // Asset-class routing — Loan category → PCAF Part A §5.x asset class
@@ -125,19 +123,14 @@ export function assetClassForLoanCategory(
  *
  * The two published-emissions flags are NOT inferred. Nothing observable
  * here establishes whether a borrower publishes an assured GHG inventory, so
- * they default false and are set by document review. A caller may inject
- * name fixtures to demonstrate the full 1..5 histogram; a live build does
- * not.
+ * they default false and are set by verified document evidence instead — see
+ * resolveAvailability() in evidence-matrix.ts. The demo seeds that evidence
+ * (lib/demo/pcaf-evidence-seed.ts) to populate the top of the 1..5 histogram;
+ * a live build seeds nothing and establishes the flags by real review.
  */
 export function inferPcafAvailability(
   borrower: Borrower,
   loanCategory: LoanCategory | undefined,
-  /**
-   * Optional borrower-name substrings that assert published emissions
-   * without evidence. Supplied by the demo layer; omitted in a live build,
-   * where these two flags are established by document review instead.
-   */
-  nameFixtures?: { verified: string[]; unverified: string[] },
 ): PcafDataAvailability {
   // Retail personal / education are out-of-scope regardless of borrower state.
   const outOfScope =
@@ -158,16 +151,12 @@ export function inferPcafAvailability(
   }
 
   // --- Published-emissions claims ---
-  // False unless a caller injects fixtures. In a live build nothing does, so
-  // these two flags start unasserted and are established by verified document
-  // evidence instead -- see resolveAvailability() in evidence-matrix.ts.
-  const publishesVerified = nameFixtures
-    ? matchAny(borrower.name, nameFixtures.verified)
-    : false;
-  const publishesUnverified =
-    !publishesVerified && nameFixtures
-      ? matchAny(borrower.name, nameFixtures.unverified)
-      : false;
+  // Not inferable. These two flags start FALSE here and are established only by
+  // a verified evidence document in resolveAvailability() (evidence-matrix.ts):
+  // seeded in the demo (lib/demo/pcaf-evidence-seed.ts), reviewed by an officer
+  // in a live build. Nothing in this module asserts them.
+  const publishesVerified = false;
+  const publishesUnverified = false;
 
   // --- Physical activity data ---
   // A facility match (either Climate TRACE, GCCT, or curated GEM entity)
@@ -216,9 +205,10 @@ export function inferPcafAvailability(
  * Merge an officer-saved `bfi_pcaf_availability` row on top of the
  * inferred flag bundle produced by {@link inferPcafAvailability}.
  *
- * The demo default is to infer every availability flag from the borrower
- * catalog (Climate TRACE match, publicly-listed flag, name substring
- * lists).  When an officer has reviewed the borrower's actual annual
+ * The demo default is to infer the observable availability flags from the
+ * borrower catalog (Climate TRACE match, publicly-listed flag) and raise the
+ * two published-emissions flags from verified evidence documents (seeded in
+ * the demo, none in a live build).  When an officer has reviewed the actual annual
  * report / assurance statement and persisted a row via the
  * `PCAF Data Availability` collection panel, those saved flags take
  * precedence per-flag.  Missing flags on the saved side fall through
