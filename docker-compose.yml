@@ -1,4 +1,4 @@
-name: jana-bfi-demo-dev
+name: jana-bfi-app-dev
 
 services:
   web:

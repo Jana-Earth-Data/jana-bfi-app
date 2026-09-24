@@ -1,5 +1,5 @@
 /**
- * Ambient Vitest globals — jana-bfi-demo (Task P0.4 of PROJECT_PLAN.md).
+ * Ambient Vitest globals — jana-bfi-app (Task P0.4 of PROJECT_PLAN.md).
  *
  * WHY THIS EXISTS
  * ---------------

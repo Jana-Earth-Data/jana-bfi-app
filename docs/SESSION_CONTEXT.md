@@ -1,6 +1,6 @@
 # Jana BFI Demo - Session Context for Cowork
 
-Use this document to quickly brief a new Claude Cowork session on this project. Mount `~/Projects/repos/jana-bfi-demo` as a folder and paste this or reference it.
+Use this document to quickly brief a new Claude Cowork session on this project. Mount `~/Projects/repos/jana-bfi-app` as a folder and paste this or reference it.
 
 ---
 
@@ -27,7 +27,7 @@ This is a **sales demo tool** - shown to bankers to illustrate what Jana's data 
 
 ```bash
 # Local dev
-cd ~/Projects/repos/jana-bfi-demo
+cd ~/Projects/repos/jana-bfi-app
 npm run dev
 # -> http://localhost:3000
 
@@ -53,7 +53,7 @@ In `.env.local` (and as Docker build args in `docker-compose.yml`):
 ## Project Structure
 
 ```
-jana-bfi-demo/
+jana-bfi-app/
   app/
     layout.tsx              # Root layout, metadata
     page.tsx                # SSR entry - calls getBfiDemoData(), renders BfiPageClient

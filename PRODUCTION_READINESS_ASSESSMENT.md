@@ -1,4 +1,4 @@
-# Production Readiness Assessment — jana-bfi-demo
+# Production Readiness Assessment — jana-bfi-app
 
 **Date:** 2026-08-25 (updated 2026-08-27; reviewed 2026-09-09)
 **Scope:** Full assessment of scalability, reliability, durability, security, deployability, and test coverage.
@@ -550,7 +550,7 @@ protected in the first week.
 
 ## Conclusion
 
-The jana-bfi-demo codebase is a well-architected sales demonstration application with strong security fundamentals, excellent documentation, and thoughtful design decisions (particularly the demo/live build-time boundary).
+The jana-bfi-app codebase is a well-architected sales demonstration application with strong security fundamentals, excellent documentation, and thoughtful design decisions (particularly the demo/live build-time boundary).
 
 **Resolved since initial assessment:** Health check endpoint, rate limiting (demo-exempt with documented caveats), tenant cookie validation, MIME validation on upload, request body size guards, shared route helpers eliminating boilerplate across 41 routes, async I/O on cold start, and dead code removal.
 

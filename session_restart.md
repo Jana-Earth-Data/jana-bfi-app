@@ -1,4 +1,4 @@
-# Session Restart — jana-bfi-demo — 2026-09-07
+# Session Restart — jana-bfi-app — 2026-09-07
 
 ## Working branch
 

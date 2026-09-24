@@ -1,6 +1,6 @@
 /**
  * UNIT TESTS — PCAF per-loan data-quality scoring.
- * jana-bfi-demo · P1.1 of PROJECT_PLAN.md (TEST_STRATEGY §4.1, Tier 1).
+ * jana-bfi-app · P1.1 of PROJECT_PLAN.md (TEST_STRATEGY §4.1, Tier 1).
  *
  * SCOPE
  * -----

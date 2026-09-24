@@ -142,7 +142,7 @@ Comprehensive documentation of all environment variables with explanations.
 
 ```json
 {
-  "name": "jana-bfi-demo",
+  "name": "jana-bfi-app",
   "version": "0.1.0",
   "private": true,
   "scripts": {

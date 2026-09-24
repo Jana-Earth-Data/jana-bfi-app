@@ -21,3 +21,7 @@ tsconfig.tsbuildinfo
 # scripts/precompute-portfolio.ts during `next build`. Never commit.
 lib/demo/precomputed-portfolio.json.gz
 scripts/__pycache__/
+
+# Agent/assistant working directories — per-machine, not shared state.
+.claude/
+.cursor/

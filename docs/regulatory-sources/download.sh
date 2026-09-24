@@ -86,7 +86,7 @@ fetch() {
 
   mkdir -p "$(dirname "$dest")"
   printf "  [get ]  %s ... " "$rel"
-  if curl -sSL --fail --max-time 60 -A "jana-bfi-demo/download.sh" -o "$dest" "$url"; then
+  if curl -sSL --fail --max-time 60 -A "jana-bfi-app/download.sh" -o "$dest" "$url"; then
     local size
     size=$(wc -c < "$dest" | tr -d ' ')
     printf "ok (%s bytes)\n" "$size"

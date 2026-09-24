@@ -6,7 +6,7 @@
 # baked in. A TableOfContents field would need a word processor to update it,
 # which is why v0.1 and v0.2 both shipped a blank Contents page.
 set -euo pipefail
-DOCS="${1:-/sessions/hopeful-kind-fermi/mnt/Projects/repos/jana-bfi-demo/docs}"
+DOCS="${1:-/sessions/hopeful-kind-fermi/mnt/Projects/repos/jana-bfi-app/docs}"
 BUILDER="$DOCS/build_manual_v03.js"
 STEM="Jana_Financed_Emissions_Dashboard_User_Manual_Demo_v0.3"
 cd "$(dirname "$BUILDER")"

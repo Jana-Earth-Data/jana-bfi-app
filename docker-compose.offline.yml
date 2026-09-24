@@ -30,7 +30,7 @@
 #         console.log("service_role:",sign({role:"service_role"}));'
 # ============================================================================
 
-name: jana-bfi-demo-offline
+name: jana-bfi-app-offline
 
 services:
   postgres:

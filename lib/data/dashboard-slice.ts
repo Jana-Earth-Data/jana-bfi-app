@@ -51,7 +51,7 @@ const APP_QUEUE = 30;
  * book (topContributors, applicationQueue, queryLoans, distinctValues) plus
  * per-borrower screening synthesis — ~8s of pure CPU measured in a warm
  * container, repeated on EVERY page load. On Vercel that recurring recompute
- * was the bulk of the CPU overage (jana-bfi-demo alone burned 99.7% of the
+ * was the bulk of the CPU overage (jana-bfi-app alone burned 99.7% of the
  * account's Active-CPU budget). The inputs are build-time constant, so the
  * work is identical every time.
  *

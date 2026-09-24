@@ -1,8 +1,24 @@
-# CLAUDE.md — jana-bfi-demo
+# CLAUDE.md — jana-bfi-app
 
 ## What this is
 
-Next.js 15 sales-demo dashboard for Nepal banking sector. Covers 5 regulatory frameworks (NRB ESRM, Green Finance Taxonomy, PCAF, IFC Performance Standards, CAP/Monitoring). Dual-mode architecture: demo (80K fabricated loans) vs live (real officer captures via Supabase). Deployed on Vercel.
+**This is the production application banks and financial institutions use. It is not demo code.**
+That distinction matters and has been got wrong before — the repo was called `jana-bfi-demo` until
+24 September 2026, and the name outlived the truth by some margin.
+
+Next.js 15 application for the Nepal banking sector, covering five regulatory frameworks (NRB ESRM,
+Green Finance Taxonomy, PCAF, IFC Performance Standards, CAP/Monitoring) plus NFRS S1/S2 disclosure.
+Deployed on Vercel.
+
+**Demo mode is a built-in product capability, not the product.** A single build ships two modes,
+toggled at runtime: *live* (real officer captures via Supabase, empty loan book) and *demo* (an
+80,000-loan fabricated portfolio). Demo mode exists for sales and for officer training, and the
+separation is enforced — see the `lib/demo` boundary, the `JANA_DEMO` build flag, the DEMO MODE
+banner, and the provenance column that keeps demo captures out of live data.
+
+So: `lib/regulatory` is production regulatory logic and is held to that standard. `lib/demo` is
+fixture generation. Fabricated data in `lib/regulatory` is a defect — that is what the Tier N0 tasks
+in the NFRS backlog exist to find.
 
 ## Session startup — read these to know what's next (in order)
 
@@ -97,4 +113,4 @@ A full code review and production readiness assessment were completed. Four hard
 
 ## Git workflow
 
-Uses the standard feature branch workflow from the parent CLAUDE.md. Current working branch: `feature/20260907_1`. Target: `main` (via `development`). The earlier `feature/20260825_1` branch has been deleted locally and remotely.
+Uses the standard feature branch workflow from the parent CLAUDE.md. Current working branch: `feature/20260923_1`. Target: `main` (via `development`). Earlier branches (`feature/20260825_1`, `feature/20260907_1`) have been merged and deleted.

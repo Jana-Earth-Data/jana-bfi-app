@@ -1,6 +1,8 @@
-# Jana BFI Demo
+# Jana BFI App
 
-Sales-demo dashboard for Jana Earth Data's financed-emissions product, scoped to Nepal's commercial banking sector. Shows a loan officer's and a manager's view of a fictional bank's portfolio against the five regulatory frameworks that shape bank sustainability compliance, with PCAF Cat. 15 attribution math wired to real Climate TRACE 2024 and EDGAR data.
+**Jana Earth Data's production application for banks and financial institutions**, scoped to Nepal's commercial banking sector. It gives loan officers and managers a view of the portfolio against the five regulatory frameworks that shape bank sustainability compliance, with PCAF Cat. 15 attribution math wired to real Climate TRACE 2024 and EDGAR data.
+
+> **Not a demo repo.** It was called `jana-bfi-demo` until 24 September 2026, which was accurate when it started and stopped being so some time ago. Demo mode is a built-in capability — see [Two modes](#two-modes) — used for sales and for officer training. The regulatory logic in `lib/regulatory` is production code.
 
 | Framework | Module | Purpose |
 |---|---|---|
@@ -14,7 +16,14 @@ NFRS S1/S2 (Accounting Standards Board Nepal, April 2026 exposure drafts; commen
 
 The dashboard has five top-level tabs — **My Work** (the signed-in officer's review queue), **Loan Book**, **Manager**, **Taxonomy** and **NFRS**. The Manager tab is a workbench with its own sub-tabs: Overview, CAP + Covenants, PCAF, plus Hydropower docs and Facility map where the selected loan has them. See `docs/ARCHITECTURE.md` for the full picture.
 
-The app ships **two modes in a single build** — demo (fabricated 80K-loan portfolio) and live (empty loan book, real officer captures). The `JANA_DEMO` build flag gates the separation; see Environment variables below.
+## Two modes
+
+The app ships **two modes in a single build**, toggled at runtime:
+
+- **Live** — empty loan book, real officer captures persisted to Supabase. This is what a bank runs.
+- **Demo** — a fabricated 80,000-loan portfolio rooted in real Nepal entities. Used for sales demonstrations and for training officers before their real book is loaded.
+
+The `JANA_DEMO` build flag gates the separation (see Environment variables below), fixtures live behind the `lib/demo` boundary, a DEMO MODE banner is always visible in demo, and capture tables carry a provenance column so demo rows can never appear in live data.
 
 ## Stack
 

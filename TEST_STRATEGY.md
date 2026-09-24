@@ -1,4 +1,4 @@
-# Test Strategy — jana-bfi-demo
+# Test Strategy — jana-bfi-app
 
 **Date:** 2026-09-09
 **Author:** Engineering
