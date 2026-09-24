@@ -37,7 +37,7 @@ const _path = require("path");
 const LOGO_CANDIDATES = [
   _path.join(__dirname, "..", "public", "green_logo.png"),
   _path.join(__dirname, "green_logo.png"),
-  "/sessions/hopeful-kind-fermi/mnt/Projects/repos/jana-bfi-demo/public/green_logo.png",
+  "/sessions/hopeful-kind-fermi/mnt/Projects/repos/jana-bfi-app/public/green_logo.png",
 ];
 const LOGO_PATH = LOGO_CANDIDATES.find((c) => fs.existsSync(c));
 const LOGO_BUF = LOGO_PATH ? fs.readFileSync(LOGO_PATH) : null;
@@ -382,7 +382,7 @@ const contents = [
 const FIG_DIRS = [
   _path.join(__dirname, "manual-screenshots"),
   _path.join(__dirname, "..", "docs", "manual-screenshots"),
-  "/sessions/hopeful-kind-fermi/mnt/Projects/repos/jana-bfi-demo/docs/manual-screenshots",
+  "/sessions/hopeful-kind-fermi/mnt/Projects/repos/jana-bfi-app/docs/manual-screenshots",
 ];
 const FIG_DIR = FIG_DIRS.find((d) => fs.existsSync(d));
 let FIG_N = 0;

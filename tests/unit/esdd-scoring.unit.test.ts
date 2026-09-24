@@ -1,6 +1,6 @@
 /**
  * TIER 1 UNIT TEST — NRB ESRM Annex 5 + Annex 5b (Project Finance) scoring.
- * jana-bfi-demo · Task P1.1 sibling / P1.2 of PROJECT_PLAN.md.
+ * jana-bfi-app · Task P1.1 sibling / P1.2 of PROJECT_PLAN.md.
  *
  * WHAT THIS COVERS AND WHY
  * ------------------------

@@ -1,6 +1,6 @@
 /**
  * TIER 1 UNIT TEST — NRB Green Finance Taxonomy (2024) activity classifiers.
- * jana-bfi-demo · Task P1.3 of PROJECT_PLAN.md.
+ * jana-bfi-app · Task P1.3 of PROJECT_PLAN.md.
  *
  * WHAT THIS COVERS AND WHY
  * ------------------------

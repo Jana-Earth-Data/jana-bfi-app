@@ -1,6 +1,6 @@
 /**
  * Vitest GLOBAL SETUP — synthesize the demo portfolio ONCE for the whole run.
- * jana-bfi-demo · Phase B of PROJECT_PLAN.md (supports the PR0 goldens).
+ * jana-bfi-app · Phase B of PROJECT_PLAN.md (supports the PR0 goldens).
  *
  * THE PROBLEM THIS SOLVES
  * -----------------------

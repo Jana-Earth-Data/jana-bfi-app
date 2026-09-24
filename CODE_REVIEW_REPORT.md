@@ -1,4 +1,4 @@
-# Code Review Report — jana-bfi-demo
+# Code Review Report — jana-bfi-app
 
 **Date:** 2026-08-25
 **Scope:** Full codebase audit — all API routes (40), components (~30), library modules (~50), configuration, Docker, and build tooling.

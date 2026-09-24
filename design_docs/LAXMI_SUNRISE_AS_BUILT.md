@@ -48,7 +48,7 @@ Phase 3 ESRM save endpoint, Phase 4-8 in full.
 ## 2. File map
 
 ```
-jana-bfi-demo/
+jana-bfi-app/
 ├── design_docs/
 │   ├── LAXMI_SUNRISE_EXTENSION_PLAN.md      Forward plan + locked decisions
 │   └── LAXMI_SUNRISE_AS_BUILT.md            This document
@@ -523,7 +523,7 @@ fidelity per Oct 2024 doc, Section 4 (reporting):
 **Steps:**
 
 ```
-cd repos/jana-bfi-demo
+cd repos/jana-bfi-app
 docker compose up -d --build
 ```
 
@@ -585,5 +585,5 @@ Original plan estimated ~20 days; this tracks within about 10% of that.
 
 ---
 
-*Doc lives at `repos/jana-bfi-demo/design_docs/LAXMI_SUNRISE_AS_BUILT.md`.*
+*Doc lives at `repos/jana-bfi-app/design_docs/LAXMI_SUNRISE_AS_BUILT.md`.*
 *Update when: a phase completes, a new file is added under `lib/regulatory/`, or an architectural decision changes.*

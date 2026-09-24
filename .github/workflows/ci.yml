@@ -1,5 +1,5 @@
 # ============================================================================
-# Continuous Integration — jana-bfi-demo
+# Continuous Integration — jana-bfi-app
 # ============================================================================
 # Task P0.1 of PROJECT_PLAN.md. This is the gate that makes every later
 # hardening phase enforceable: nothing merges that fails lint, type-check, the
@@ -133,7 +133,7 @@ jobs:
             JANA_DEMO=1
           cache-from: type=gha,scope=demo
           cache-to: type=gha,mode=max,scope=demo
-          tags: jana-bfi-demo:ci-demo
+          tags: jana-bfi-app:ci-demo
 
       # Live image: JANA_DEMO=0 must produce a bundle with NO fabricated
       # portfolio. Building it here proves the live artifact compiles and that
@@ -147,4 +147,4 @@ jobs:
             JANA_DEMO=0
           cache-from: type=gha,scope=live
           cache-to: type=gha,mode=max,scope=live
-          tags: jana-bfi-demo:ci-live
+          tags: jana-bfi-app:ci-live

@@ -1,5 +1,5 @@
 /**
- * Harness smoke test — jana-bfi-demo (Task P0.2 of PROJECT_PLAN.md).
+ * Harness smoke test — jana-bfi-app (Task P0.2 of PROJECT_PLAN.md).
  *
  * WHY THIS EXISTS
  * ---------------

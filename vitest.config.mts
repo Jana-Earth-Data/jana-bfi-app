@@ -1,5 +1,5 @@
 /**
- * Vitest configuration — jana-bfi-demo (Task P0.2 of PROJECT_PLAN.md).
+ * Vitest configuration — jana-bfi-app (Task P0.2 of PROJECT_PLAN.md).
  *
  * WHY THIS EXISTS
  * ---------------

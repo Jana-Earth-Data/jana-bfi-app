@@ -42,7 +42,7 @@ persistence-backed, assessment-automated demo. Detail in Section 10.
 
 ## 2. What exists in the demo today
 
-Reviewed the current code in `repos/jana-bfi-demo`. Relevant surfaces:
+Reviewed the current code in `repos/jana-bfi-app`. Relevant surfaces:
 
 | Surface | File | State today |
 |---|---|---|
@@ -423,4 +423,4 @@ All five open questions are resolved. See Section 0 (Decisions locked).
 
 ---
 
-*This document lives at `repos/jana-bfi-demo/design_docs/LAXMI_SUNRISE_EXTENSION_PLAN.md` and should be updated as decisions land.*
+*This document lives at `repos/jana-bfi-app/design_docs/LAXMI_SUNRISE_EXTENSION_PLAN.md` and should be updated as decisions land.*

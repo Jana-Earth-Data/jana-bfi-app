@@ -1,4 +1,4 @@
-# Architecture Guide -- jana-bfi-demo
+# Architecture Guide -- jana-bfi-app
 
 **Last updated:** 2026-08-27
 
@@ -92,7 +92,7 @@ Nginx gateway presents the same REST shape. No external network required.
 ## Directory structure
 
 ```
-jana-bfi-demo/
+jana-bfi-app/
 +-- app/                          Next.js App Router
 |   +-- api/                      41 API endpoints (grouped below)
 |   +-- esdd/[loanId]/            ESDD wizard page

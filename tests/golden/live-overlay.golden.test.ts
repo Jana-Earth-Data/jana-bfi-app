@@ -1,6 +1,6 @@
 /**
  * CHARACTERIZATION ("GOLDEN") TEST — live aggregator on the demo base.
- * jana-bfi-demo · Phase B of PROJECT_PLAN.md (pins the PR0 baseline).
+ * jana-bfi-app · Phase B of PROJECT_PLAN.md (pins the PR0 baseline).
  *
  * WHAT THIS PINS AND WHY
  * ----------------------
