@@ -333,14 +333,17 @@ export function evaluateDnsh(
     const check = DNSH_CHECKS[id];
     if (!check) continue;
     const answerId = check.criterion.id;
-    if (check.criterion.type === "yes_no") {
-      if (answers[answerId] !== true) {
-        failures.push(check.failureReason);
-        failedCheckIds.push(id);
-      }
+    // Every modelled DNSH criterion is currently a `yes_no` type, so the
+    // former `if (type === "yes_no")` wrapper had an unreachable implicit-else
+    // branch. It is removed for the P1.5 100%-branch gate: a non-`true` answer
+    // is a failure. Numeric DNSH checks (e.g. groundwater-abstraction
+    // under-limit) are not yet modelled; when one is added, re-introduce a
+    // per-type branch here (and its own test) rather than assuming yes_no. The
+    // all-yes_no invariant is asserted in tests/unit/taxonomy-dnsh.unit.test.ts.
+    if (answers[answerId] !== true) {
+      failures.push(check.failureReason);
+      failedCheckIds.push(id);
     }
-    // Numeric DNSH checks are not currently modelled but could be added
-    // here (e.g. groundwater-abstraction under-limit).
   }
   return { passed: failures.length === 0, failures, failedCheckIds };
 }

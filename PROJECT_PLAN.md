@@ -94,6 +94,7 @@ tracker.** The rule:
 | **PR2** | The bank's own footprint | Scope 1 + location-based Scope 2 capture; resolve the hydro CH₄/CO₂ contradiction; emission-factor registry. | ~2.5 weeks |
 | **P2** | Durability | Backups, migrations, graceful shutdown, session persistence. Data survives. | ~1.5 weeks |
 | **P3** | Observability & Security | Structured logging, error tracking, metrics, CSP/HSTS, admin audit. We can see and defend. | ~1.5 weeks |
+| **PH** | Physical hazard | Collateral + versioned hazard readings beside the sector view (early, additive); damage ratio, portfolio aggregation and rating (late, after PR1). Application side of the Additional Risk Modules. | ~5.5 weeks |
 | **PR3** | The three missing pillars | Governance, strategy, risk-management, targets, cross-industry metrics, and scenario analysis (S2 §§6–36, §22). | ~9 weeks |
 | **P4** | Scale & Resilience | Multi-replica, CDN, reconnection, circuit breakers, component decomposition, E2E. It holds up. | ~2–3 weeks |
 | **PR4** | Presentation mechanics | Comparatives + restatement, materiality judgements, connected information, measurement uncertainty, transition-relief flags. | ~2.5 weeks |
@@ -201,7 +202,7 @@ is the heart of a banking product.
 | ☑ | P1.2 | Tier 1 tests — ESDD scoring (`esdd/scoring.ts`, `annex5b-pf-scoring.ts`): answer combos → each risk-class boundary | TS §4.1 | 2 |
 | ☑ | P1.3 | Tier 1 tests — Taxonomy (`taxonomy/activities.ts`, `dnsh.ts`): table-driven, per-activity Green/Amber/Red + DNSH | TS §4.1 | 3 |
 | ☑ | P1.4 | Tier 1 tests — CAP (`cap/library.ts`), hydro (`capacity.ts`), loan-category derive, PRNG determinism | TS §4.1 | 1.5 |
-| ☐ | P1.5 | **Flip the hard gate:** `lib/regulatory/**` → 100% line + branch in `vitest.config.mts`, enforced in CI | TS §5.2 | 0.5 |
+| ☑ | P1.5 | **Flip the hard gate:** `lib/regulatory/**` → 100% line + branch in `vitest.config.mts`, enforced in CI | TS §5.2 | 0.5 |
 | ☐ | P1.6 | Tier 2 tests — API route handlers with mocked Supabase: happy path + auth-fail (no cross-tenant leak) + bad-input, for all 41 routes | TS §4.2 | 4 |
 | ☐ | P1.7 | Fix any bugs surfaced by P1.1–P1.6 (expect some; this is the point) | — | buffer 2 |
 
@@ -331,14 +332,58 @@ the commercial pivot to the Additional Risk Modules catalogue.
 | ☐ | N3.5 | **Targets** — metric, objective, scope, period, base period, milestones, absolute vs intensity, gases/scopes, gross vs net, carbon-credit use + verifying scheme. | S2 §§33–36 | seeded sample | bank capture | 5 |
 | ☐ | N3.6 | **Cross-industry metrics** §29(b)–(d): assets vulnerable to transition risk, physical risk, and aligned with opportunities. Existing Green/Amber/Red are NRB-taxonomy and must **not** be relabelled §29(d) without a mapping. | S2 §29(b)–(d) | shared | shared | 4 |
 | ☐ | N3.7 | **Capital deployment, internal carbon price, remuneration** — three small captured metrics. | S2 §29(e)–(g) | seeded | bank capture | 2 |
-| ☐ | N3.8 | **Scenario analysis + climate resilience.** §22 mandates it; B17 requires a quantitative approach where exposure is material and resources exist. Same engine as the Additional Risk Modules catalogue — scope once, serve both. Also serves NRB Chapter VIII §8.4. **The largest single build.** | S2 §22, B1–B18 | shared | shared | 20+ |
+| ☐ | N3.8 | **Scenario analysis + climate resilience.** §22 mandates it; B17 requires a quantitative approach where exposure is material and resources exist. Same engine as the Additional Risk Modules catalogue — scope once, serve both. Also serves NRB Chapter VIII §8.4. **The largest single build.** *Decomposed 2026-09-24:* the hazard foundations it needs are phase **PH** (§6b) — PH.3/PH.4 are its credit-affecting prerequisites; N3.8 proper is now the forward-scenario engine (`RISK_MODELS_METHODOLOGY.md` §8). | S2 §22, B1–B18 | shared | shared | 20+ |
 
 **Dependencies:** PR0, P1. **N3.8 must not start before PR1 (B62) is complete** —
-it depends on the portfolio data quality PR1 establishes.
+it depends on the portfolio data quality PR1 establishes. The gate applies to
+N3.8 and to PH.3–PH.4; it does **not** apply to PH.0–PH.2, which are additive
+and change no regulatory arithmetic (§6b).
 **Exit criterion:** Governance/Strategy/Risk-management render as disclosure;
 targets + cross-industry metrics are captured and disclosed; scenario analysis
 produces a quantitative resilience assessment. Effort ≈ **45 days** (25 for
 N3.1–N3.7 + 20+ for N3.8; backlog §8).
+
+---
+
+## 6b. Phase PH — Physical hazard (Additional Risk Modules, application side)
+
+**Objective:** Give every loan a collateral location and a real, versioned hazard
+reading beside the existing sector-based climate view — then, once PR1 is done,
+turn hazard into credit-relevant findings. The *why and where* of each task is
+in `engineering-documents/…/nepal/RISK_MODULES_BUILD_PLAN.md` (the build plan,
+§6–14 and §16); the boundary with the Jana platform is **ADR-0040**; what the
+numbers mean is `RISK_MODELS_METHODOLOGY.md`. This table carries **status** and
+wins over the build plan's mirror of it.
+
+**Split gate (decided 2026-09-24).** PH.0–PH.2 are **early**: additive, no
+regulatory arithmetic changes, the 24 goldens stay frozen — they may start now
+(PR0 is complete) and run in parallel with P1 and PR1. PH.3–PH.4 are **late**:
+credit-affecting arithmetic, behind PR1 and the P1.5 coverage gate, alongside
+N3.8. **Any golden change before PH.4 means the additive rule was broken.**
+
+**Sector stays.** Hazard adds a location dimension to `BorrowerClimateRisk`; the
+`nrbSector` → NGFS mapping in `lib/regulatory/climate/infer.ts` and its ~20
+consumers are untouched (build plan §9.2).
+
+| S | # | Task | Source | Demo | Live | Effort |
+|---|---|------|--------|------|------|--------|
+| ☐ | PH.0 | **Collateral entity (early).** New collateral record per pledged asset, one-to-many from loan: type, location + `location_source` + precision, construction class + storeys (from a published code list), value + valuation date, insurance. `bank_id`-scoped, RLS, numbered idempotent initdb migration, `origin` provenance column. Officer capture form. Server-only Jana client on a per-deployment service credential (never a `NEXT_PUBLIC_` variable, never client components). Correct the stale "no automated tests" lines in `CLAUDE.md`. Fix two demo defects in `lib/demo/entities.ts`: synthesised-pool facilities labelled `matchMethod: "geocoded"` (nothing is geocoded — they are real Climate TRACE coordinates attached to invented borrowers), and the `lat: p.lat ?? 0` fallback that would place a missing coordinate at 0°N 0°E. | Build plan §6 (F1, F7), §11, §12.1; methodology §2 (B1–B3, B8) | fabricated collateral at real Nepali coordinates | **bulk from the P4.1a import**; capture form for corrections and new originations | ~6 |
+| ☐ | PH.1 | **Hazard cache + display (early).** `bfi_hazard_exposure` keyed on collateral, append-only, stamped with layer and methodology versions. Backfill and incremental jobs; never called on page load. Optional `hazardExposure` on `BorrowerClimateRisk`. Three-state rendering (*not assessed* never shown as low). | Build plan §12.2–12.4; RMG 2026 §8.4(a)–(b) | snapshot file, no runtime Jana calls | Jana sample endpoint | ~6 |
+| ☐ | PH.2 | **Bands + intersection view (early).** Five-band hazard display; sector × location intersection; provenance click-through (source, sample date, versions, missing inputs). | Build plan §8; methodology §3, §9 | shared | shared | ~4 |
+| ☐ | PH.3 | **Damage ratio + portfolio aggregation (late).** Apply Jana-served vulnerability curves to collateral (Layer 3); event-footprint portfolio aggregation at a constant return period. Gated on PR1 and on construction class being tested against a real bank extract. | Build plan §10.2, §16; methodology §5, §7 | shared | shared | ~7 |
+| ☐ | PH.4 | **Fold into rating + reports (late).** Hazard enters `overallRating` and the NRB/NFRS reports; deliberate golden re-freeze; reviewed as a regulatory-arithmetic change. | Methodology §6; RMG 2026 §8.4 | shared | shared | ~4 |
+
+**Dependencies:** PH.0 has none in demo mode; in live mode it needs **P4.1a** (loan-book import) — there is no live loan for collateral to attach to until a bank's book can be imported. PH.1 needs PH.0 and Jana R0 (sampling endpoint).
+PH.2 needs PH.1 and Jana HM1 (thresholds served). PH.3 needs PH.2, Jana HM2
+(curves), **PR1**, and build-plan gate G2. PH.4 needs PH.3 and **P1.5**. No
+hazard figure reaches a live bank until build-plan gate G1 (a pinned Jana image)
+is met.
+**Exit criterion:** every live loan's collateral carries a location of stated
+precision and a versioned, three-state hazard reading shown beside its sector
+view (early); damage ratios and a correlation-preserving portfolio view feed the
+rating and reports under the 100% gate (late). Effort ≈ **27 days** (~16 early,
+~11 late). Platform-side work (Jana R0–R3, HM1–HM2, ~53 days) is tracked in the
+build plan, not here.
 
 ---
 
@@ -353,7 +398,8 @@ the worst component is decomposed; end-to-end journeys are guarded.
 
 | S | # | Task | Source | Effort |
 |---|---|------|--------|--------|
-| ☐ | P4.1 | Real-data path: point the app at Supabase/Postgres populated by a real ingestion pipeline; retire the in-memory portfolio for live tenants (provider pattern already supports this) | PRA §1.1, CRR §4.1 | 3 |
+| ☐ | P4.1a | **Loan-book import, including collateral (pulled forward — not gated on P4).** *Split out of P4.1 on 2026-09-25.* Today there is **no path for a bank's loan book to enter a live deployment**: the only writer to `bfi_loans_denorm` is `app/api/admin/seed`, which writes the fabricated portfolio and refuses in live builds. Build it: a published import specification (loan, borrower **and collateral** columns — location, construction class, value + valuation date, insurance); a server-side importer (CSV/XLSX) with field mapping, validation and a rejected-rows report; idempotent re-import; `origin = live` provenance; NPR/USD handling via `lib/regulatory/fx`. Decide the target schema — `bfi_loans_denorm` is a denormalised demo read model and has no collateral or location columns. Excludes geocoding of text addresses (build plan Q6). The same specification is the extract we ask a bank for under build-plan gate G2. | PRA §1.1, CRR §4.1; build plan §6 F7 | ~10 |
+| ☐ | P4.1b | Real-data path: retire the in-memory portfolio for live tenants and read from the imported tables (provider pattern already supports this) | PRA §1.1, CRR §4.1 | 3 |
 | ☐ | P4.2 | DB-level pagination (LIMIT/OFFSET or keyset) for live portfolio; the `queryLoans()` signature already supports it | PRA §1.3 | 1 |
 | ☐ | P4.3 | Horizontal scaling: ≥2 replicas behind a load balancer; audit module-level caches (`facilityCache`, `nplLocationCache`) for per-instance safety or move to Redis | PRA §1.2, CRR §2.3 | 3 |
 | ☐ | P4.4 | Move PDF/Excel generation off the request path (background worker) | PRA §1.2 | 2 |
@@ -364,8 +410,10 @@ the worst component is decomposed; end-to-end journeys are guarded.
 | ☐ | P4.9 | Tier 3 component tests (wizards) + Tier 3 coverage; tighten non-null assertions / loose coercion | TS §4.3, CRR §5.1, §5.2 | 4 |
 | ☐ | P4.10 | Playwright config + the 6 critical E2E journeys (incl. exit-demo regression) | TS §5.3 | 2.5 |
 
-**Dependencies:** P1 (route tests de-risk the P4.1 data-path swap and P4.8
-decomposition); P0 (CI runs E2E).
+**Dependencies:** P1 (route tests de-risk the P4.1b data-path swap and P4.8
+decomposition); P0 (CI runs E2E). **P4.1a is the exception:** it adds an
+import path and new tables without changing any regulatory arithmetic, so it
+may start now. It gates the live half of PH.0 and every live tenant.
 **Exit criterion:** App runs multi-replica with a real-data tenant; static
 assets served from CDN; `esrm-tab` decomposed and tested; 6 E2E journeys green
 in CI; upstream outage degrades gracefully, not fatally.
@@ -469,11 +517,17 @@ P0 (CI + harness)
              │     └─> PR2 (the bank's own footprint)
              │           └─> PR3 (three missing pillars; N3.8 scenario analysis)
              │                 └─> PR4 (presentation mechanics: comparatives, materiality…)
+             │     └─> PH.3–PH.4 (hazard: damage ratio, aggregation, rating) ← late half; also needs P1.5
              └─> P4 (scale, resilience, decomposition, E2E)
                    └─> P5 (staging, rollback, pilot, go-live)
 
 PRD (docs & accuracy) runs in the background alongside all phases:
   ND.1/ND.3/ND.4/ND.5/ND.10 start immediately; ND.7 after PR0; ND.8 after PR1.
+
+P4.1a (loan-book import incl. collateral) — pulled forward, starts now; gates live PH.0 and every live tenant.
+
+PH.0–PH.2 (hazard: collateral, cache, display) — early half, additive, goldens frozen:
+  starts now (PR0 done), parallel to P1/PR1; live PH.0 needs P4.1a; needs Jana R0 and HM1 (build plan §16); feeds PH.3.
 ```
 
 **Sequencing rationale.** PR0 is inserted **between P0 and P1**: the disclosed
@@ -484,7 +538,7 @@ would freeze the bugs. PR1→PR2→PR3→PR4 is a strict chain: B62 portfolio qu
 must exist before the bank's own footprint, both before the three pillars, and
 disclosed amounts must exist before comparatives/materiality wrap them (N3.8
 scenario analysis explicitly must not start before PR1 is complete). P2/P3 and
-the PR chain run in parallel once P1 is done; P4's data-path swap (P4.1) and
+the PR chain run in parallel once P1 is done; P4's data-path swap (P4.1b) and
 `esrm-tab` decomposition (P4.8 — the aggregator fold is already done by N0.1)
 still depend on P1's tests to be safe. P5 gates on everything.
 
@@ -497,11 +551,13 @@ still depend on P1's tests to be safe. P5 gates on everything.
 | Tests surface existing regulatory bugs | **High** | High (good — that's the point) | P1.7 buffer; treat each as a finding, trace to the regulation, fix with a test |
 | P1 freezes an integrity bug (locks a wrong number to 100%) | **High** if P1 precedes PR0 | Critical | Sequence PR0 **before** P1 (dependency graph §9); PR0 makes the core provider-independent first, so P1 locks the corrected behaviour |
 | Disclosed number depends on code path, not data | **Present today** | Critical | PR0/N0.1–N0.10: remove name-substring PCAF scoring, chart-tuned retail factor, demo hash in `lib/regulatory`; enforce "one computation, two providers" |
-| In-memory → DB swap changes numbers subtly | Medium | High | P1 route/regulatory tests as the golden reference before P4.1 |
+| In-memory → DB swap changes numbers subtly | Medium | High | P1 route/regulatory tests as the golden reference before P4.1b |
 | Supabase restore untested until needed | Medium | Critical | P2.2 explicitly tests restore to a clean instance |
 | `esrm-tab` decomposition introduces UI regressions | Medium | Medium | Do P4.9/P4.10 (component + E2E tests) alongside, not after |
 | Scope creep delays correctness work | Medium | High | P0+P1 are fixed, front-loaded, and gated; later phases flex |
 | Single-instance caches break under multi-replica | Medium | Medium | P4.3 cache audit before enabling ≥2 replicas |
+| Early hazard work (PH.0–PH.2) leaks into regulatory arithmetic ahead of PR1 | Medium | High | Additive-only rule: optional fields, `overallRating` unchanged until PH.4; the 24 goldens are the tripwire — any golden change before PH.4 is a violation |
+| Hazard figures shown to a live bank from a `:latest` Jana service | **Present today** for EDGAR/OpenAQ (`api-test`) | High | Build-plan gate G1: no live hazard figure until the application reads from a pinned, promoted Jana image |
 
 ---
 
@@ -537,6 +593,14 @@ the **Maintenance protocol** in §0 — read that before editing. In short: the 
 that ships a task flips its `S` glyph and adds a Changelog line (§13) in the
 same PR.
 
+**Phase PH** draws its detail from documents in `engineering-documents`
+(`jana/docs/data_source_docs/planned/nepal/`), because the work spans this repo
+and the Jana platform: `RISK_MODULES_BUILD_PLAN.md` (why/where per task, and
+status for the platform-side tasks this repo depends on),
+`RISK_MODELS_METHODOLOGY.md` (what the numbers mean), and ADR-0040 in
+`jana/ADRs/` (the boundary decision). This file remains the source of truth for
+PH status.
+
 ---
 
 ## 13. Changelog
@@ -547,6 +611,9 @@ affected, and the merge commit/PR that carried it. Per §0 rule 1, a task is not
 
 | Date | Change | Task(s) | Commit / PR |
 |------|--------|---------|-------------|
+| 2026-09-25 | **Scope edit — P4.1 split; loan-book import pulled forward.** Finding: no path exists for a bank's loan book to enter a live deployment (the only writer to `bfi_loans_denorm` is the demo seeder, which refuses in live builds), and no table carries a location. P4.1a (import spec + importer, **including collateral columns**, ~10 d) may start now and gates live PH.0 and every live tenant; P4.1b (retire the in-memory portfolio, 3 d) stays in P4. PH.0 gains the live dependency and two demo-defect fixes in `lib/demo/entities.ts`. Updated together per §0 rule 3: §7 P4 table + dependencies, §6b PH.0 row + dependencies, §9 dependency graph + sequencing text, §10 risk register. No code changed. | P4.1a, P4.1b, PH.0 | _this PR_ |
+| 2026-09-24 | **Scope edit — new phase PH (physical hazard), N3.8 decomposed, gate split.** Added §6b with PH.0–PH.4, the application side of the Additional Risk Modules (detail: `RISK_MODULES_BUILD_PLAN.md`; boundary: ADR-0040, Proposed). N3.8's "not before PR1" gate now applies to N3.8 and PH.3–PH.4 only; PH.0–PH.2 are additive (goldens frozen) and may start now. N3.8 proper narrows to the forward-scenario engine. Updated together per §0 rule 3: §2 overview, §6a N3.8 row + dependencies, §6b, §9 dependency graph, §10 risk register (two rows), §12. No code changed. | PH.0–PH.4, N3.8 | _this PR_ |
+| 2026-09-24 | **P1.5 — Flip the hard 100% gate on `lib/regulatory/**`, closing the Tier-1 net (P1.5 → ☑).** Turned the coverage gate ON in `vitest.config.mts`: a per-file `thresholds: { "lib/regulatory/**": { lines, branches, functions, statements: 100 } }` block that fails `npm run test:coverage` (and therefore CI) on a single uncovered line or branch anywhere in the regulatory core — the disclosed-numbers surface where every branch changes a figure a bank reports. Wrote the remaining per-module suites that were still uncovered so the whole tree could go green: `climate-infer.unit.test.ts` (climate/infer.ts + types.ts — `estimateAnnualTco2e`, `inferEmissionsFlag` incl. the N0.3 no-seed honest default + the 25 000 tCO₂e boundary, `inferClimateRisk` per sector-profile verdict, `getBorrowerClimateBundle`, `summarisePortfolioClimate`), `hydro-doc-matrix.unit.test.ts` (Annex-2 capacity bands at both inclusive boundaries — 1 MW & 50 MW — the EIA/IEE/none document selection, and `findHydroDocument` hit/miss), `fx-period.unit.test.ts` (the dated NPR/USD disclosure rate 133.5 @ 2024-07-15 + `nprToUsd`/`usdToNpr` round-trip & override, and the N0.7 reporting-period boundary — TREND_YEARS, LATEST_FULL_YEAR/LATEST_YEAR, derived AS_OF_DATE 2025-10-31, `isPartialYear`/`isFullyReportedYear`), plus a `pcaf-evidence-matrix.unit.test.ts` fix pinning the correct `resolveAvailability` basis (a flag with an establishing document but no row downgrades to `unevidenced`; only a flag with **no** document stays `inference`). Confirmed `taxonomy/activities.ts` + `dnsh.ts` were already fully covered by the existing `taxonomy.unit.test.ts`, so the two dead branches removed in P1.3 (`?? null` alias fallback, `yes_no` implicit-else) plus the two removed in P1.1/P1.2 (`3c` method arm, `: "none"` fallback) are all now gone under the 100% gate. Three last unreachable branches surfaced by the gate were resolved rather than left: (1) **climate/infer.ts** `rollupRating`'s `low` verdict (needs zero transition risk AND <2 physical — no SECTOR_PROFILE produces that today) was made reachable for test by **exporting** the documented count-based policy fn and pinning its full Low/Medium/High table directly (the branch is kept, not deleted, since the compliance team may add a transition-free profile); (2) **taxonomy/applicability.ts** `activitiesFromHints`'s `a && !acc.includes(a)` guard was a genuine dead branch (every SECTOR_HINTS id resolves — no `find` miss — and no two co-matching hints share an id, so no intra-call dupe) and was removed (`find(...)!` with an inline invariant note + a `taxonomy-applicability.unit.test.ts` case asserting every hint id resolves, so a future mistyped id fails loudly); (3) **climate/infer.ts** `summarisePortfolioClimate`'s two `length > 0 ?` physical/transition counters had unreachable false arms (every SECTOR_PROFILE + the DEFAULT_PROFILE fallback carries >=1 of each) and were made unconditional increments under an inline invariant note + a `climate-infer.unit.test.ts` case asserting every profile (matched, default-fallback, null-sector) carries >=1 physical and >=1 transition risk. These are the 5th–7th sanctioned P1.5 dead-branch removals (after the 3c method arm, `: "none"` fallback, `?? null` alias, and `yes_no` implicit-else removed in P1.1–P1.3). All 416 tests green in `node:20-alpine`; `lib/regulatory/**` reports **100% stmt/branch/func/line** and the gate passes (exit 0). Arithmetic-neutral (the dead-branch removals + one export change nothing computed; every golden histogram frozen). | P1.5 | _this PR_ |
 | 2026-09-24 | **P1.4 — Tier 1 unit tests for CAP library, hydro capacity, ESDD loan-category derive + the deterministic PRNG (P1.4 → ☑).** Fourth P1 correctness suite closes the Tier-1 net: `tests/unit/cap-hydro-loancat-prng.unit.test.ts` (49 table-driven cases) pins the four remaining "smaller" pure modules. **CAP library (`lib/regulatory/cap/library.ts`):** `COVENANT_LIBRARY` covers all five Annex-9 covenant types with unique ids + Annex-9 citations (condition-precedent is the deadline-bearing one); `findCovenantTemplate` hit/miss; `ANNEX10_CHECKLIST_ITEMS` = the 13 items serial 1..13 with `annex10.N` ids across the six Annex-10 sections; `frequencyForRiskClass` §7.3.7 cadence (extreme→1, high→3, medium→6, low→12, and null→12 default arm); `deriveCapFromEscalation` — explicit `drivingQuestionIds` preferred over the snapshot "c"-answer scan (no double-count), sorted one-row-per-driver with blank corrective-action / null deadline / `not_started`, the `ESDD_QUESTION_AREA` label map + raw-id fallback, remark-suffix append (trimmed) and null-remark handling, empty result when nothing escalated. **Hydro capacity (`lib/regulatory/hydro/capacity.ts`):** `getBorrowerHydroCapacityMw` all three match rules against the real `data/hydropower-operators-npl.json` snapshot — exact case-insensitive (NEA → 213 MW), normalised trailing-"Limited" strip (Chilime → 22.1 MW), substring either direction (borrower "Himal Power" → snapshot "Himal Power Limited" → 60 MW), float-accurate multi-station sum (Butwal → 21.7 MW), and the 0 fallback for a non-hydro borrower. **ESDD loan-category derive (`lib/regulatory/esdd/loan-category-derive.ts`):** `deriveEsddLoanCategory` Project-Finance short-circuits (businessUnit + `*-project-finance` suffix), commercial-*/corporate-syndicated → `bwc-term` (sector-independent), the full SME+retail set → `small-*` split by critical sector, missing-category nullish-coalesce, and case-insensitive substring match across all ten critical-sector tokens. **Deterministic PRNG (`lib/demo/synth-util.ts`):** `mulberry32` same-seed reproducibility, seed divergence, [0,1) range over a long run; `pick`/`pickWeighted`/`rangeInt`/`rangeFloat`/`logUniform`/`gaussian`/`isoDateOffsetDays` as pure functions of the injected generator. Coverage: the three regulatory modules **100% stmt/branch/func/line**; `synth-util.ts` **96.42% stmt / 100% branch / 100% func / 96.15% line** (demo tier — NOT in the P1.5 `lib/regulatory` gate; the one uncovered line 57 is `pickWeighted`'s explicit final-item return, a float-drift-only defensive fallback, noted in the file header). All 264 tests green (24 goldens + 53 PCAF + 29 ESDD + 109 taxonomy + 49 new) in `node:20-alpine`; 9 prebuild guards + lint (0 errors) + type-check pass. No regulatory code touched, arithmetic-neutral. | P1.4 | ba7d169 (PR #57 → dev) |
 | 2026-09-24 | **P1.3 — Tier 1 unit tests for the NRB Green Finance Taxonomy (P1.3 → ☑).** Third P1 correctness suite: `tests/unit/taxonomy.unit.test.ts` (109 table-driven cases) locks the two modules that turn officer answers into the disclosed Green/Amber/Red/unclassified verdict. **Activity catalog (`lib/regulatory/taxonomy/activities.ts`):** every one of the 19 activities gets its reachable colours pinned against answer objects hand-derived from the NRB Annex 2 cells (not read back from the code), covering each classifier's hard-red gates, DNSH-downgrade behaviour, numeric thresholds, and green/amber/unclassified fall-throughs — the numeric-band boundaries in particular (hydro lifecycle-GHG: 99→Green, 100→Amber, 425→Red; personal-home-loan Rs. 15M cap: 15→within, 20→unclassified-by-cap) and the two structural deviations (cement §5.11 caps at Amber — asserted it never returns Green even with every lever set; the "WHR alone can't carry the classification" red). Plus catalog-integrity guards (exact id set, citation/sector/criteria presence, resolved-criteria = activity + one-per-DNSH), `findActivityById` legacy-alias resolution (hydro-small/medium/large → hydro, ev-transport → ev-consumer, unknown → null), and `suggestActivitiesForSector` substring matching. **DNSH library (`lib/regulatory/taxonomy/dnsh.ts`):** `evaluateDnsh` strict-`true` semantics (false/"yes"/1/null/undefined all fail), missing-answer failure, multi-check failure collection + order, unknown-id skip, empty-list pass; `getDnshCriteria` materialisation + unknown-id drop + the `dnsh_<checkId>` id convention. Fixtures pass DNSH by setting every `dnsh_*` key an activity references to `true` (a `dnshPass(id)` helper built from the live `DNSH_CHECKS` map) so each activity's own criteria are exercised in isolation from the shared gate, with separate cases flipping one DNSH key to prove the gate fires. Coverage: `activities.ts` **100% stmt/func/line, 99.48% branch**; `dnsh.ts` **100% stmt/func/line, 83.33% branch** — the two uncovered branches (activities.ts:1766 `findActivityById`'s `?? null` alias fallback; dnsh.ts:336 the implicit else of the `type === "yes_no"` guard, no numeric DNSH check exists yet) are genuinely dead defensive arms, documented in the file header for P1.5 (100% gate) / P1.7 (dead-code removal). All 215 tests green (24 goldens + 53 PCAF + 29 ESDD + 109 taxonomy) in `node:20-alpine`; 9 prebuild guards + lint (0 errors) + type-check pass. No regulatory code touched, arithmetic-neutral. | P1.3 | 8739ff4 (PR #57 → dev) |
 | 2026-09-23 | **P1.2 — Tier 1 unit tests for ESDD + Project-Finance scoring (P1.2 → ☑).** Second P1 correctness suite: `tests/unit/esdd-scoring.unit.test.ts` (29 table-driven cases) locks the two NRB ESRM risk-rating engines. **Annex 5 (`lib/regulatory/esdd/scoring.ts`):** `scoreBySection` per-section aggregation (answered vs applicable, the `d`→null N/A drop-out, `cCount`, mean = totalWeight/applicable, empty/only-`d` → mean null, falsy-section skip) and `deriveEsrm` across every NRB ESRR boundary — all `a`/`d` → LOW/approve/no-escalation, a single `b` → MEDIUM/approve-with-conditions/escalates (§7.3.6), a single `c` → HIGH, `c`-dominates-`b` driver selection, `criticalFindingCount` tracking severity WITHIN high without inventing a fourth level, and the `RATING_EXEMPT_QUESTIONS` rule (Q2.4/annex5.2.4 counts as answered but never scores, never drives, and cannot push MEDIUM→HIGH). Asserts the rationale wiring (`'c'` vs `'b'` driver label, short-form id list, §7.3.6 citation). **Annex 5b PF (`annex5b-pf-scoring.ts`):** flag-count → risk-class boundaries pinned at the exact edges (0 & 4 → LOW, 5 & 15 → MEDIUM, 16 → HIGH per `LOW_MAX=4`/`MEDIUM_MAX=15`), the `ifcPsTerminationTrigger` → CRITICAL override (any single trigger beats a low count), `n/a`-vs-unanswered accounting, and `psBreakdown` reconciliation with the top-level counters. PF fixtures are built from the **live** `ANNEX5B_ALL`/`pfCriticalItems()` catalog at runtime (each item set to its own `flagOnAnswer` for an exact flag count) so the boundaries pin against real question ids and can't drift on a catalog re-number. Coverage: `esdd/scoring.ts` **100% stmt/branch/func/line**; `annex5b-pf-scoring.ts` **100% line, 97% branch** — the one uncovered branch (line 150, the `criticalList` ternary's `: "none"` fallback) is genuinely dead (unreachable: `buildRationale` only runs with `riskClass="critical"` when `criticalFlaggedItems.length > 0`, the very condition that sets that class), documented in the file header for P1.5 (100% gate) / P1.7 (dead-code removal) alongside the PCAF `3c` arm. All 106 tests green (24 goldens + 53 PCAF + 29 ESDD) in `node:20-alpine`; 9 prebuild guards + lint (0 errors) + type-check pass. No regulatory code touched. TEST_STRATEGY §4.1 names a since-refactored `computeEsrmScore()` entry point; the doc's stale name is noted in the test header. | P1.2 | 2949569 (PR #57 → dev) |

@@ -358,17 +358,22 @@ function methodDescription(
           "Borrower revenue × sector-average emission factor per unit of revenue",
         dataSource: "NEPSE filings + EDGAR sector intensity (South Asia)",
       };
-    case "3b":
+    // Terminal rung — the sector-average fallback. `chooseOption` produces
+    // "3b" here; "3c" (asset-turnover proxy) is a valid PcafOption value the
+    // type + SCORE_FOR_OPTION + PCAF_OPTION_LABEL carry, but the §5 decision
+    // tree in chooseOption() never routes to it (no availability-flag
+    // combination yields "3c"). Both collapse to the same Score-5 sector-
+    // average method, so this is a single `default` case rather than separate
+    // `case "3b"` / `case "3c"` labels: that keeps the switch exhaustive for
+    // the type-checker AND leaves no unreachable `case "3c"` branch for the
+    // P1.5 100%-branch gate to trip on. The 3c→Score-5 collapse itself is
+    // still asserted via SCORE_FOR_OPTION in
+    // tests/unit/pcaf-scoring.unit.test.ts.
+    default:
       return {
         method:
           "Outstanding amount × sector-average emission factor per unit of asset",
         dataSource: "EDGAR sector-average intensity (Nepal / South Asia)",
-      };
-    case "3c":
-      return {
-        method:
-          "Revenue estimated via asset-turnover ratio × sector-average EF per unit of asset",
-        dataSource: "EDGAR sector intensity + sector asset-turnover proxy",
       };
   }
 }

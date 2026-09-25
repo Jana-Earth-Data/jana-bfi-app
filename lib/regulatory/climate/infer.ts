@@ -176,7 +176,14 @@ function profileForBorrower(b: Borrower): SectorClimateProfile {
 // This mirrors the "count + severity" trigger logic used elsewhere in
 // the demo (see lib/regulatory/esdd/scoring.ts).
 
-function rollupRating(
+// Exported so the rollup policy can be unit-tested directly (P1.5, TEST_STRATEGY
+// §4.1). The `low` verdict (line: `return "low"`) requires zero transition risk
+// AND fewer than two physical categories — a combination no SECTOR_PROFILE /
+// DEFAULT_PROFILE currently produces (every profile carries >=1 transition
+// risk), so it is unreachable through inferClimateRisk today. We keep the branch
+// (the compliance team may add a transition-free profile later) and pin it here
+// rather than delete it, exercising the full documented Low/Medium/High table.
+export function rollupRating(
   physicalCount: number,
   transitionCount: number,
   aboveThreshold: boolean,
@@ -372,10 +379,20 @@ export function summarisePortfolioClimate(
   let aboveThresholdWithTargetCount = 0;
 
   for (const b of scoped) {
-    const climate = inferClimateRisk(b);
     const flag = inferEmissionsFlag(b, seed);
-    if (climate.physicalRisks.length > 0) borrowersWithPhysicalRisk += 1;
-    if (climate.transitionRisks.length > 0) borrowersWithTransitionRisk += 1;
+    // INVARIANT (asserted by climate-infer.unit.test.ts "every scoped borrower
+    // carries at least one physical and one transition risk"): inferClimateRisk
+    // draws from profileForBorrower, and every SECTOR_PROFILE — plus the
+    // DEFAULT_PROFILE fallback — declares >=1 physical AND >=1 transition
+    // category. So a scoped borrower always contributes to both counters; the
+    // former `length > 0 ?` guards were unreachable false branches (P1.5 gate,
+    // same class as the applicability.ts `find(...)!` removal) and are dropped.
+    // Because both increments are now unconditional, we no longer call
+    // inferClimateRisk(b) here at all (it was pure and only read for its
+    // now-removed guards). A future risk-free profile would break the invariant
+    // test above, not silently undercount here.
+    borrowersWithPhysicalRisk += 1;
+    borrowersWithTransitionRisk += 1;
     if (flag.exceedsReportingThreshold) {
       aboveThresholdBorrowerIds.push(b.id);
       if (flag.reductionTargetOnFile) {
