@@ -42,8 +42,7 @@ describe("POST /api/taxonomy/assessments", () => {
             loanId: TEST_LOAN_ID,
             borrowerId: TEST_BORROWER_ID,
             activityId: "hydro",
-            classification: "green",
-            criteria: { capacity_mw: 5 },
+            criterionAnswers: { capacity_mw: 5 },
           },
           cookies: officerCookies(),
         },
@@ -75,22 +74,23 @@ describe("POST /api/taxonomy/assessments", () => {
   });
 
   describe("Bad input", () => {
-    it("returns 400 when classification is invalid", async () => {
+    it("returns 400 when activityId is unknown", async () => {
       const request = createMockRequest(
         "/api/taxonomy/assessments",
         {
           method: "POST",
           body: {
             loanId: TEST_LOAN_ID,
-            activityId: "hydro",
-            classification: "purple", // Invalid
+            borrowerId: TEST_BORROWER_ID,
+            activityId: "unknown-activity-id",
+            criterionAnswers: {},
           },
           cookies: officerCookies(),
         },
       );
 
       const response = await POST(request);
-      await expectJsonError(response, 400);
+      await expectJsonError(response, 400, "Unknown activityId");
     });
 
     it("returns 400 when loanId missing", async () => {
@@ -99,8 +99,9 @@ describe("POST /api/taxonomy/assessments", () => {
         {
           method: "POST",
           body: {
+            borrowerId: TEST_BORROWER_ID,
             activityId: "hydro",
-            classification: "green",
+            criterionAnswers: {},
           },
           cookies: officerCookies(),
         },
@@ -114,7 +115,7 @@ describe("POST /api/taxonomy/assessments", () => {
 
 describe("GET /api/taxonomy/assessments", () => {
   describe("Happy path", () => {
-    it("returns assessments array", async () => {
+    it("returns latest assessment", async () => {
       server.use(
         http.get("https://test.supabase.co/rest/v1/bfi_taxonomy_assessments", () => {
           return HttpResponse.json([
@@ -122,7 +123,17 @@ describe("GET /api/taxonomy/assessments", () => {
               id: "assessment-123",
               loan_id: TEST_LOAN_ID,
               activity_id: "hydro",
-              classification: "green",
+              computed_color: "green",
+              captured_at: "2024-01-15T12:00:00Z",
+              officer_id: "officer-123",
+            },
+          ]);
+        }),
+        http.get("https://test.supabase.co/rest/v1/bfi_officers", () => {
+          return HttpResponse.json([
+            {
+              id: "officer-123",
+              name: "Test Officer",
             },
           ]);
         }),
@@ -138,7 +149,8 @@ describe("GET /api/taxonomy/assessments", () => {
 
       const response = await GET(request);
       const json = await expectJsonSuccess(response, 200);
-      expect(Array.isArray(json)).toBe(true);
+      expect(json.ok).toBe(true);
+      expect(json.loanId).toBe(TEST_LOAN_ID);
     });
   });
 

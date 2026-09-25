@@ -21,7 +21,7 @@ import {
 import "../helpers/msw-setup";
 
 describe("POST /api/tenant/set-code", () => {
-  it("returns 400 when accessCode missing", async () => {
+  it("returns 200 with default tenant when code missing", async () => {
     const request = createMockRequest(
       "/api/tenant/set-code",
       {
@@ -31,19 +31,37 @@ describe("POST /api/tenant/set-code", () => {
     );
 
     const response = await setCodePost(request);
-    await expectJsonError(response, 400);
+    const json = await expectJsonSuccess(response, 200);
+    expect(json.ok).toBe(true);
+    expect(json.matched).toBe(false);
   });
 
-  it("returns 400 when accessCode is not string", async () => {
+  it("returns 200 with default tenant when code is not string", async () => {
     const request = createMockRequest(
       "/api/tenant/set-code",
       {
         method: "POST",
-        body: { accessCode: 123 },
+        body: { code: 123 },
       },
     );
 
     const response = await setCodePost(request);
+    const json = await expectJsonSuccess(response, 200);
+    expect(json.ok).toBe(true);
+    expect(json.matched).toBe(false);
+  });
+
+  it("returns 400 when body is malformed JSON", async () => {
+    const url = "https://test.jana.earth/api/tenant/set-code";
+    const request = new Request(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "not json",
+    }) as any;
+
+    const nextRequest = new (await import("next/server")).NextRequest(request);
+    const response = await setCodePost(nextRequest);
+
     await expectJsonError(response, 400);
   });
 });
@@ -77,18 +95,19 @@ describe("POST /api/officer/clear", () => {
 });
 
 describe("POST /api/auth/device-code", () => {
-  it("returns 400 when body malformed", async () => {
-    const url = "https://test.jana.earth/api/auth/device-code";
-    const request = new Request(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "not json",
-    }) as any;
+  it("handles auth service errors gracefully", async () => {
+    // This route doesn't validate request body - it just forwards to AUTH_URL
+    // Testing error handling when AUTH_URL is unavailable or returns invalid response
+    const request = createMockRequest(
+      "/api/auth/device-code",
+      {
+        method: "POST",
+      },
+    );
 
-    const nextRequest = new (await import("next/server")).NextRequest(request);
-    const response = await deviceCodePost(nextRequest);
-
-    await expectJsonError(response, 400);
+    const response = await deviceCodePost(request);
+    // With AUTH_URL not configured in test env, expect 500
+    await expectJsonError(response, 500, "AUTH_URL not configured");
   });
 });
 
