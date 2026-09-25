@@ -95,6 +95,7 @@ tracker.** The rule:
 | **P2** | Durability | Backups, migrations, graceful shutdown, session persistence. Data survives. | ~1.5 weeks |
 | **P3** | Observability & Security | Structured logging, error tracking, metrics, CSP/HSTS, admin audit. We can see and defend. | ~1.5 weeks |
 | **PH** | Physical hazard | Collateral + versioned hazard readings beside the sector view (early, additive); damage ratio, portfolio aggregation and rating (late, after PR1). Application side of the Additional Risk Modules. | ~5.5 weeks |
+| **PW** | Workflow & as-of reporting | Dated FX chain (core-banking stub → NRB → pinned); an as-of date on every report; officer→manager approval with dated reporting lines behind an RBAC-ready `can()` seam; disclosures count approved work only (late). | ~5 weeks |
 | **PR3** | The three missing pillars | Governance, strategy, risk-management, targets, cross-industry metrics, and scenario analysis (S2 §§6–36, §22). | ~9 weeks |
 | **P4** | Scale & Resilience | Multi-replica, CDN, reconnection, circuit breakers, component decomposition, E2E. It holds up. | ~2–3 weeks |
 | **PR4** | Presentation mechanics | Comparatives + restatement, materiality judgements, connected information, measurement uncertainty, transition-relief flags. | ~2.5 weeks |
@@ -203,7 +204,7 @@ is the heart of a banking product.
 | ☑ | P1.3 | Tier 1 tests — Taxonomy (`taxonomy/activities.ts`, `dnsh.ts`): table-driven, per-activity Green/Amber/Red + DNSH | TS §4.1 | 3 |
 | ☑ | P1.4 | Tier 1 tests — CAP (`cap/library.ts`), hydro (`capacity.ts`), loan-category derive, PRNG determinism | TS §4.1 | 1.5 |
 | ☑ | P1.5 | **Flip the hard gate:** `lib/regulatory/**` → 100% line + branch in `vitest.config.mts`, enforced in CI | TS §5.2 | 0.5 |
-| ☐ | P1.6 | Tier 2 tests — API route handlers with mocked Supabase: happy path + auth-fail (no cross-tenant leak) + bad-input, for all 41 routes | TS §4.2 | 4 |
+| ◐ | P1.6 | Tier 2 tests — API route handlers with mocked Supabase: happy path + auth-fail (no cross-tenant leak) + bad-input, for all 41 routes | TS §4.2 | 4 |
 | ☐ | P1.7 | Fix any bugs surfaced by P1.1–P1.6 (expect some; this is the point) | — | buffer 2 |
 
 **Dependencies:** P0 (harness + CI gate); **PR0** (integrity — the core must be
@@ -234,7 +235,7 @@ before PR0 and P1.** Each task carries a P1.5 test obligation.
 | ☐ | N1.10 | **Derived methodology disclosure** replacing the hardcoded string: which option, denominator, factor source, per loan + aggregate. | B62(d), §29(a)(iii) | shared | shared | 2 |
 | ☐ | N1.11 | **Extent of primary-activity data + extent of verified data** as disclosed metrics (PCAF evidence matrix holds most inputs). | B55–B56 | shared | shared | 2 |
 | ☐ | N1.12 | **Consolidation approach** (equity share or control) as a configured, disclosed per-bank property. | B27 | shared | shared | 1 |
-| ☐ | N1.13 | **Per-tenant reporting FX rate + reporting period — wire the live override N0.6/N0.7 stubbed.** Live and demo currently share the *same pinned constants* (`REPORTING_FX_RATE` 133.5 as-of 2024-07-15 in `lib/regulatory/fx/rates.ts`; derived `AS_OF_DATE`/`TREND_YEARS` in `lib/regulatory/reporting/period.ts`). Both files' "WHAT A LIVE DEPLOYMENT DOES" docstrings describe a live bank sourcing its own dated rate and deriving the period from ingested Climate TRACE coverage — **aspirational, not implemented; no tenant override exists.** Add `TenantConfig.reportingFxRate` (`FxRate`) + `TenantConfig.reportingPeriod` (mirrors N0.8 `bankClass`); live aggregator (`api/bfi.ts`) reads them and derives the period from fetched coverage, falling back to the pinned constants when unset. Demo unset → identical arithmetic (goldens frozen). Replace the aspirational docstrings with a pointer to this task. N0.6/N0.7 built the seams (dated `FxRate`, single-source derived `AS_OF_DATE`). | S1 §24, B62 currency, §29(a)(iii) | unset → pinned fallback (no movement) | reads tenant rate + derives period from coverage | 2 |
+| ☐ | N1.13 | **Per-tenant reporting FX rate + reporting period — wire the live override N0.6/N0.7 stubbed.** Live and demo currently share the *same pinned constants* (`REPORTING_FX_RATE` 133.5 as-of 2024-07-15 in `lib/regulatory/fx/rates.ts`; derived `AS_OF_DATE`/`TREND_YEARS` in `lib/regulatory/reporting/period.ts`). Both files' "WHAT A LIVE DEPLOYMENT DOES" docstrings describe a live bank sourcing its own dated rate and deriving the period from ingested Climate TRACE coverage — **aspirational, not implemented; no tenant override exists.** Add `TenantConfig.reportingFxRate` (`FxRate`) + `TenantConfig.reportingPeriod` (mirrors N0.8 `bankClass`); live aggregator (`api/bfi.ts`) reads them and derives the period from fetched coverage, falling back to the pinned constants when unset. Demo unset → identical arithmetic (goldens frozen). Replace the aspirational docstrings with a pointer to this task. N0.6/N0.7 built the seams (dated `FxRate`, single-source derived `AS_OF_DATE`). *2026-09-25:* the dated rate now comes from the PW.1 provider chain (core-banking stub → NRB API → pinned); N1.13 wires the tenant's choice of source order and buy/sell/mid policy onto it. | S1 §24, B62 currency, §29(a)(iii) | unset → pinned fallback (no movement) | reads tenant rate + derives period from coverage | 2 |
 
 **Dependencies:** PR0, P1. N1.7 unblocked by ND.2 (vintage verified). N1.13
 builds directly on the N0.6/N0.7 seams (dated `FxRate`, single-source derived
@@ -387,6 +388,57 @@ build plan, not here.
 
 ---
 
+## 6c. Phase PW — Workflow, approvals and as-of reporting
+
+**Objective:** Every disclosed figure states the date it is true as of and the
+dated FX rate behind it; every officer's work is approved by their manager
+before it counts; officer–manager relationships are maintained as data, in a
+shape a later RBAC build can take over without rework. Added 2026-09-25.
+
+**Split gate, same rule as PH.** PW.1, PW.2a, PW.3 and PW.4 are **early**:
+additive, no regulatory arithmetic changes (demo keeps its pinned FX rate), the
+24 goldens stay frozen — they may start now. PW.2b and PW.5 change what a
+disclosed number contains, so they are **late**: behind PR1 and P1.5.
+
+**Decisions recorded 2026-09-25.**
+- **FX fallback is the NRB API only.** Yahoo was considered and **dropped**:
+  Yahoo's API terms prohibit using it to "derive income… whether for direct
+  commercial or monetary gain or otherwise" without Yahoo's prior written
+  permission, which a bank's consent cannot supply. NRB's documented API
+  (`nrb.org.np/api/forex/v1/rates`: daily buy/sell per currency, date-ranged,
+  with published-on dates) is free and is the rate a Nepali bank's statements
+  already use.
+- **Disclosures count approved work only;** pending work is shown separately.
+  This matches the certification text already on the green statement.
+- **Sign-in is deferred to bank SSO.** Until it exists, approvals run on the
+  demo officer picker and are **not a control** — see gate below.
+
+| S | # | Task | Source | Demo | Live | Effort |
+|---|---|------|--------|------|------|--------|
+| ☐ | PW.1 | **FX provider chain (early).** A provider interface in `lib/regulatory/fx/`: `rateFor(currency, date, policy)` returning a dated, sourced rate — generalising today's USD-only `FxRate {nprPerUsd, asOf, source}` to any currency. Order: (1) **core-banking adapter — interface + stub only**; (2) **NRB adapter**, fed by a scheduled server-side job that stores daily rates (currency, date, buy, sell, published_on, fetched_at, source) in a new table — never called at page load, per the pre-ingested data rule (P4.7); (3) the pinned `REPORTING_FX_RATE` with a visible "fallback rate" warning. Rate policy (buy / sell / mid) is a tenant setting. A report dated D uses the rate for D (or the latest NRB publication on or before D), not today's. | S1 §24; N0.6 seam; feeds N1.13 | pinned 133.5 (goldens frozen) | stub → NRB → pinned | ~4 |
+| ☐ | PW.2a | **As-of date on every report — metadata and label (early).** One reporting as-of date per report, chosen by the user. Every report and disclosure view carries `{asOfDate, generatedAt, fxRate, loanBookSnapshot, approvalCutoff}`. Green statement: remove the silent fallback from `asOfDate` to `generatedAt` (`lib/reports/nrbsis-green-statement.ts`). Taxonomy export: add an as-of date — it shows only "Generated" today (`lib/reports/nrb-taxonomy-export.ts`). Same for the NFRS tab disclosure preview. | S1 §24 comparability | shared | shared | ~2 |
+| ☐ | PW.2b | **Point-in-time reports (late).** The as-of date selects the loan-book import snapshot for D (P4.1a), the FX rate for D (PW.1), and only captures made on or before D. ESDD responses are already append-only and can be reconstructed; tables updated in place — hydro document status, loan assignments, borrower overrides, loan-category override — need history added, or are flagged on the report as "current position, not as of D". | S1 §24; S2 comparatives (PR4) | shared | shared | ~5 |
+| ☐ | PW.3 | **Roles and reporting lines (early).** Replace the single `role` column on `bfi_officers` with an officer-roles table (one person, many roles) and add a `manager` role. New reporting-lines table: bank, officer, manager, effective from, effective to — dated so an approval can be checked against the line in force when the work was submitted. Admin maintenance screen and API. One permission seam, e.g. `lib/auth/can.ts`: `can(actor, action, subject)`, implementing only two rules for now — the approver is the submitter's manager on the submission date, and nobody approves their own work. **RBAC later replaces the body of `can()`, not its callers.** | ESRM 2022 (review and escalation) | demo reporting lines seeded | admin-maintained | ~4 |
+| ☐ | PW.4 | **Approval workflow for My Work (early).** Officer submits a loan's work from My Work; an approval request records what was submitted, by whom and when, and fixes the approver from the reporting line at that moment. Decisions (approved / returned, with comment) are append-only. Manager queue gains a pending-approvals view; returned work goes back to the officer's "Needs attention"; the "Recently closed" stub is populated. Scope: every officer capture that feeds a disclosure or credit decision — ESDD, taxonomy, Project-Finance screening, CAP and covenants, PCAF evidence, hydropower documents. | ESRM 2022; certification text in the green statement | full flow on demo officers | **demo-only until the SSO gate** | ~6 |
+| ☐ | PW.5 | **Disclosures count approved work only (late).** Reports and disclosure views use approved captures; pending work is shown as a separate line with its count and value. Deliberate golden re-freeze; reviewed as a regulatory-arithmetic change. | Green-statement certification; S2 | shared | shared | ~3 |
+
+**Gate — authenticated identity (bank SSO).** Approvals are only a four-eyes
+control if the system knows who is signed in. Today a live deployment has no
+officer identity at all (the roster is empty when demo mode is off) and demo
+identity is a cookie set by an officer picker. **No live bank may rely on PW.4
+approvals until bank SSO is scoped and delivered.** Not yet a task: the
+mechanism depends on each bank's identity provider.
+
+**Dependencies:** PW.1, PW.3 none. PW.2a needs PW.1. PW.4 needs PW.3. PW.2b needs
+PW.2a, P4.1a, **PR1** and P1.5. PW.5 needs PW.4, **PR1** and P1.5. N1.13 (tenant
+FX and period override) now builds on PW.1 rather than on a single constant.
+**Exit criterion:** every report states its as-of date and the dated, sourced
+FX rate it used; every officer capture that counts has a recorded manager
+approval under a dated reporting line; disclosures exclude pending work.
+Effort ≈ **24 days** (~16 early, ~8 late).
+
+---
+
 ## 7. Phase P4 — Scale, resilience & maintainability
 
 **Objective:** The system tolerates load, instance loss, and upstream outages;
@@ -399,6 +451,7 @@ the worst component is decomposed; end-to-end journeys are guarded.
 | S | # | Task | Source | Effort |
 |---|---|------|--------|--------|
 | ☐ | P4.1a | **Loan-book import, including collateral (pulled forward — not gated on P4).** *Split out of P4.1 on 2026-09-25.* Today there is **no path for a bank's loan book to enter a live deployment**: the only writer to `bfi_loans_denorm` is `app/api/admin/seed`, which writes the fabricated portfolio and refuses in live builds. Build it: a published import specification (loan, borrower **and collateral** columns — location, construction class, value + valuation date, insurance); a server-side importer (CSV/XLSX) with field mapping, validation and a rejected-rows report; idempotent re-import; `origin = live` provenance; NPR/USD handling via `lib/regulatory/fx`. Decide the target schema — `bfi_loans_denorm` is a denormalised demo read model and has no collateral or location columns. Excludes geocoding of text addresses (build plan Q6). The same specification is the extract we ask a bank for under build-plan gate G2. | PRA §1.1, CRR §4.1; build plan §6 F7 | ~10 |
+| ☐ | P4.1c | **Borrower entity resolution for live loan books (pulled forward — not gated on P4).** *Added 2026-09-25.* Match imported borrowers to real companies, facilities and parents, and detect the same customer under two IDs. Today this exists only in demo mode, hard-coded in `lib/demo/entities.ts` (GCCT plants matched to Climate TRACE by rounded coordinates; curated name matches); nothing produces `MatchedFacility` for a live borrower, so every live borrower falls to sector or revenue proxies — the lowest PCAF data-quality tiers — which also weakens N1.2 and N1.11. Per ADR-0040: the **platform serves reference entities** (Climate TRACE assets, already ingested in Jana; GEM ownership, today a local snapshot built by `scripts/build-data-snapshots.py`), the **app matches the bank's records**. Name normalisation, coordinate matching, parent/subsidiary links, a confidence score recorded in the existing `matchMethod`/`matchConfidence` fields, an officer review queue for low-confidence matches, and match provenance. Platform calls inherit build-plan gates G1 (pinned image) and G5 (service credential). Follow-on: run the demo through the same matcher rather than hard-coded matches (one computation, two providers). | PCAF Part A §5 data-quality hierarchy; B62(c), B55–B56 | hard-coded demo matches (unchanged; goldens frozen) | matcher + officer review | ~8 |
 | ☐ | P4.1b | Real-data path: retire the in-memory portfolio for live tenants and read from the imported tables (provider pattern already supports this) | PRA §1.1, CRR §4.1 | 3 |
 | ☐ | P4.2 | DB-level pagination (LIMIT/OFFSET or keyset) for live portfolio; the `queryLoans()` signature already supports it | PRA §1.3 | 1 |
 | ☐ | P4.3 | Horizontal scaling: ≥2 replicas behind a load balancer; audit module-level caches (`facilityCache`, `nplLocationCache`) for per-instance safety or move to Redis | PRA §1.2, CRR §2.3 | 3 |
@@ -413,7 +466,7 @@ the worst component is decomposed; end-to-end journeys are guarded.
 **Dependencies:** P1 (route tests de-risk the P4.1b data-path swap and P4.8
 decomposition); P0 (CI runs E2E). **P4.1a is the exception:** it adds an
 import path and new tables without changing any regulatory arithmetic, so it
-may start now. It gates the live half of PH.0 and every live tenant.
+may start now. It gates the live half of PH.0 and every live tenant. **P4.1c** follows P4.1a on the same terms: it needs imported borrowers to match.
 **Exit criterion:** App runs multi-replica with a real-data tenant; static
 assets served from CDN; `esrm-tab` decomposed and tested; 6 E2E journeys green
 in CI; upstream outage degrades gracefully, not fatally.
@@ -431,7 +484,7 @@ changing any computed value.
 
 | S | # | Task | Standard | Demo | Live | Effort |
 |---|---|------|----------|------|------|--------|
-| ☐ | N4.1 | **Comparatives** for all disclosed amounts, with a restatement mechanism and an "as previously reported" record. Neither export currently has a prior-period column. | S1 §70, B49–B53 | shared | shared | 4 |
+| ☐ | N4.1 | **Comparatives** for all disclosed amounts, with a restatement mechanism and an "as previously reported" record. Neither export currently has a prior-period column. *2026-09-25:* every stored financed-emissions result carries the calculation-engine version, emission-factor versions (N2.6) and taxonomy/mapping version (N1.7) — the same rule the build plan applies to hazard scores (decision 12) — so an "as previously reported" figure can be reproduced, not just displayed. | S1 §70, B49–B53 | shared | shared | 4 |
 | ☐ | N4.2 | **Materiality judgements** capture and disclosure. | S1 §74, B19–B29 | seeded | bank capture | 2 |
 | ☐ | N4.3 | **Connected information** — link disclosed figures to financial statement line items. | S1 §21, B39–B44 | shared | shared | 3 |
 | ☐ | N4.4 | **Measurement uncertainty** disclosure — amounts subject to high uncertainty, sources, assumptions. | S1 §§77–81 | shared | shared | 2 |
@@ -525,6 +578,11 @@ PRD (docs & accuracy) runs in the background alongside all phases:
   ND.1/ND.3/ND.4/ND.5/ND.10 start immediately; ND.7 after PR0; ND.8 after PR1.
 
 P4.1a (loan-book import incl. collateral) — pulled forward, starts now; gates live PH.0 and every live tenant.
+  └─> P4.1c (borrower entity resolution) — without it every live borrower is proxy-tier PCAF.
+
+PW.1/PW.2a/PW.3/PW.4 (FX chain, as-of labels, reporting lines, approvals) — early, additive, starts now.
+PW.2b/PW.5 (point-in-time reports, approved-only disclosures) — late: after PR1 + P1.5.
+PW.4 approvals are demo-only until the bank-SSO gate (§6c).
 
 PH.0–PH.2 (hazard: collateral, cache, display) — early half, additive, goldens frozen:
   starts now (PR0 done), parallel to P1/PR1; live PH.0 needs P4.1a; needs Jana R0 and HM1 (build plan §16); feeds PH.3.
@@ -556,6 +614,8 @@ still depend on P1's tests to be safe. P5 gates on everything.
 | `esrm-tab` decomposition introduces UI regressions | Medium | Medium | Do P4.9/P4.10 (component + E2E tests) alongside, not after |
 | Scope creep delays correctness work | Medium | High | P0+P1 are fixed, front-loaded, and gated; later phases flex |
 | Single-instance caches break under multi-replica | Medium | Medium | P4.3 cache audit before enabling ≥2 replicas |
+| Approvals relied on without authenticated identity — anyone can pick any officer | **Present today** (demo picker; live has no identity) | Critical | PW.4 is demo-only until the bank-SSO gate in §6c is met; P5 go-live cannot pass without it |
+| Disclosed figure uses an undated or wrong-date FX rate | Medium | High | PW.1: every rate stored with as-of date and source; report date selects the rate; pinned fallback shows a visible warning |
 | Early hazard work (PH.0–PH.2) leaks into regulatory arithmetic ahead of PR1 | Medium | High | Additive-only rule: optional fields, `overallRating` unchanged until PH.4; the 24 goldens are the tripwire — any golden change before PH.4 is a violation |
 | Hazard figures shown to a live bank from a `:latest` Jana service | **Present today** for EDGAR/OpenAQ (`api-test`) | High | Build-plan gate G1: no live hazard figure until the application reads from a pinned, promoted Jana image |
 
@@ -611,6 +671,8 @@ affected, and the merge commit/PR that carried it. Per §0 rule 1, a task is not
 
 | Date | Change | Task(s) | Commit / PR |
 |------|--------|---------|-------------|
+| 2026-09-25 | **Scope edit — P4.1c borrower entity resolution added; N4.1 version-stamp note.** Gap found while checking an external NFRS strategy document against the plan: no task matched a live bank's imported borrowers to real entities, so live PCAF would be proxy-tier throughout. P4.1c (~8 d) follows P4.1a and is pulled forward on the same terms. N4.1 now requires engine, emission-factor and taxonomy versions on every stored financed-emissions result. The external document was otherwise fully covered by existing tasks and has been discarded. Updated together per §0 rule 3: §7 P4 table + dependencies, §7a N4.1, §9 dependency graph. No code changed. | P4.1c, N4.1 | _this PR_ |
+| 2026-09-25 | **Scope edit — new phase PW (workflow, approvals, as-of reporting).** Added §6c: PW.1 FX provider chain (core-banking stub → NRB API → pinned rate), PW.2a/2b as-of date on every report (label early, point-in-time late), PW.3 roles table + dated reporting lines + `can()` seam for later RBAC, PW.4 officer→manager approval of My Work, PW.5 approved-only disclosures (late). Decisions: NRB-only fallback — Yahoo dropped (API terms bar commercial use without Yahoo's written permission); disclosures count approved work only; sign-in deferred to bank SSO, so PW.4 approvals are demo-only until that gate. N1.13 now builds on PW.1. Updated together per §0 rule 3: §2 overview, §6c, N1.13 row, §9 dependency graph, §10 risk register (two rows). No code changed. | PW.1–PW.5, N1.13 | _this PR_ |
 | 2026-09-25 | **Scope edit — P4.1 split; loan-book import pulled forward.** Finding: no path exists for a bank's loan book to enter a live deployment (the only writer to `bfi_loans_denorm` is the demo seeder, which refuses in live builds), and no table carries a location. P4.1a (import spec + importer, **including collateral columns**, ~10 d) may start now and gates live PH.0 and every live tenant; P4.1b (retire the in-memory portfolio, 3 d) stays in P4. PH.0 gains the live dependency and two demo-defect fixes in `lib/demo/entities.ts`. Updated together per §0 rule 3: §7 P4 table + dependencies, §6b PH.0 row + dependencies, §9 dependency graph + sequencing text, §10 risk register. No code changed. | P4.1a, P4.1b, PH.0 | _this PR_ |
 | 2026-09-24 | **Scope edit — new phase PH (physical hazard), N3.8 decomposed, gate split.** Added §6b with PH.0–PH.4, the application side of the Additional Risk Modules (detail: `RISK_MODULES_BUILD_PLAN.md`; boundary: ADR-0040, Proposed). N3.8's "not before PR1" gate now applies to N3.8 and PH.3–PH.4 only; PH.0–PH.2 are additive (goldens frozen) and may start now. N3.8 proper narrows to the forward-scenario engine. Updated together per §0 rule 3: §2 overview, §6a N3.8 row + dependencies, §6b, §9 dependency graph, §10 risk register (two rows), §12. No code changed. | PH.0–PH.4, N3.8 | 9329cf6 |
 | 2026-09-24 | **P1.5 — Flip the hard 100% gate on `lib/regulatory/**`, closing the Tier-1 net (P1.5 → ☑).** Turned the coverage gate ON in `vitest.config.mts`: a per-file `thresholds: { "lib/regulatory/**": { lines, branches, functions, statements: 100 } }` block that fails `npm run test:coverage` (and therefore CI) on a single uncovered line or branch anywhere in the regulatory core — the disclosed-numbers surface where every branch changes a figure a bank reports. Wrote the remaining per-module suites that were still uncovered so the whole tree could go green: `climate-infer.unit.test.ts` (climate/infer.ts + types.ts — `estimateAnnualTco2e`, `inferEmissionsFlag` incl. the N0.3 no-seed honest default + the 25 000 tCO₂e boundary, `inferClimateRisk` per sector-profile verdict, `getBorrowerClimateBundle`, `summarisePortfolioClimate`), `hydro-doc-matrix.unit.test.ts` (Annex-2 capacity bands at both inclusive boundaries — 1 MW & 50 MW — the EIA/IEE/none document selection, and `findHydroDocument` hit/miss), `fx-period.unit.test.ts` (the dated NPR/USD disclosure rate 133.5 @ 2024-07-15 + `nprToUsd`/`usdToNpr` round-trip & override, and the N0.7 reporting-period boundary — TREND_YEARS, LATEST_FULL_YEAR/LATEST_YEAR, derived AS_OF_DATE 2025-10-31, `isPartialYear`/`isFullyReportedYear`), plus a `pcaf-evidence-matrix.unit.test.ts` fix pinning the correct `resolveAvailability` basis (a flag with an establishing document but no row downgrades to `unevidenced`; only a flag with **no** document stays `inference`). Confirmed `taxonomy/activities.ts` + `dnsh.ts` were already fully covered by the existing `taxonomy.unit.test.ts`, so the two dead branches removed in P1.3 (`?? null` alias fallback, `yes_no` implicit-else) plus the two removed in P1.1/P1.2 (`3c` method arm, `: "none"` fallback) are all now gone under the 100% gate. Three last unreachable branches surfaced by the gate were resolved rather than left: (1) **climate/infer.ts** `rollupRating`'s `low` verdict (needs zero transition risk AND <2 physical — no SECTOR_PROFILE produces that today) was made reachable for test by **exporting** the documented count-based policy fn and pinning its full Low/Medium/High table directly (the branch is kept, not deleted, since the compliance team may add a transition-free profile); (2) **taxonomy/applicability.ts** `activitiesFromHints`'s `a && !acc.includes(a)` guard was a genuine dead branch (every SECTOR_HINTS id resolves — no `find` miss — and no two co-matching hints share an id, so no intra-call dupe) and was removed (`find(...)!` with an inline invariant note + a `taxonomy-applicability.unit.test.ts` case asserting every hint id resolves, so a future mistyped id fails loudly); (3) **climate/infer.ts** `summarisePortfolioClimate`'s two `length > 0 ?` physical/transition counters had unreachable false arms (every SECTOR_PROFILE + the DEFAULT_PROFILE fallback carries >=1 of each) and were made unconditional increments under an inline invariant note + a `climate-infer.unit.test.ts` case asserting every profile (matched, default-fallback, null-sector) carries >=1 physical and >=1 transition risk. These are the 5th–7th sanctioned P1.5 dead-branch removals (after the 3c method arm, `: "none"` fallback, `?? null` alias, and `yes_no` implicit-else removed in P1.1–P1.3). All 416 tests green in `node:20-alpine`; `lib/regulatory/**` reports **100% stmt/branch/func/line** and the gate passes (exit 0). Arithmetic-neutral (the dead-branch removals + one export change nothing computed; every golden histogram frozen). | P1.5 | 9329cf6 |
