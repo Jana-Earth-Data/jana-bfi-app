@@ -62,6 +62,10 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["tests/**/*.{test,spec}.{ts,tsx}"],
+    // setupFiles runs before any test file imports, ensuring mocks are hoisted.
+    // This is where vi.mock() calls for next/headers and @/lib/data/capture-client
+    // live (P1.7 route testing infrastructure).
+    setupFiles: ["tests/setup.ts"],
     // globalSetup synthesizes the ~80K-loan portfolio ONCE (writing the gz that
     // getPortfolio() prefers) before any worker starts. Without it, Vitest's
     // per-file worker isolation would re-run the ~50-80s synthesis for each

@@ -1,9 +1,12 @@
 /**
  * MSW test setup — configures Mock Service Worker for route tests.
  *
- * This file is imported by route test files to set up request interception.
+ * This file is imported by route test files to set up MSW server lifecycle.
  * MSW intercepts fetch calls (including Supabase client requests) and returns
  * mock responses, so tests don't depend on a live Supabase instance.
+ *
+ * MOCKS ARE IN tests/setup.ts (hoisted via vitest.config.mts setupFiles).
+ * This file contains ONLY the MSW server lifecycle hooks.
  */
 
 import { setupServer } from "msw/node";

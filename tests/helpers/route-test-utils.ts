@@ -65,9 +65,9 @@ export const TEST_TENANT_ID = "bank-nepal-dev";
 
 /**
  * Standard test officer ID used across route tests.
- * Matches the officer_id in msw-handlers mock data.
+ * Matches Riya Sharma from DEFAULT_OFFICERS in lib/tenants/registry.ts.
  */
-export const TEST_OFFICER_ID = "officer-123";
+export const TEST_OFFICER_ID = "off-default-01";
 
 /**
  * Standard test loan ID used across route tests.
