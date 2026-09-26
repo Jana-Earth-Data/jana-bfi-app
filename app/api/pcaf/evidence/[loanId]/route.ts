@@ -31,6 +31,7 @@ import { resolveCurrentTenant } from "@/lib/tenants";
 import { resolveCurrentOfficer } from "@/lib/officers/resolve";
 import { assertOwnerOrRespond } from "@/lib/officers/loan-lock";
 import { getCaptureClient } from "@/lib/data/capture-client";
+import { requireOfficer } from "@/lib/api/route-helpers";
 import {
   PCAF_EVIDENCE_DOCUMENTS,
   PCAF_EVIDENCE_BY_ID,
@@ -103,6 +104,9 @@ async function loadContext(loanId: string) {
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { loanId } = await params;
+  const [, offErr] = await requireOfficer("accessing PCAF evidence");
+  if (offErr) return offErr;
+
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json({ error: "Supabase not configured." }, { status: 500 });
@@ -184,18 +188,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function POST(request: NextRequest, { params }: Params) {
   const { loanId } = await params;
+  const [officer, offErr] = await requireOfficer("recording PCAF evidence");
+  if (offErr) return offErr;
+
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json({ error: "Supabase not configured." }, { status: 500 });
   }
   const tenant = await resolveCurrentTenant();
-  const officer = await resolveCurrentOfficer();
-  if (!officer) {
-    return NextResponse.json(
-      { error: "Officer must be selected before recording evidence." },
-      { status: 401 },
-    );
-  }
 
   // Owner-only edit (P36), same rule as every other capture surface.
   const denied = await assertOwnerOrRespond(loanId, officer, tenant);

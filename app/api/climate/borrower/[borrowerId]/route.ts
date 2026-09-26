@@ -29,6 +29,7 @@ import { getBfiDemoData } from "@/lib/api/bfi";
 
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { getCaptureClient } from "@/lib/data/capture-client";
+import { requireOfficer } from "@/lib/api/route-helpers";
 import {
   getBorrowerClimateBundle,
   inferClimateRisk,
@@ -86,6 +87,9 @@ async function loadOverride(
 
 export async function GET(_req: Request, { params }: Params) {
   const { borrowerId } = await params;
+  const [, offErr] = await requireOfficer("accessing climate risk data");
+  if (offErr) return offErr;
+
   if (!borrowerId) {
     return NextResponse.json(
       { error: "borrowerId is required" },

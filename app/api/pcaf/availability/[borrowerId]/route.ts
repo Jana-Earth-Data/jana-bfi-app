@@ -53,6 +53,7 @@ import { getBfiDemoData } from "@/lib/api/bfi";
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { resolveCurrentOfficer } from "@/lib/officers/resolve";
 import { assertOwnerOrRespond } from "@/lib/officers/loan-lock";
+import { requireOfficer } from "@/lib/api/route-helpers";
 import {
   assetClassForLoanCategory,
   computePcafScore,
@@ -232,6 +233,9 @@ async function loadSavedRow(
 
 export async function GET(_req: Request, { params }: Params) {
   const { borrowerId } = await params;
+  const [, offErr] = await requireOfficer("accessing PCAF availability");
+  if (offErr) return offErr;
+
   if (!borrowerId) {
     return NextResponse.json(
       { error: "borrowerId is required" },
@@ -296,6 +300,9 @@ export async function GET(_req: Request, { params }: Params) {
 
 export async function POST(request: Request, { params }: Params) {
   const { borrowerId } = await params;
+  const [, offErr] = await requireOfficer("saving PCAF availability");
+  if (offErr) return offErr;
+
   if (!borrowerId) {
     return NextResponse.json(
       { error: "borrowerId is required" },
