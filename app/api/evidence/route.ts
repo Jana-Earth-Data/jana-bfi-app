@@ -24,7 +24,7 @@ import { assertOwnerOrRespond } from "@/lib/officers/loan-lock";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCaptureClient } from "@/lib/data/capture-client";
 import { MAX_FILE_SIZE_BYTES } from "@/lib/constants";
-import { validateFileMime } from "@/lib/api/route-helpers";
+import { validateFileMime, requireOfficer } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 // Uploaded blobs go straight to Postgres via the service-role client.
@@ -115,6 +115,9 @@ async function resolveLoanIdForEvidence(
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
+  const [, offErr] = await requireOfficer("accessing evidence attachments");
+  if (offErr) return offErr;
+
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json(
@@ -186,6 +189,9 @@ export async function GET(request: NextRequest) {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  const [, offErr] = await requireOfficer("uploading evidence attachment");
+  if (offErr) return offErr;
+
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json(
