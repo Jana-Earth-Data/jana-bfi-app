@@ -1,103 +1,95 @@
-# Session Restart — jana-bfi-app — 2026-09-07
+# Session Restart - 2026-09-26
 
-## Working branch
+## Working Branch
+`feature/20260923_1`
 
-`feature/20260923_1` (cut from `development` on 2026-09-23, at merge commit
-`e241d07`).
+## Last Commits
+- `825e446` docs(P1.7): session handoff after Categories 1+2 complete
+- `aa7e0f3` test(P1.7): Fix Category 2 - correct test HTTP method imports
+- `d5d0ba6` test(P1.7): Fix Category 1 - add missing auth checks to 10 routes
+- `3adac7e` test(P1.7): fix DEMO_MODE_COOKIE mock + add GET /api/demo/mode
 
-Old branch `feature/20260907_1` has been merged to `development` (PR #54) and
-deleted locally and remotely. `feature/20260825_1` was deleted earlier.
+## Current State: P1.7 Bug Fixing (In Progress)
 
-**Not yet on `main`** — PR0-a is on `development` only; a `development → main`
-PR (which is what Vercel deploys) is deferred by request.
+**Test Status**: 28 failed / 43 passed (71 total) — **15 bugs fixed**
 
-## What we were doing
+### Completed ✅
 
-Fixing extreme slowness on the Vercel deployment. Everything was taking minutes — bank selection, officer selection, My Work queue loading.
+1. **Category 1 (10 bugs)** - Missing auth checks
+   - Added `requireOfficer()` to 10 GET routes
+   - Commit: `d5d0ba6`
 
-## Root cause
+2. **Category 2 (3 bugs)** - Test import errors
+   - Fixed test HTTP method imports (GET→DELETE, GET→POST, POST→PATCH)
+   - Commit: `aa7e0f3`
 
-The precomputed portfolio file (`lib/demo/precomputed-portfolio.json.gz`, 2.7 MB, 80K loans) was never being generated during Vercel builds. Every serverless cold start fell back to synthesizing 80,035 loans in-memory (~50 seconds). Vercel functions go cold frequently, so this happened on nearly every request.
+### Remaining Work (28 bugs)
 
-## Fixes applied (3 commits, all merged to development AND main)
+See `P1.7_BUG_TRACKING.md` for full categorization. Quick summary:
 
-1. **`vercel.json`** (PR #29/#30) — Changed `buildCommand` from `"JANA_DEMO=1 next build"` to `"npm run build:demo"`. The direct `next build` call skipped the npm `prebuild` hook that generates the precomputed portfolio.
+**Category 3: Dynamic route 404s (7 bugs)**
+Routes checking params before auth, returning 404 instead of 401:
+- `GET /api/pcaf/availability/[borrowerId]`
+- `POST /api/pcaf/availability/[borrowerId]`
+- `GET /api/pcaf/evidence/[loanId]`
+- `POST /api/loans/[loanId]/claim`
+- `GET /api/cap/[loanId]`
+- `POST /api/cap/[loanId]`
+- `GET /api/climate/borrower/[borrowerId]`
 
-2. **`.vercelignore`** (PR #33/#34) — Removed `scripts/` exclusions. The prebuild guards and precompute scripts need to be present during Vercel builds. The `check-dockerignore-build-scripts.mjs` guard also reads `scripts/supabase-origin-column.sql` at build time.
+**Fix**: Move `requireOfficer()` before param validation.
 
-3. **`scripts/check-docker-demo-flag.mjs`** (PR #35/#36) — Made the Docker-specific guard skip gracefully (`exit 0`) when the Dockerfile is absent. Vercel's `.vercelignore` excludes the Dockerfile, so this guard always failed on Vercel.
+**Category 4: MSW handlers (15 bugs)**
+Happy-path tests failing because Supabase mock returns empty results. Need per-test `server.use()` overrides:
+- `POST /api/esdd/responses` (4 tests)
+- `GET /api/esdd/responses` (1 test)
+- `POST /api/taxonomy/assessments` (1 test)
+- `GET /api/pcaf/scores` (1 test)
+- `GET /api/cap/[loanId]` (1 test)
+- `POST /api/cap/[loanId]` (1 test)
+- `POST /api/officer/set` (1 test)
+- Others TBD
 
-## Update 2026-09-07 (later) — SECOND root cause found and fixed
+**Fix**: Add MSW `server.use(http.post(...))` overrides in test cases.
 
-The precompute fix above was correct and DID deploy. But the site was still
-taking ~3 minutes to reach the first screen. Vercel runtime logs showed the
-real remaining bottleneck.
+**Category 5: Miscellaneous (5 bugs)**
+- `GET /api/settings` - missing "demo" property
+- `POST /api/tenant/set-code` - 2 tests failing with default tenant
+- `POST /api/tenant/clear` - cookie clearing issue
+- `POST /api/auth/device-token` - malformed JSON returns 500 instead of 400
+- `POST /api/officer/set` - case sensitivity: `SameSite=Strict` vs `SameSite=strict`
 
-### Evidence
-- Expanded a `GET /` request in Vercel logs: **Execution Duration 1m 13s**,
-  External API = `GET .../rest/v1/bfi_pcaf_availability`.
-- The `/` SSR page (`app/page.tsx`) is `force-dynamic`, so it re-renders
-  server-side on every load and `await`s a Supabase overlay query with no
-  timeout.
-- `bfi_pcaf_availability` is tiny and indexed on `bank_id` → the query is
-  milliseconds when it responds. Supabase is in Mumbai `ap-south-1`, same
-  region as Vercel `bom1` → not latency. Fast locally, slow only on Vercel,
-  every cache-cleared render.
-- Conclusion: a **Vercel-serverless connection stall on the Supabase REST
-  fetch**. The Supabase JS client uses global `fetch` with no default
-  timeout, so a wedged connection hangs the whole render for ~73s.
+**Fix**: Individual route logic fixes.
 
-### Fix (2 layers, this branch, NOT yet merged)
-1. `lib/data/supabase.ts` — pass a custom `global.fetch` to `createClient`
-   that attaches `AbortSignal.timeout(5s)` (via `AbortSignal.any` to respect
-   caller signals). Bounds EVERY server-side Supabase call across all 30
-   route/page files, so no REST call can hang a function for 73s again.
-2. `app/page.tsx` — wrap `applyOfficerPcafOverlay(...)` in a new
-   `withDeadline(promise, 2000)` helper (`lib/async/deadline.ts`). If the
-   overlay does not answer in 2s, render the precomputed `base` immediately.
-   The overlay is an enhancement, never a first-paint blocker; officer
-   re-scores reconcile on the next client fetch.
+## Test Execution
 
-Verified with a full production `next build` in Docker (`docker compose build
-web`) — passes clean, Node 20.20.2 in the container.
+All tests run in Docker (node:20-alpine):
 
-### To verify after deploy
-- Entry screen should appear in <2s even on a cold render.
-- Vercel `GET /` execution duration should drop from ~73s to <2s.
-- If Supabase is healthy the officer PCAF overlay still applies; if it stalls,
-  the page renders base instead of hanging.
+```bash
+# Run all route tests
+docker run --rm -v "/Users/willardmechem/Projects/repos/jana-bfi-demo:/app" -w /app node:20-alpine sh -c "npm ci --quiet && npm run test:unit tests/routes/"
 
----
+# Run specific test file
+docker run --rm -v "/Users/willardmechem/Projects/repos/jana-bfi-demo:/app" -w /app node:20-alpine sh -c "npm ci --quiet && npm run test:unit tests/routes/FILENAME.route.test.ts"
+```
 
-## Prior status — precompute fix (2026-09-07 earlier) — DEPLOYED, confirmed working
+## Key Files
 
-The Vercel free tier CPU limit had been exceeded (6h 9m / 4h) — caused by the
-50s cold starts. The precompute fixes are merged to `main` and did deploy;
-`[portfolio] loaded precomputed` now runs (portfolio synthesis is no longer
-the bottleneck).
+- **Tracking**: `P1.7_BUG_TRACKING.md` (updated with progress)
+- **Test infrastructure**: `tests/setup.ts`, `tests/helpers/msw-setup.ts`, `tests/helpers/route-test-utils.ts`
+- **Route tests**: `tests/routes/*.route.test.ts` (13 files, 71 tests)
+- **Routes fixed**: 10 routes in `app/api/**/route.ts` now have auth checks
 
-The precompute deploy did:
-- Run `npm run build:demo` → prebuild hook → precompute portfolio
-- All 8 prebuild guards pass (Docker guard skips on Vercel)
-- Precomputed portfolio included in bundle
-- Cold starts for portfolio drop from ~50s to <1s (load gzipped file)
+## Context for Next Session
 
-## Remaining production readiness work (separate from this fix)
+The test infrastructure is solid (4-layer mock stack works correctly). The remaining 28 bugs are straightforward route-level fixes:
 
-See `CLAUDE.md` in this repo for the full list. Key items:
-- CI/CD pipeline (GitHub Actions)
-- Supabase backups
-- Structured logging
-- CSP/HSTS security headers
-- SIGTERM graceful shutdown
-- `esrm-tab.tsx` decomposition (~3,100 lines)
-- Automated tests
+1. **Category 3** (~30 min): Auth-before-params pattern (7 routes)
+2. **Category 4** (~90 min): MSW overrides for Supabase INSERT/SELECT responses (15 tests)
+3. **Category 5** (~30 min): Misc fixes (5 bugs)
 
-Detailed docs: `CODE_REVIEW_REPORT.md`, `PRODUCTION_READINESS_ASSESSMENT.md`, `ARCHITECTURE.md`
+Estimated completion: 2-3 hours.
 
-## Git state
+## Next Action
 
-- **Current branch:** `feature/20260907_1`
-- **development:** up to date with all fixes
-- **main:** up to date with all fixes
-- **Untracked files:** `CODE_REVIEW_REPORT.md`, `PRODUCTION_READINESS_ASSESSMENT.md`, `DEPLOYMENT_CONFIG_ANALYSIS.md`, `session_restart.md` (review artifacts, intentionally not committed)
+Pick up with Category 3: read the 7 dynamic routes, move auth checks before param validation, test, commit.
