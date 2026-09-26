@@ -21,8 +21,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const { isDemoMode } = await import("@/lib/demo/mode");
-  const demo = await isDemoMode();
-  return NextResponse.json({ demo });
+  const demoMode = await isDemoMode();
+  return NextResponse.json({ demoMode });
 }
 
 export async function POST(request: NextRequest) {

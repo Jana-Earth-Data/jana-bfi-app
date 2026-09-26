@@ -3,13 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
 
 export async function POST(req: NextRequest) {
-  if (!AUTH_URL) {
-    return NextResponse.json(
-      { error: "AUTH_URL not configured" },
-      { status: 500 }
-    );
-  }
-
+  // Validate request body first (400-level errors before 500-level)
   let body;
   try {
     body = await req.json();
@@ -17,6 +11,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Request body must be valid JSON" },
       { status: 400 }
+    );
+  }
+
+  if (!AUTH_URL) {
+    return NextResponse.json(
+      { error: "AUTH_URL not configured" },
+      { status: 500 }
     );
   }
 

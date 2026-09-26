@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   });
   response.cookies.set(OFFICER_COOKIE_NAME, officer.id, {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "Strict",
     path: "/",
     maxAge: OFFICER_COOKIE_MAX_AGE_SECONDS,
   });
