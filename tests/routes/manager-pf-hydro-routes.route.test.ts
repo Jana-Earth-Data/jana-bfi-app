@@ -15,7 +15,7 @@ import { GET as managerAssignmentsGet } from "@/app/api/manager/assignments/rout
 import { POST as pfScreeningSubmitPost } from "@/app/api/pf-screening/submit/route";
 import { GET as pfScreeningResponsesGet } from "@/app/api/pf-screening/responses/route";
 import { GET as pfScreeningLoanGet } from "@/app/api/pf-screening/loan/[loanId]/route";
-import { GET as hydroDocsGet } from "@/app/api/hydro/docs/route";
+import { POST as hydroDocsPost } from "@/app/api/hydro/docs/route";
 import { GET as hydroDocsLoanGet } from "@/app/api/hydro/docs/[loanId]/route";
 import {
   createMockRequest,
@@ -103,17 +103,17 @@ describe("GET /api/pf-screening/loan/[loanId]", () => {
   });
 });
 
-describe("GET /api/hydro/docs", () => {
+describe("POST /api/hydro/docs", () => {
   it("requires officer auth", async () => {
     const request = createMockRequest(
       "/api/hydro/docs",
       {
-        method: "GET",
+        method: "POST",
         cookies: { [TENANT_COOKIE_NAME]: "bank-test" },
       },
     );
 
-    const response = await hydroDocsGet(request);
+    const response = await hydroDocsPost(request);
     await expectJsonError(response, 401);
   });
 });

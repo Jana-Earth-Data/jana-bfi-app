@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import { POST as evidencePost } from "@/app/api/evidence/route";
-import { GET as evidenceIdGet } from "@/app/api/evidence/[id]/route";
+import { DELETE as evidenceIdDelete } from "@/app/api/evidence/[id]/route";
 import { GET as evidenceDownloadGet } from "@/app/api/evidence/[id]/download/route";
 import {
   createMockRequest,
@@ -33,17 +33,17 @@ describe("POST /api/evidence", () => {
   });
 });
 
-describe("GET /api/evidence/[id]", () => {
+describe("DELETE /api/evidence/[id]", () => {
   it("requires officer auth", async () => {
     const request = createMockRequest(
       "/api/evidence/evidence-123",
       {
-        method: "GET",
+        method: "DELETE",
         cookies: { [TENANT_COOKIE_NAME]: "bank-test" },
       },
     );
 
-    const response = await evidenceIdGet(request, { params: { id: "evidence-123" } });
+    const response = await evidenceIdDelete(request, { params: Promise.resolve({ id: "evidence-123" }) });
     await expectJsonError(response, 401);
   });
 });

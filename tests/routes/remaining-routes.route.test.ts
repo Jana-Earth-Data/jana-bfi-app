@@ -17,7 +17,7 @@ import { GET as climateBorrowerGet } from "@/app/api/climate/borrower/[borrowerI
 import { GET as pcafAvailGet, POST as pcafAvailPost } from "@/app/api/pcaf/availability/[borrowerId]/route";
 import { GET as pcafEvidenceGet } from "@/app/api/pcaf/evidence/[loanId]/route";
 import { POST as loanClaimPost } from "@/app/api/loans/[loanId]/claim/route";
-import { POST as loanCategoryPost } from "@/app/api/loans/[loanId]/category/route";
+import { PATCH as loanCategoryPatch } from "@/app/api/loans/[loanId]/category/route";
 import { GET as followupsGet } from "@/app/api/followups/route";
 import {
   createMockRequest,
@@ -136,18 +136,18 @@ describe("POST /api/loans/[loanId]/claim", () => {
   });
 });
 
-describe("POST /api/loans/[loanId]/category", () => {
+describe("PATCH /api/loans/[loanId]/category", () => {
   it("requires officer auth", async () => {
     const request = createMockRequest(
       `/api/loans/${TEST_LOAN_ID}/category`,
       {
-        method: "POST",
+        method: "PATCH",
         body: { category: "business-loans" },
         cookies: { [TENANT_COOKIE_NAME]: "bank-test" },
       },
     );
 
-    const response = await loanCategoryPost(request, { params: { loanId: TEST_LOAN_ID } });
+    const response = await loanCategoryPatch(request, { params: Promise.resolve({ loanId: TEST_LOAN_ID }) });
     await expectJsonError(response, 401);
   });
 });
