@@ -79,4 +79,5 @@ vi.mock("@/lib/data/capture-client", () => ({
 // Mock demo mode to return true (officer roster is only populated in demo mode)
 vi.mock("@/lib/demo/mode", () => ({
   isDemoMode: vi.fn(() => Promise.resolve(true)),
+  DEMO_MODE_COOKIE: "jana_demo_mode",
 }));
