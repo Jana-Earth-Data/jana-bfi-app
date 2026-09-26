@@ -30,6 +30,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveCurrentTenant } from "@/lib/tenants";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 import { getBfiDemoData } from "@/lib/api/bfi";
 import { getCaptureClient } from "@/lib/data/capture-client";
@@ -70,6 +71,9 @@ function sanitizeFileSegment(input: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  const [_officer, authErr] = await requireOfficer("downloading green statement");
+  if (authErr) return authErr;
+
   const format = parseFormat(request.nextUrl.searchParams.get("format"));
   const tenant = await resolveCurrentTenant();
 

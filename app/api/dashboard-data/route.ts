@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getBfiDemoData } from "@/lib/api/bfi";
 import { buildDashboardSlice } from "@/lib/data/dashboard-slice";
 import { resolveCurrentTenant } from "@/lib/tenants";
-import { resolveCurrentOfficer, currentOfficerRoster } from "@/lib/officers/resolve";
+import { currentOfficerRoster } from "@/lib/officers/resolve";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 import { applyOfficerPcafOverlay } from "@/lib/api/pcaf-overlay";
 import { getCaptureClient } from "@/lib/data/capture-client";
@@ -10,6 +11,9 @@ import { getCaptureClient } from "@/lib/data/capture-client";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const [officer, authErr] = await requireOfficer("viewing dashboard data");
+  if (authErr) return authErr;
+
   const auth = request.headers.get("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
   try {
@@ -36,7 +40,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ...slice,
       officers: await currentOfficerRoster(),
-      currentOfficer,
+      currentOfficer: officer,
     });
   } catch (err) {
     return NextResponse.json(

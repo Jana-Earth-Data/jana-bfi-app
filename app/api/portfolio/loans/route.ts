@@ -18,6 +18,7 @@ import {
 import { BFI_LOANS_TABLE, isSupabaseConfigured } from "@/lib/data/supabase";
 import type { LoanRow } from "@/lib/data/portfolio-query";
 import { getCaptureClient } from "@/lib/data/capture-client";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -224,6 +225,9 @@ async function querySupabase(
 }
 
 export async function GET(request: NextRequest) {
+  const [_officer, authErr] = await requireOfficer("viewing portfolio loans");
+  if (authErr) return authErr;
+
   const auth = request.headers.get("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
   const sp = request.nextUrl.searchParams;

@@ -33,6 +33,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBfiDemoData } from "@/lib/api/bfi";
 import type { PcafOption } from "@/lib/regulatory/pcaf/types";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,9 @@ type PerLoanRow = {
 };
 
 export async function GET(req: NextRequest) {
+  const [_officer, authErr] = await requireOfficer("viewing PCAF scores");
+  if (authErr) return authErr;
+
   const includeLoans = req.nextUrl.searchParams.get("includeLoans") === "1";
   const data = await getBfiDemoData();
 

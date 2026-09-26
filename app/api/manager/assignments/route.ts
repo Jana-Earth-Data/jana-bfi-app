@@ -19,10 +19,14 @@ import { resolveCurrentTenant } from "@/lib/tenants";
 import { resolveCurrentOfficer } from "@/lib/officers/resolve";
 import { getCaptureClient } from "@/lib/data/capture-client";
 import { ensureOfficerSeeded } from "@/lib/officers/ensure-seeded";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const [_officer, authErr] = await requireOfficer("viewing assignments");
+  if (authErr) return authErr;
+
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json(

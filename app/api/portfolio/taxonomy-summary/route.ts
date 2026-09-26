@@ -23,6 +23,7 @@
 
 import { NextResponse } from "next/server";
 import { resolveCurrentTenant } from "@/lib/tenants";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 import { getBfiDemoData } from "@/lib/api/bfi";
 import { findActivityById } from "@/lib/regulatory/taxonomy/activities";
@@ -82,6 +83,9 @@ function normaliseColor(v: string | null | undefined): BucketKey {
 }
 
 export async function GET() {
+  const [_officer, authErr] = await requireOfficer("viewing taxonomy summary");
+  if (authErr) return authErr;
+
   const tenant = await resolveCurrentTenant();
   const supabase = await getCaptureClient();
 

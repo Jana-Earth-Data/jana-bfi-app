@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { resolveCurrentTenant } from "@/lib/tenants";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 import { getBfiDemoData } from "@/lib/api/bfi";
 import { applicationQueue } from "@/lib/data/portfolio-query";
@@ -46,6 +47,9 @@ export type ManagerQueueRow = {
 };
 
 export async function GET() {
+  const [_officer, authErr] = await requireOfficer("viewing manager queue");
+  if (authErr) return authErr;
+
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json(
