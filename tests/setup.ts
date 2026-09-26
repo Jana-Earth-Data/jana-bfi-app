@@ -8,16 +8,30 @@
 import { vi } from "vitest";
 
 // Mock Next.js headers module to avoid "called outside request scope" errors
+// Default: NO cookies (tests can override by calling setTestCookies())
+const testCookieStore: Record<string, string> = {};
+
+export function setTestCookies(cookies: Record<string, string>) {
+  Object.keys(testCookieStore).forEach(key => delete testCookieStore[key]);
+  Object.assign(testCookieStore, cookies);
+}
+
+export function clearTestCookies() {
+  Object.keys(testCookieStore).forEach(key => delete testCookieStore[key]);
+}
+
 vi.mock("next/headers", () => ({
   cookies: vi.fn(() => ({
     get: vi.fn((name: string) => ({
-      // jana_tenant: not set (resolves to default tenant)
-      // jana_demo_officer: off-default-01 (Riya Sharma from DEFAULT_OFFICERS)
-      value: name === "jana_demo_officer" ? "off-default-01" : undefined
+      value: testCookieStore[name]
     })),
-    set: vi.fn(),
-    delete: vi.fn(),
-    has: vi.fn((name: string) => name === "jana_demo_officer"),
+    set: vi.fn((name: string, value: string) => {
+      testCookieStore[name] = value;
+    }),
+    delete: vi.fn((name: string) => {
+      delete testCookieStore[name];
+    }),
+    has: vi.fn((name: string) => name in testCookieStore),
   })),
   headers: vi.fn(() => ({
     get: vi.fn(() => null),

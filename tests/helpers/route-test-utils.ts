@@ -10,6 +10,7 @@
  */
 
 import { NextRequest } from "next/server";
+import { setTestCookies, clearTestCookies } from "../setup";
 
 /**
  * Creates a mock NextRequest for testing route handlers.
@@ -34,6 +35,13 @@ export function createMockRequest(
     cookies = {},
   } = options;
 
+  // Set test cookies for the next/headers mock to read
+  if (Object.keys(cookies).length > 0) {
+    setTestCookies(cookies);
+  } else {
+    clearTestCookies();
+  }
+
   const url = `https://test.jana.earth${path}`;
   const init: RequestInit = {
     method,
@@ -48,11 +56,6 @@ export function createMockRequest(
   }
 
   const request = new NextRequest(url, init);
-
-  // Set cookies if provided (NextRequest cookies API)
-  Object.entries(cookies).forEach(([name, value]) => {
-    request.cookies.set(name, value);
-  });
 
   return request;
 }
