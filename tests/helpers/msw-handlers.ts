@@ -26,7 +26,7 @@ export const handlers = [
   http.get(`${REST_API}/bfi_officers`, () => {
     return HttpResponse.json([
       {
-        id: "officer-123",
+        id: "off-default-01",
         bank_id: "bank-nepal-dev",
         name: "Test Officer",
         role: "analyst",
@@ -40,7 +40,7 @@ export const handlers = [
     return HttpResponse.json([
       {
         loan_id: "loan-456",
-        officer_id: "officer-123",
+        officer_id: "off-default-01",
         bank_id: "bank-nepal-dev",
       },
     ]);
@@ -48,10 +48,10 @@ export const handlers = [
 
   // Mock ESDD responses insert
   http.post(`${REST_API}/bfi_esdd_responses`, () => {
-    return HttpResponse.json({
+    return HttpResponse.json([{
       id: "response-789",
       captured_at: "2024-01-15T12:00:00Z",
-    });
+    }]);
   }),
 
   // Mock ESDD responses fetch
@@ -64,6 +64,7 @@ export const handlers = [
         answer: "a",
         remarks: null,
         captured_at: "2024-01-15T12:00:00Z",
+        officer_id: "off-default-01",
       },
     ]);
   }),
@@ -79,6 +80,44 @@ export const handlers = [
         nrb_sector: "hydropower",
       },
     ]);
+  }),
+
+  // Mock taxonomy assessments insert
+  http.post(`${REST_API}/bfi_taxonomy_assessments`, () => {
+    return HttpResponse.json([{
+      id: "assessment-default",
+      captured_at: "2024-01-15T12:00:00Z",
+    }]);
+  }),
+
+  // Mock CAP items fetch
+  http.get(`${REST_API}/bfi_cap_items`, () => {
+    return HttpResponse.json([]);
+  }),
+
+  // Mock CAP items insert
+  http.post(`${REST_API}/bfi_cap_items`, () => {
+    return HttpResponse.json([{
+      id: "cap-item-default",
+      updated_at: "2024-01-15T12:00:00Z",
+    }]);
+  }),
+
+  // Mock ESRM screenings fetch (for CAP route)
+  http.get(`${REST_API}/bfi_esrm_screenings`, () => {
+    return HttpResponse.json([{
+      computed_risk_class: "medium",
+    }]);
+  }),
+
+  // Mock covenants fetch
+  http.get(`${REST_API}/bfi_covenants`, () => {
+    return HttpResponse.json([]);
+  }),
+
+  // Mock monitoring reports fetch
+  http.get(`${REST_API}/bfi_monitoring_reports`, () => {
+    return HttpResponse.json([]);
   }),
 ];
 

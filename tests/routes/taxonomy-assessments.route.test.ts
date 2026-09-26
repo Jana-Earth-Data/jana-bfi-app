@@ -25,15 +25,6 @@ import { http, HttpResponse } from "msw";
 describe("POST /api/taxonomy/assessments", () => {
   describe("Happy path", () => {
     it("inserts taxonomy assessment", async () => {
-      server.use(
-        http.post("https://test.supabase.co/rest/v1/bfi_taxonomy_assessments", () => {
-          return HttpResponse.json({
-            id: "assessment-123",
-            created_at: "2024-01-15T12:00:00Z",
-          });
-        }),
-      );
-
       const request = createMockRequest(
         "/api/taxonomy/assessments",
         {

@@ -39,26 +39,94 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
-// Mock Supabase client - lightweight mock that returns MSW-intercepted fetch results
-// We don't need a real Supabase client - just an object that implements the builder pattern
+// Mock Supabase client - lightweight mock that makes fetch calls for MSW to intercept
 const createMockSupabaseClient = () => {
+  const SUPABASE_URL = "https://test.supabase.co";
+  const REST_API = `${SUPABASE_URL}/rest/v1`;
+
+  let currentTable = "";
+  let currentMethod = "GET";
+  let currentBody: unknown = null;
+  let queryParams: Record<string, string> = {};
+  let selectColumns = "*";
+  let isSingle = false;
+
   const mockBuilder = {
-    select: vi.fn(() => mockBuilder),
-    insert: vi.fn(() => mockBuilder),
-    update: vi.fn(() => mockBuilder),
-    delete: vi.fn(() => mockBuilder),
-    eq: vi.fn(() => mockBuilder),
-    gt: vi.fn(() => mockBuilder),
-    lt: vi.fn(() => mockBuilder),
+    select: vi.fn((columns: string = "*") => {
+      selectColumns = columns;
+      return mockBuilder;
+    }),
+    insert: vi.fn((data: unknown) => {
+      currentMethod = "POST";
+      currentBody = Array.isArray(data) ? data : [data];
+      return mockBuilder;
+    }),
+    update: vi.fn((data: unknown) => {
+      currentMethod = "PATCH";
+      currentBody = data;
+      return mockBuilder;
+    }),
+    delete: vi.fn(() => {
+      currentMethod = "DELETE";
+      return mockBuilder;
+    }),
+    eq: vi.fn((column: string, value: unknown) => {
+      queryParams[column] = `eq.${value}`;
+      return mockBuilder;
+    }),
+    gt: vi.fn((column: string, value: unknown) => {
+      queryParams[column] = `gt.${value}`;
+      return mockBuilder;
+    }),
+    lt: vi.fn((column: string, value: unknown) => {
+      queryParams[column] = `lt.${value}`;
+      return mockBuilder;
+    }),
     order: vi.fn(() => mockBuilder),
     limit: vi.fn(() => mockBuilder),
-    single: vi.fn(() => Promise.resolve({ data: null, error: null })),
-    maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
-    then: vi.fn((resolve) => resolve({ data: [], error: null })),
+    single: vi.fn(() => {
+      isSingle = true;
+      return mockBuilder;
+    }),
+    maybeSingle: vi.fn(() => {
+      isSingle = true;
+      return mockBuilder;
+    }),
+    then: vi.fn(async (resolve) => {
+      const url = new URL(`${REST_API}/${currentTable}`);
+      Object.entries(queryParams).forEach(([k, v]) => url.searchParams.set(k, v));
+
+      const options: RequestInit = {
+        method: currentMethod,
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": "test-key",
+          "Authorization": "Bearer test-key",
+          ...(currentMethod === "POST" && selectColumns ? {"Prefer": "return=representation"} : {}),
+        },
+        ...(currentBody ? {body: JSON.stringify(currentBody)} : {}),
+      };
+
+      const response = await fetch(url.toString(), options);
+      const data = await response.json();
+
+      if (isSingle) {
+        return resolve({ data: Array.isArray(data) && data.length > 0 ? data[0] : null, error: null });
+      }
+      return resolve({ data, error: null });
+    }),
   };
 
   return {
-    from: vi.fn(() => mockBuilder),
+    from: vi.fn((table: string) => {
+      currentTable = table;
+      currentMethod = "GET";
+      currentBody = null;
+      queryParams = {};
+      selectColumns = "*";
+      isSingle = false;
+      return mockBuilder;
+    }),
     auth: {
       getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
     },
