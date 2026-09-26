@@ -62,6 +62,10 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["tests/**/*.{test,spec}.{ts,tsx}"],
+    // Environment variables for route tests (P1.7)
+    env: {
+      SEED_ADMIN_TOKEN: "test-admin-token-12345",
+    },
     // setupFiles runs before any test file imports, ensuring mocks are hoisted.
     // This is where vi.mock() calls for next/headers and @/lib/data/capture-client
     // live (P1.7 route testing infrastructure).
