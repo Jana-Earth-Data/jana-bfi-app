@@ -156,6 +156,13 @@ export type Loan = {
   outstandingNpr: number;
   /** Outstanding amount in USD (for PCAF calc) */
   outstandingUsd: number;
+  /**
+   * Loss allowance (impairment provision) in USD.
+   * Per IFRS S2 B62(b), gross exposure = funded carrying amount before loss allowance.
+   * Gross exposure = outstandingUsd + lossAllowance.
+   * Undefined in live until the bank provides it; demo seeds ~2% of outstanding.
+   */
+  lossAllowance?: number;
   /** Disbursement date (ISO 8601) */
   disbursedDate: string;
   /** Maturity date (ISO 8601) */

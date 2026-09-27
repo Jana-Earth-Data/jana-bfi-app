@@ -462,6 +462,8 @@ function generateLoansForCategory(
       branchCode: branch.code,
       outstandingNpr: npr,
       outstandingUsd: usd,
+      // Demo seeds ~2% loss allowance (typical Nepal BFI provision rate for N1.1 gross exposure)
+      lossAllowance: Math.round(usd * 0.02 * 100) / 100,
       disbursedDate,
       maturityDate,
       status,
