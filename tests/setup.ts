@@ -201,4 +201,5 @@ vi.mock("@/lib/demo/provider", () => ({
     })),
     invalidatePortfolioCache: vi.fn(),
   })),
+  isDemoBuild: vi.fn(() => true),
 }));
