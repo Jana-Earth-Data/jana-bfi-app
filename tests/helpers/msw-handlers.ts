@@ -119,6 +119,17 @@ export const handlers = [
   http.get(`${REST_API}/bfi_monitoring_reports`, () => {
     return HttpResponse.json([]);
   }),
+
+  // Mock tenant settings fetch
+  http.get(`${REST_API}/bfi_tenant_settings`, () => {
+    return HttpResponse.json([{
+      bank_id: "bank-nepal-dev",
+      settings: { fiscalYearStart: "2024-07-16" },
+      updated_at: "2024-01-01T00:00:00Z",
+      updated_by: "off-default-01",
+      version: 1,
+    }]);
+  }),
 ];
 
 /**

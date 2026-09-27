@@ -45,7 +45,7 @@ describe("GET /api/bfi-data", () => {
       "/api/bfi-data",
       {
         method: "GET",
-        cookies: {},
+        cookies: { [TENANT_COOKIE_NAME]: "bank-nepal-dev" },
       },
     );
 
@@ -97,7 +97,9 @@ describe("GET /api/settings", () => {
 
     const response = await settingsGet(request);
     const json = await expectJsonSuccess(response, 200);
-    expect(json).toHaveProperty("demo");
+    expect(json).toHaveProperty("ok");
+    expect(json).toHaveProperty("tenantId");
+    expect(json).toHaveProperty("settings");
   });
 });
 
