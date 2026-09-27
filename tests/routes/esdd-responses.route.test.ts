@@ -51,10 +51,10 @@ describe("POST /api/esdd/responses", () => {
 
       // Assert response contains insert confirmation
       expect(json).toHaveProperty("id");
-      expect(json).toHaveProperty("captured_at");
+      expect(json).toHaveProperty("capturedAt");
 
-      // Timestamp should be ISO8601
-      expect(new Date(json.captured_at).toISOString()).toBe(json.captured_at);
+      // Timestamp should be valid ISO8601
+      expect(json.capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/);
     });
 
     it("accepts answer without remarks (optional field)", async () => {
@@ -95,7 +95,7 @@ describe("POST /api/esdd/responses", () => {
       );
 
       const response = await POST(request);
-      await expectJsonError(response, 401, "officer");
+      await expectJsonError(response, 401, "Officer");
     });
 
     it("returns 403 when officer is not the loan owner (P36 owner-only rule)", async () => {
@@ -127,7 +127,7 @@ describe("POST /api/esdd/responses", () => {
       );
 
       const response = await POST(request);
-      await expectJsonError(response, 403, "not assigned");
+      await expectJsonError(response, 403, "different officer");
     });
   });
 
@@ -205,15 +205,16 @@ describe("GET /api/esdd/responses", () => {
       const response = await GET(request);
       const json = await expectJsonSuccess(response, 200);
 
-      // Should return array of responses
-      expect(Array.isArray(json)).toBe(true);
-      if (json.length > 0) {
-        const first = json[0];
-        expect(first).toHaveProperty("id");
-        expect(first).toHaveProperty("loan_id");
-        expect(first).toHaveProperty("question_id");
+      // Should return object with responses array
+      expect(json).toHaveProperty("ok");
+      expect(json).toHaveProperty("loanId");
+      expect(json).toHaveProperty("responses");
+      expect(Array.isArray(json.responses)).toBe(true);
+      if (json.responses.length > 0) {
+        const first = json.responses[0];
+        expect(first).toHaveProperty("questionId");
         expect(first).toHaveProperty("answer");
-        expect(first).toHaveProperty("captured_at");
+        expect(first).toHaveProperty("capturedAt");
         expect(["a", "b", "c", "d"]).toContain(first.answer);
       }
     });
@@ -230,7 +231,7 @@ describe("GET /api/esdd/responses", () => {
       );
 
       const response = await GET(request);
-      await expectJsonError(response, 401, "officer");
+      await expectJsonError(response, 401, "Officer");
     });
   });
 

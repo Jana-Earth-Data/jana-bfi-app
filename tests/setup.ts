@@ -149,3 +149,56 @@ vi.mock("@/lib/demo/mode", () => ({
   isDemoMode: vi.fn(() => Promise.resolve(true)),
   DEMO_MODE_COOKIE: "jana_demo_mode",
 }));
+
+// Mock demo provider to return minimal test portfolio
+vi.mock("@/lib/demo/provider", () => ({
+  getDemoProvider: vi.fn(() => Promise.resolve({
+    getPortfolio: vi.fn(() => Promise.resolve({
+      meta: {
+        bankName: "Test Bank",
+        isMock: true,
+        generatedAt: "2024-01-01T00:00:00Z",
+        pcafMethodologyNote: "Test data",
+      },
+      borrowers: [{
+        id: "borrower-101",
+        name: "Test Borrower Ltd",
+        kind: "corporate",
+        nrbSector: "hydropower",
+        totalCo2eTonnes: 1000,
+        facilities: [{
+          facilityName: "Test Facility",
+          annualCo2eTonnes: 1000,
+          emissionsYear: 2024,
+        }],
+      }],
+      loans: [{
+        id: "loan-456",
+        borrowerId: "borrower-101",
+        outstandingUsd: 100000,
+        outstandingNpr: 13000000,
+        category: "corporate-lending",
+      }],
+      attributions: [{
+        loanId: "loan-456",
+        borrowerId: "borrower-101",
+        attributionFactor: 0.1,
+        attributedCo2eTonnes: 100,
+        dataQuality: 3,
+      }],
+      portfolio: {
+        totalLoans: 1,
+        totalOutstandingUsd: 100000,
+        totalOutstandingNpr: 13000000,
+        totalAttributedCo2eTonnes: 100,
+        weightedDataQuality: 3,
+        taxonomyBreakdown: { green: 0, amber: 0, red: 0, unclassified: 1 },
+        taxonomyBreakdownValue: { green: 0, amber: 0, red: 0, unclassified: 100000 },
+        sectorBreakdown: [],
+        dataQualityDistribution: [],
+        trend: [],
+      },
+    })),
+    invalidatePortfolioCache: vi.fn(),
+  })),
+}));
