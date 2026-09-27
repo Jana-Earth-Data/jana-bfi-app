@@ -135,6 +135,11 @@ export const handlers = [
   http.get(`${REST_API}/bfi_pcaf_availability`, () => {
     return HttpResponse.json([]);
   }),
+
+  // Mock taxonomy assessments (officer classifications) - empty by default
+  http.get(`${REST_API}/bfi_taxonomy_assessments`, () => {
+    return HttpResponse.json([]);
+  }),
 ];
 
 /**
