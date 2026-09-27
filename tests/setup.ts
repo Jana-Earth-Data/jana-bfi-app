@@ -159,6 +159,7 @@ vi.mock("@/lib/demo/provider", () => ({
         isMock: true,
         generatedAt: "2024-01-01T00:00:00Z",
         pcafMethodologyNote: "Test data",
+        asOfDate: "2024-12-31",
       },
       borrowers: [{
         id: "borrower-101",
@@ -185,6 +186,10 @@ vi.mock("@/lib/demo/provider", () => ({
         attributionFactor: 0.1,
         attributedCo2eTonnes: 100,
         dataQuality: 3,
+        dataQualityScore: 3,
+        pcafOption: "2a",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        pcafCitation: "Test citation",
       }],
       portfolio: {
         totalLoans: 1,

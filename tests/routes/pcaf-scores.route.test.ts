@@ -32,8 +32,13 @@ describe("GET /api/pcaf/scores", () => {
       const response = await GET(request);
       const json = await expectJsonSuccess(response, 200);
 
-      // Should return array (may be empty in test environment)
-      expect(Array.isArray(json)).toBe(true);
+      // Should return object with distribution array
+      expect(json).toHaveProperty("ok");
+      expect(json).toHaveProperty("distribution");
+      expect(Array.isArray(json.distribution)).toBe(true);
+      expect(json).toHaveProperty("weightedScore");
+      expect(json).toHaveProperty("methodologyMix");
+      expect(json).toHaveProperty("assetClassMix");
     });
   });
 
