@@ -15,6 +15,7 @@ import {
   expectJsonError,
   officerCookies,
   TEST_LOAN_ID,
+  TEST_BORROWER_ID,
   TENANT_COOKIE_NAME,
 } from "../helpers/route-test-utils";
 import "../helpers/msw-setup";
@@ -47,7 +48,11 @@ describe("GET /api/cap/[loanId]", () => {
 
       const response = await GET(request, { params: { loanId: TEST_LOAN_ID } });
       const json = await expectJsonSuccess(response, 200);
-      expect(Array.isArray(json)).toBe(true);
+      expect(json).toHaveProperty("ok");
+      expect(json).toHaveProperty("loanId");
+      expect(Array.isArray(json.items)).toBe(true);
+      expect(Array.isArray(json.covenants)).toBe(true);
+      expect(Array.isArray(json.monitoring)).toBe(true);
     });
   });
 
@@ -72,10 +77,10 @@ describe("POST /api/cap/[loanId]", () => {
     it("updates CAP item", async () => {
       server.use(
         http.post("https://test.supabase.co/rest/v1/bfi_cap_items", () => {
-          return HttpResponse.json({
+          return HttpResponse.json([{
             id: "cap-123",
             updated_at: "2024-01-15T12:00:00Z",
-          });
+          }]);
         }),
       );
 
@@ -84,9 +89,14 @@ describe("POST /api/cap/[loanId]", () => {
         {
           method: "POST",
           body: {
-            capItemId: "cap-123",
-            status: "in_progress",
-            correctiveAction: "Test action",
+            borrowerId: TEST_BORROWER_ID,
+            items: [
+              {
+                areaOfConcern: "Test concern",
+                correctiveAction: "Test action",
+                status: "in_progress",
+              },
+            ],
           },
           cookies: officerCookies(),
         },
