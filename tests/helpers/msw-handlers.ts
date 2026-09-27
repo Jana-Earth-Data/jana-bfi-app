@@ -130,6 +130,11 @@ export const handlers = [
       version: 1,
     }]);
   }),
+
+  // Mock PCAF availability (officer reviews) - empty by default
+  http.get(`${REST_API}/bfi_pcaf_availability`, () => {
+    return HttpResponse.json([]);
+  }),
 ];
 
 /**
