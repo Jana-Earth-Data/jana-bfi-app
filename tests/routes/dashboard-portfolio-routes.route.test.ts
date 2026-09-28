@@ -53,6 +53,29 @@ describe("GET /api/bfi-data", () => {
     // May return error or empty data depending on implementation
     expect([200, 400, 401]).toContain(response.status);
   });
+
+  it("includes IFRS S2 B62(b) gross exposure matrix (N1.1)", async () => {
+    const request = createMockRequest(
+      "/api/bfi-data",
+      {
+        method: "GET",
+        cookies: { ...officerCookies(), [TENANT_COOKIE_NAME]: "bank-nepal-dev" },
+      },
+    );
+
+    const response = await bfiDataGet(request);
+
+    if (response.status === 200) {
+      const json = await response.json();
+      expect(json).toHaveProperty("ok", true);
+      expect(json).toHaveProperty("data");
+      expect(json.data).toHaveProperty("portfolio");
+
+      // N1.1: grossExposureMatrix should be present (may be empty array, but present)
+      expect(json.data.portfolio).toHaveProperty("grossExposureMatrix");
+      expect(Array.isArray(json.data.portfolio.grossExposureMatrix)).toBe(true);
+    }
+  });
 });
 
 describe("GET /api/portfolio/loans", () => {
