@@ -298,6 +298,18 @@ export type PortfolioSummary = {
     loanCount: number;
     attributedCo2eTonnes?: number;
   }>;
+  /**
+   * IFRS S2 B62(c) coverage — percentage of gross exposure included in
+   * financed-emissions calculation, with excluded asset types named. Added for N1.2.
+   */
+  grossExposureCoverage?: {
+    totalGrossExposureUsd: number;
+    includedGrossExposureUsd: number;
+    coveragePercent: number;
+    includedLoanCount: number;
+    excludedLoanCount: number;
+    excludedAssetTypes: string[];
+  };
 };
 
 // ---------------------------------------------------------------------------

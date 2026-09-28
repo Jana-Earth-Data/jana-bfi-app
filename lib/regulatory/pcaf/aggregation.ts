@@ -39,6 +39,7 @@ import {
 } from "@/lib/types/bfi";
 import { TREND_YEARS } from "@/lib/regulatory/reporting/period";
 import { computeGrossExposureMatrix } from "./gross-exposure";
+import { computeGrossExposureCoverage } from "./coverage";
 
 function emptyTaxonomy(): TaxonomyBreakdown {
   return { green: 0, amber: 0, red: 0, unclassified: 0 };
@@ -241,6 +242,12 @@ export function summarise(
     attributions,
   );
 
+  // IFRS S2 B62(c) coverage — percentage of gross exposure included in the
+  // financed-emissions calculation, with excluded asset types named. Replaces
+  // the existing facility-matched ÷ in-scope ratio with the correct denominator
+  // (total gross exposure, not in-scope exposure). N1.2.
+  const grossExposureCoverage = computeGrossExposureCoverage(loans, attributions);
+
   return {
     totalLoans,
     totalOutstandingUsd: Math.round(totalOutstandingUsd),
@@ -254,5 +261,6 @@ export function summarise(
     dataQualityDistribution,
     trend,
     grossExposureMatrix,
+    grossExposureCoverage,
   };
 }
