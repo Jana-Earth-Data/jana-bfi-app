@@ -46,7 +46,7 @@ export type ManagerQueueRow = {
   overdueCapCount: number;
 };
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
   const [_officer, authErr] = await requireOfficer("viewing manager queue");
   if (authErr) return authErr;
 

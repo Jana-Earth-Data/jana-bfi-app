@@ -33,7 +33,7 @@ type SettingsRow = {
 // GET
 // ---------------------------------------------------------------------------
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json(

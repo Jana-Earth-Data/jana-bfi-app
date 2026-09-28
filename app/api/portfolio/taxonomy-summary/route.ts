@@ -21,7 +21,7 @@
  * Scoped by tenant via resolveCurrentTenant() → bank_id.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { requireOfficer } from "@/lib/api/route-helpers";
 
@@ -82,7 +82,7 @@ function normaliseColor(v: string | null | undefined): BucketKey {
   return "unclassified";
 }
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
   const [_officer, authErr] = await requireOfficer("viewing taxonomy summary");
   if (authErr) return authErr;
 

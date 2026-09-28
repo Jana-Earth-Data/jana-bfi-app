@@ -122,7 +122,7 @@ export type LoanCard = {
   };
 };
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
   const [sbClient, sbErr] = await requireCaptureClient();
   if (sbErr) return sbErr;
   const supabase = sbClient!;

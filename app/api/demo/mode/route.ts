@@ -19,7 +19,7 @@ import { isDemoBuild } from "@/lib/demo/provider";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
   const { isDemoMode } = await import("@/lib/demo/mode");
   const demoMode = await isDemoMode();
   return NextResponse.json({ demoMode });
