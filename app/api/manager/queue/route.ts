@@ -11,7 +11,7 @@
  * loans. If real-world usage grows past that we'll page here.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { requireOfficer } from "@/lib/api/route-helpers";
 

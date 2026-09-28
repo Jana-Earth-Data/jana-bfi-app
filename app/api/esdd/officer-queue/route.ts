@@ -24,7 +24,7 @@
  *     loans so the queue is never empty.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { resolveCurrentTenant } from "@/lib/tenants";
 
 import { getBfiDemoData } from "@/lib/api/bfi";

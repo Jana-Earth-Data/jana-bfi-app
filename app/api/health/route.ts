@@ -14,7 +14,7 @@
  * few seconds and must not be throttled.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { isDemoBuild } from "@/lib/demo/provider";
 
 export const dynamic = "force-dynamic";
