@@ -70,7 +70,7 @@ describe("GET /api/climate/borrower/[borrowerId]", () => {
       },
     );
 
-    const response = await climateBorrowerGet(request, { params: { borrowerId: TEST_BORROWER_ID } });
+    const response = await climateBorrowerGet(request, { params: Promise.resolve({ borrowerId: TEST_BORROWER_ID }) });
     await expectJsonError(response, 401);
   });
 });
@@ -85,7 +85,7 @@ describe("GET /api/pcaf/availability/[borrowerId]", () => {
       },
     );
 
-    const response = await pcafAvailGet(request, { params: { borrowerId: TEST_BORROWER_ID } });
+    const response = await pcafAvailGet(request, { params: Promise.resolve({ borrowerId: TEST_BORROWER_ID }) });
     await expectJsonError(response, 401);
   });
 });
@@ -101,7 +101,7 @@ describe("POST /api/pcaf/availability/[borrowerId]", () => {
       },
     );
 
-    const response = await pcafAvailPost(request, { params: { borrowerId: TEST_BORROWER_ID } });
+    const response = await pcafAvailPost(request, { params: Promise.resolve({ borrowerId: TEST_BORROWER_ID }) });
     await expectJsonError(response, 401);
   });
 });
@@ -116,7 +116,7 @@ describe("GET /api/pcaf/evidence/[loanId]", () => {
       },
     );
 
-    const response = await pcafEvidenceGet(request, { params: { loanId: TEST_LOAN_ID } });
+    const response = await pcafEvidenceGet(request, { params: Promise.resolve({ loanId: TEST_LOAN_ID }) });
     await expectJsonError(response, 401);
   });
 });
@@ -131,7 +131,7 @@ describe("POST /api/loans/[loanId]/claim", () => {
       },
     );
 
-    const response = await loanClaimPost(request, { params: { loanId: TEST_LOAN_ID } });
+    const response = await loanClaimPost(request, { params: Promise.resolve({ loanId: TEST_LOAN_ID }) });
     await expectJsonError(response, 401);
   });
 });

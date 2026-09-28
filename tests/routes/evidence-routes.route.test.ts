@@ -58,7 +58,7 @@ describe("GET /api/evidence/[id]/download", () => {
       },
     );
 
-    const response = await evidenceDownloadGet(request, { params: { id: "evidence-123" } });
+    const response = await evidenceDownloadGet(request, { params: Promise.resolve({ id: "evidence-123" }) });
     await expectJsonError(response, 401);
   });
 });

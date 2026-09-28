@@ -98,7 +98,7 @@ describe("GET /api/pf-screening/loan/[loanId]", () => {
       },
     );
 
-    const response = await pfScreeningLoanGet(request, { params: { loanId: TEST_LOAN_ID } });
+    const response = await pfScreeningLoanGet(request, { params: Promise.resolve({ loanId: TEST_LOAN_ID }) });
     await expectJsonError(response, 401);
   });
 });
@@ -128,7 +128,7 @@ describe("GET /api/hydro/docs/[loanId]", () => {
       },
     );
 
-    const response = await hydroDocsLoanGet(request, { params: { loanId: TEST_LOAN_ID } });
+    const response = await hydroDocsLoanGet(request, { params: Promise.resolve({ loanId: TEST_LOAN_ID }) });
     await expectJsonError(response, 401);
   });
 });

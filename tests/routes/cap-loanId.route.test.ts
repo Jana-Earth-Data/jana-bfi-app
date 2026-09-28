@@ -46,7 +46,7 @@ describe("GET /api/cap/[loanId]", () => {
         },
       );
 
-      const response = await GET(request, { params: { loanId: TEST_LOAN_ID } });
+      const response = await GET(request, { params: Promise.resolve({ loanId: TEST_LOAN_ID }) });
       const json = await expectJsonSuccess(response, 200);
       expect(json).toHaveProperty("ok");
       expect(json).toHaveProperty("loanId");
@@ -66,7 +66,7 @@ describe("GET /api/cap/[loanId]", () => {
         },
       );
 
-      const response = await GET(request, { params: { loanId: TEST_LOAN_ID } });
+      const response = await GET(request, { params: Promise.resolve({ loanId: TEST_LOAN_ID }) });
       await expectJsonError(response, 401);
     });
   });
@@ -102,7 +102,7 @@ describe("POST /api/cap/[loanId]", () => {
         },
       );
 
-      const response = await POST(request, { params: { loanId: TEST_LOAN_ID } });
+      const response = await POST(request, { params: Promise.resolve({ loanId: TEST_LOAN_ID }) });
       await expectJsonSuccess(response, 200);
     });
   });
@@ -121,7 +121,7 @@ describe("POST /api/cap/[loanId]", () => {
         },
       );
 
-      const response = await POST(request, { params: { loanId: TEST_LOAN_ID } });
+      const response = await POST(request, { params: Promise.resolve({ loanId: TEST_LOAN_ID }) });
       await expectJsonError(response, 400);
     });
   });

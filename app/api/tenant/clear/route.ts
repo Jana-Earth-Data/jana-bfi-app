@@ -16,13 +16,13 @@
  * Idempotent: safe to call when neither cookie is set.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { TENANT_COOKIE_NAME } from "@/lib/tenants";
 import { DEMO_MODE_COOKIE } from "@/lib/demo/mode";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(_request: NextRequest) {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(TENANT_COOKIE_NAME, "", {
     httpOnly: true,

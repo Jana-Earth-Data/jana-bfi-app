@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
 
-export async function POST() {
+export async function POST(_request: NextRequest) {
   if (!AUTH_URL) {
     return NextResponse.json(
       { error: "AUTH_URL not configured" },
