@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
   try {
     const tenant = await resolveCurrentTenant();
-    const currentOfficer = await resolveCurrentOfficer();
     const base = await getBfiDemoData(token);
 
     // Same officer PCAF overlay as app/page.tsx. This route backs the
