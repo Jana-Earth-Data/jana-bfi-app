@@ -17,7 +17,7 @@ import { createMockRequest, expectJsonSuccess } from "../helpers/route-test-util
 describe("GET /api/health", () => {
   it("returns 200 with status, timestamp, and demo flag", async () => {
     const request = createMockRequest("/api/health");
-    const response = await GET();
+    const response = await GET(request);
 
     const json = await expectJsonSuccess(response, 200);
 
@@ -35,14 +35,14 @@ describe("GET /api/health", () => {
 
   it("returns fresh timestamp on each call (force-dynamic)", async () => {
     const request1 = createMockRequest("/api/health");
-    const response1 = await GET();
+    const response1 = await GET(request1);
     const json1 = await expectJsonSuccess(response1);
 
     // Wait 10ms to ensure timestamp differs
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const request2 = createMockRequest("/api/health");
-    const response2 = await GET();
+    const response2 = await GET(request2);
     const json2 = await expectJsonSuccess(response2);
 
     // Timestamps should differ (proves force-dynamic, not cached)
