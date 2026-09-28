@@ -43,7 +43,11 @@ export function createMockRequest(
   }
 
   const url = `https://test.jana.earth${path}`;
-  const init = {
+  const init: {
+    method: string;
+    headers: Record<string, string>;
+    body?: string;
+  } = {
     method,
     headers: {
       "Content-Type": "application/json",
