@@ -38,6 +38,7 @@ import {
   TaxonomyBreakdown,
 } from "@/lib/types/bfi";
 import { TREND_YEARS } from "@/lib/regulatory/reporting/period";
+import { computeGrossExposureMatrix } from "./gross-exposure";
 
 function emptyTaxonomy(): TaxonomyBreakdown {
   return { green: 0, amber: 0, red: 0, unclassified: 0 };
@@ -231,6 +232,15 @@ export function summarise(
     };
   });
 
+  // IFRS S2 B62(b) gross exposure matrix — industry × asset class disaggregation
+  // of funded carrying amount before loss allowance. Computed here so demo and
+  // live paths both produce identical B62(b) disclosure tables (N1.1).
+  const grossExposureMatrix = computeGrossExposureMatrix(
+    loans,
+    borrowers,
+    attributions,
+  );
+
   return {
     totalLoans,
     totalOutstandingUsd: Math.round(totalOutstandingUsd),
@@ -243,5 +253,6 @@ export function summarise(
     funnel,
     dataQualityDistribution,
     trend,
+    grossExposureMatrix,
   };
 }

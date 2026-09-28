@@ -287,6 +287,17 @@ export type PortfolioSummary = {
   funnel?: PortfolioFunnel;
   dataQualityDistribution?: DataQualityDistribution;
   trend?: PortfolioTrendPoint[];
+  /**
+   * IFRS S2 B62(b) gross exposure matrix — industry × asset class disaggregation
+   * of funded carrying amount before loss allowance. Added for N1.1.
+   */
+  grossExposureMatrix?: Array<{
+    industry: string;
+    assetClass: string;
+    grossExposureUsd: number;
+    loanCount: number;
+    attributedCo2eTonnes?: number;
+  }>;
 };
 
 // ---------------------------------------------------------------------------
