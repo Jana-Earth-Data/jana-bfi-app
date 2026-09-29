@@ -134,6 +134,22 @@ export type Borrower = {
   enterpriseValueUsd: number;
   /** Source of the enterprise value estimate */
   evSource: "public-filing" | "estimated" | "proxy";
+  /**
+   * Total equity (USD) from borrower's balance sheet.
+   * Per PCAF Part A 3rd Edition §5.2, the attribution denominator for business
+   * loans to unlisted companies is total equity + total debt (balance-sheet
+   * basis, not market values). Optional - when undefined, falls back to
+   * enterpriseValueUsd per PCAF-permitted fallback (§4.2: "Fallback allowed to
+   * total balance sheet (assets) if debt/equity split not obtainable").
+   */
+  totalEquityUsd?: number;
+  /**
+   * Total debt (USD) from borrower's balance sheet.
+   * Per PCAF Part A 3rd Edition §5.2, the attribution denominator for business
+   * loans to unlisted companies is total equity + total debt. Optional - when
+   * undefined, falls back to enterpriseValueUsd.
+   */
+  totalDebtUsd?: number;
   /** PCAF data tier this borrower qualifies for */
   dataTier?: BorrowerDataTier;
   /** Parent / ultimate owner if known */
@@ -223,6 +239,29 @@ export type Loan = {
    * Undefined in live until the bank provides it; demo seeds undrawn on ~20% of loans.
    */
   undrawnCommitmentUsd?: number;
+  /**
+   * Total project cost (USD) for project finance loans.
+   * Per PCAF Part A 3rd Edition §5.3, the attribution denominator for project
+   * finance is total project equity + total project debt, which equals total
+   * project cost for greenfield projects. Optional - applies only to §5.3
+   * project-finance asset class. When undefined, falls back to borrower's
+   * enterpriseValueUsd (the project SPV's total value).
+   */
+  projectCostUsd?: number;
+  /**
+   * Property value at loan origination (USD) for commercial real estate and mortgages.
+   * Per PCAF Part A 3rd Edition §5.4 (CRE) and §5.5 (Mortgages), the attribution
+   * denominator is property value at origination. Optional - applies only to §5.4/§5.5
+   * asset classes. When undefined, falls back to borrower's enterpriseValueUsd.
+   */
+  propertyValueUsd?: number;
+  /**
+   * Vehicle value at origination (USD) for motor vehicle loans.
+   * Per PCAF Part A 3rd Edition §5.6, the attribution denominator is total vehicle
+   * value at origination (purchase price). Optional - applies only to §5.6 motor-vehicle
+   * asset class. When undefined, falls back to borrower's enterpriseValueUsd.
+   */
+  vehicleValueUsd?: number;
   /** Disbursement date (ISO 8601) */
   disbursedDate: string;
   /** Maturity date (ISO 8601) */
@@ -297,6 +336,24 @@ export type PcafAttribution = {
     | "sovereign-debt"
     | "sub-sovereign-debt"
     | "out-of-scope";
+  /**
+   * Attribution denominator type used for this loan (N1.9).
+   * Per PCAF Part A §5, different asset classes use different denominators:
+   * equity+debt (§5.2), project-cost (§5.3), property-value (§5.5), etc.
+   * Used to display correct formula in UI hints ("Outstanding ÷ Equity + Debt").
+   */
+  denominatorType?:
+    | "equity-plus-debt"
+    | "project-cost"
+    | "property-value"
+    | "vehicle-value"
+    | "enterprise-value"
+    | "out-of-scope";
+  /**
+   * Human-readable attribution formula label for UI hints (N1.9).
+   * Example: "Outstanding ÷ (Equity + Debt)" or "Outstanding ÷ Total Project Cost"
+   */
+  denominatorLabel?: string;
   /**
    * PCAF paragraph citation — surfaced in tooltips + auditor exports.
    * Format: "PCAF Part A 3rd Edition §5.2 · Option 2b (physical production × sector EF)"

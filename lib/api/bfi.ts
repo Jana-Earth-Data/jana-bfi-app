@@ -12,7 +12,7 @@
  */
 
 import { apiFetchAll } from "@/lib/api/client";
-import { pcafAttributionFactor } from "@/lib/regulatory/pcaf/attribution";
+import { attributionDenominatorUsd } from "@/lib/regulatory/pcaf/attribution";
 import { summarise } from "@/lib/regulatory/pcaf/aggregation";
 import { TREND_YEARS } from "@/lib/reporting/periods";
 import { getDemoProvider } from "@/lib/demo/provider";
@@ -197,15 +197,19 @@ function overlayLive(
       // sector-benchmark — already correct (no facility tier)
       return prev;
     }
-    // Facility-tier re-overlay only reaches here, so the shared PCAF §4.2
-    // attribution factor (lib/regulatory/pcaf/attribution.ts) applies the
-    // facility EV floor — the same floor the demo aggregator uses. No local
-    // floor literal lives in this file (N0.2).
-    const af = pcafAttributionFactor(loan.outstandingUsd, b);
+    // Facility-tier re-overlay only reaches here. The shared PCAF attribution
+    // denominator logic (lib/regulatory/pcaf/attribution.ts) applies per-asset-class
+    // denominators (N1.9: equity+debt for §5.2, project cost for §5.3, etc.) with
+    // PCAF-permitted fallbacks and EV floor. No local floor literal lives here (N0.2).
+    const assetClass = prev.pcafAssetClass || "business-loans-unlisted-equity";
+    const denominator = attributionDenominatorUsd(loan, b, assetClass);
+    const af = loan.outstandingUsd / denominator.denominatorUsd;
     return {
       ...prev,
       attributionFactor: af,
       attributedCo2eTonnes: Math.round(af * b.totalCo2eTonnes),
+      denominatorType: denominator.denominatorType,
+      denominatorLabel: denominator.denominatorLabel,
     };
   });
 

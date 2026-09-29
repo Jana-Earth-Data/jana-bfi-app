@@ -46,7 +46,7 @@ import { resolveAvailability } from "@/lib/regulatory/pcaf/evidence-matrix";
 import { LATEST_FULL_YEAR } from "@/lib/regulatory/reporting/period";
 import { demoPcafEvidenceRecords } from "@/lib/demo/pcaf-evidence-seed";
 import { SCORE_FOR_OPTION } from "@/lib/regulatory/pcaf/types";
-import { pcafAttributionFactor } from "@/lib/regulatory/pcaf/attribution";
+import { attributionDenominatorUsd } from "@/lib/regulatory/pcaf/attribution";
 import { summarise } from "@/lib/regulatory/pcaf/aggregation";
 import {
   RETAIL_PROXY_CITATION,
@@ -328,12 +328,13 @@ function pcafFor(loan: Loan, borrower: Borrower): PcafAttribution {
     };
   }
 
-  // 4. Compute the attribution factor (loan / EV) — PCAF Part A §4.2. The
-  //    enterprise-value floor (the guard that stops a tiny synthetic EV
-  //    producing a >100 % share) lives once, cited, in
-  //    lib/regulatory/pcaf/attribution.ts and is shared with the live
-  //    re-overlay aggregator (lib/api/bfi.ts).
-  const af = pcafAttributionFactor(loan.outstandingUsd, borrower);
+  // 4. Compute the attribution factor per PCAF Part A §4.2 and §5.1–§5.6.
+  //    N1.9 added per-asset-class denominators: equity+debt (§5.2), project
+  //    cost (§5.3), property value (§5.5), vehicle value (§5.6). The
+  //    attribution denominator logic (including PCAF-permitted fallbacks and
+  //    enterprise-value floor) lives in lib/regulatory/pcaf/attribution.ts.
+  const denominator = attributionDenominatorUsd(loan, borrower, compute.assetClass);
+  const af = loan.outstandingUsd / denominator.denominatorUsd;
   const attributed = af * borrower.totalCo2eTonnes;
 
   // 5. Pick the legacy `methodology` label — kept for the ESRM tab's
@@ -358,6 +359,8 @@ function pcafFor(loan: Loan, borrower: Borrower): PcafAttribution {
     qualityNote: compute.method,
     pcafOption: option,
     pcafAssetClass: compute.assetClass,
+    denominatorType: denominator.denominatorType,
+    denominatorLabel: denominator.denominatorLabel,
     pcafCitation: compute.citation,
     pcafDataSource: compute.dataSource,
   };
