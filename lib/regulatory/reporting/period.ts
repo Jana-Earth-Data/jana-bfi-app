@@ -27,18 +27,22 @@
  *
  * WHAT A LIVE DEPLOYMENT DOES
  * ---------------------------
- * A live bank derives this period from what has actually been ingested: the
- * span of Climate TRACE / EDGAR coverage in its own database sets TREND_YEARS,
- * the last complete calendar year sets LATEST_FULL_YEAR, and the ingest
- * high-water mark sets LATEST_YEAR / the partial-through month and the as-of
- * date. The demo pins the FY2024/25 coverage below. The shape is identical;
- * only the data differs.
+ * A live bank derives TenantConfig.reportingPeriod from what has actually been
+ * ingested: the span of Climate TRACE / EDGAR coverage in its own database sets
+ * trendYears, the last complete calendar year sets latestFullYear, and the
+ * ingest high-water mark sets latestYear / the partial-through month and the
+ * as-of date. Demo tenants leave reportingPeriod undefined and fall back to the
+ * pinned FY2024/25 constants below. See {@link trendYearsForTenant},
+ * {@link asOfDateForTenant}, and related helpers (N1.13) for the selection logic.
  */
 
 /**
  * Years the platform builds emissions and financed-emissions trends for.
  * Matches Climate TRACE Nepal coverage: earliest 2021-01, latest 2025-10.
- * A live deployment derives this from ingested coverage rather than pinning it.
+ *
+ * Per N1.13: A live deployment derives this from ingested coverage via
+ * TenantConfig.reportingPeriod. When undefined, this constant is the fallback.
+ * Use {@link trendYearsForTenant} to get the effective years for a tenant.
  */
 export const TREND_YEARS = [2021, 2022, 2023, 2024, 2025] as const;
 
@@ -93,4 +97,82 @@ export function isPartialYear(year: number): boolean {
  */
 export function isFullyReportedYear(year: number): boolean {
   return !isPartialYear(year);
+}
+
+/**
+ * Get the effective trend years for a tenant.
+ * Returns tenant.reportingPeriod.trendYears if configured, otherwise falls back
+ * to TREND_YEARS constant. Added for N1.13.
+ *
+ * @param tenant - Optional tenant configuration with reportingPeriod.
+ * @returns The trend years to use for this tenant's disclosures.
+ */
+export function trendYearsForTenant(tenant?: {
+  reportingPeriod?: { readonly trendYears: readonly number[] };
+}): readonly number[] {
+  return tenant?.reportingPeriod?.trendYears ?? TREND_YEARS;
+}
+
+/**
+ * Get the effective latest full year for a tenant.
+ * Returns tenant.reportingPeriod.latestFullYear if configured, otherwise falls
+ * back to LATEST_FULL_YEAR constant. Added for N1.13.
+ *
+ * @param tenant - Optional tenant configuration with reportingPeriod.
+ * @returns The latest full year to use for this tenant's disclosures.
+ */
+export function latestFullYearForTenant(tenant?: {
+  reportingPeriod?: { readonly latestFullYear: number };
+}): number {
+  return tenant?.reportingPeriod?.latestFullYear ?? LATEST_FULL_YEAR;
+}
+
+/**
+ * Get the effective latest year for a tenant.
+ * Returns tenant.reportingPeriod.latestYear if configured, otherwise falls back
+ * to LATEST_YEAR constant. Added for N1.13.
+ *
+ * @param tenant - Optional tenant configuration with reportingPeriod.
+ * @returns The latest year (may be partial) to use for this tenant.
+ */
+export function latestYearForTenant(tenant?: {
+  reportingPeriod?: { readonly latestYear: number };
+}): number {
+  return tenant?.reportingPeriod?.latestYear ?? LATEST_YEAR;
+}
+
+/**
+ * Get the effective partial-through description for a tenant.
+ * Returns tenant.reportingPeriod.latestYearPartialThrough if reportingPeriod is
+ * configured, otherwise falls back to LATEST_YEAR_PARTIAL_THROUGH constant.
+ * If reportingPeriod is configured and latestYearPartialThrough is undefined,
+ * returns undefined (year is complete). Added for N1.13.
+ *
+ * @param tenant - Optional tenant configuration with reportingPeriod.
+ * @returns The partial-through description (e.g., "October") or undefined if year is complete.
+ */
+export function latestYearPartialThroughForTenant(tenant?: {
+  reportingPeriod?: { readonly latestYearPartialThrough?: string };
+}): string | undefined {
+  // If tenant has reportingPeriod configured, use its latestYearPartialThrough
+  // (which may be undefined for complete years)
+  if (tenant?.reportingPeriod !== undefined) {
+    return tenant.reportingPeriod.latestYearPartialThrough;
+  }
+  // Otherwise fall back to constant
+  return LATEST_YEAR_PARTIAL_THROUGH;
+}
+
+/**
+ * Get the effective as-of date for a tenant.
+ * Returns tenant.reportingPeriod.asOfDate if configured, otherwise falls back to
+ * AS_OF_DATE constant. Added for N1.13.
+ *
+ * @param tenant - Optional tenant configuration with reportingPeriod.
+ * @returns The as-of date (ISO YYYY-MM-DD) for this tenant's disclosures.
+ */
+export function asOfDateForTenant(tenant?: {
+  reportingPeriod?: { readonly asOfDate: string };
+}): string {
+  return tenant?.reportingPeriod?.asOfDate ?? AS_OF_DATE;
 }

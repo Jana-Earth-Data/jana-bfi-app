@@ -38,6 +38,7 @@ function makeBorrower(id: string): Borrower {
     nrbSector: "Manufacturing - Other",
     totalCo2eTonnes: 100,
     enterpriseValueUsd: 10_000,
+    evSource: "estimated",
     kind: "corporate",
     dataTier: "sector-benchmark",
     facilities: [],

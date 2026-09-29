@@ -9,6 +9,8 @@
  * loan captions, and per-tenant persistence keys lives on this shape.
  */
 
+import type { FxRate } from "@/lib/regulatory/fx/rates";
+
 export type TenantId = "default" | "laxmi_sunrise";
 
 /**
@@ -53,6 +55,31 @@ export type ConsolidationConfig = {
    * operational control over borrowers in its commercial loan portfolio."
    */
   reason: string;
+};
+
+/**
+ * Reporting period configuration per IFRS S1 §24 and IFRS S2 §29(a)(iii).
+ * Per S1 §24, sustainability-related disclosures shall be for the same
+ * reporting period as the related financial statements and shall provide
+ * comparatives. The reporting period defines which years the trend covers,
+ * which year is the "most recent fully-reported" year, and the as-of date
+ * the disclosure is prepared to.
+ *
+ * When undefined on a tenant, the platform falls back to the pinned constants
+ * in lib/regulatory/reporting/period.ts. A live bank derives this from its
+ * ingested Climate TRACE coverage; a demo tenant leaves it undefined.
+ */
+export type ReportingPeriod = {
+  /** Years the platform builds emissions trends for (e.g., [2021, 2022, 2023, 2024, 2025]) */
+  readonly trendYears: readonly number[];
+  /** Most recent fully-reported year cited in annual disclosure (e.g., 2024) */
+  readonly latestFullYear: number;
+  /** Latest year with any data; may be partial (e.g., 2025) */
+  readonly latestYear: number;
+  /** How far into latestYear the data runs (e.g., "October"); undefined if latestYear is complete */
+  readonly latestYearPartialThrough?: string;
+  /** The as-of date the disclosure is prepared to (ISO YYYY-MM-DD) */
+  readonly asOfDate: string;
 };
 
 /** Officer roles surfaced in the officer-picker (Phase 2 UI). */
@@ -135,4 +162,20 @@ export type TenantConfig = {
    * Added for N1.12.
    */
   consolidationApproach?: ConsolidationConfig;
+  /**
+   * Per-tenant reporting FX rate per IFRS S1 §24.
+   * When undefined, falls back to REPORTING_FX_RATE constant in lib/regulatory/fx/rates.ts
+   * (133.5 NPR/USD as-of 2024-07-15). A live bank sets this to the rate used to translate
+   * USD-denominated exposures in its own financial statements. Demo tenants leave undefined
+   * (arithmetic neutrality - goldens frozen). Added for N1.13.
+   */
+  reportingFxRate?: FxRate;
+  /**
+   * Per-tenant reporting period per IFRS S1 §24 and IFRS S2 §29(a)(iii).
+   * When undefined, falls back to period constants in lib/regulatory/reporting/period.ts
+   * (2021-2025 trend, 2024 latest full year, as-of 2025-10-31). A live bank derives this
+   * from its ingested Climate TRACE coverage. Demo tenants leave undefined (arithmetic
+   * neutrality - goldens frozen). Added for N1.13.
+   */
+  reportingPeriod?: ReportingPeriod;
 };
