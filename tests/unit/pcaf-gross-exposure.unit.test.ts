@@ -311,3 +311,404 @@ describe("computeGrossExposureMatrix — edge cases", () => {
     expect(matrix.find((c) => c.industry === "Energy - Hydropower" && c.assetClass === "project-finance")).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// computeGrossExposureMatrix() — Scope 1/2/3 disaggregation (N1.6)
+// ---------------------------------------------------------------------------
+
+describe("computeGrossExposureMatrix — Scope 1/2/3 disaggregation (N1.6)", () => {
+  it("aggregates scope emissions when all attributions have scope data", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Manufacturing - Cement" });
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-1", outstandingUsd: 5_000 }),
+    ];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 100,
+        attributedScope1Co2eTonnes: 40,
+        attributedScope2Co2eTonnes: 30,
+        attributedScope3Co2eTonnes: 30,
+      }),
+      makeAttribution({
+        loanId: "l-2",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 80,
+        attributedScope1Co2eTonnes: 32,
+        attributedScope2Co2eTonnes: 24,
+        attributedScope3Co2eTonnes: 24,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      industry: "Manufacturing - Cement",
+      assetClass: "business-loans-unlisted-equity",
+      attributedCo2eTonnes: 180, // 100 + 80
+      attributedScope1Co2eTonnes: 72, // 40 + 32
+      attributedScope2Co2eTonnes: 54, // 30 + 24
+      attributedScope3Co2eTonnes: 54, // 30 + 24
+    });
+  });
+
+  it("omits scope fields when no attributions have scope data", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Manufacturing - Cement" });
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-1", outstandingUsd: 5_000 }),
+    ];
+    // Attributions without scope fields (typical Climate TRACE data)
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 100,
+      }),
+      makeAttribution({
+        loanId: "l-2",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 80,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      industry: "Manufacturing - Cement",
+      assetClass: "business-loans-unlisted-equity",
+      attributedCo2eTonnes: 180,
+    });
+    // Scope fields should be undefined (not present in output)
+    expect(matrix[0].attributedScope1Co2eTonnes).toBeUndefined();
+    expect(matrix[0].attributedScope2Co2eTonnes).toBeUndefined();
+    expect(matrix[0].attributedScope3Co2eTonnes).toBeUndefined();
+  });
+
+  it("includes scope fields when at least one attribution has scope data", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Manufacturing - Cement" });
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-1", outstandingUsd: 5_000 }),
+    ];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 100,
+        attributedScope1Co2eTonnes: 40,
+        attributedScope2Co2eTonnes: 30,
+        attributedScope3Co2eTonnes: 30,
+      }),
+      // Second loan has no scope data
+      makeAttribution({
+        loanId: "l-2",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 80,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      industry: "Manufacturing - Cement",
+      assetClass: "business-loans-unlisted-equity",
+      attributedCo2eTonnes: 180,
+      // Scope fields present, second loan contributes 0 to each scope
+      attributedScope1Co2eTonnes: 40, // 40 + 0
+      attributedScope2Co2eTonnes: 30, // 30 + 0
+      attributedScope3Co2eTonnes: 30, // 30 + 0
+    });
+  });
+
+  it("handles partial scope data (only Scope 1 available)", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Energy - Hydropower" });
+    const loans = [makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 })];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "project-finance",
+        attributedCo2eTonnes: 50,
+        attributedScope1Co2eTonnes: 50, // Only Scope 1 available
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      industry: "Energy - Hydropower",
+      assetClass: "project-finance",
+      attributedCo2eTonnes: 50,
+      attributedScope1Co2eTonnes: 50,
+      attributedScope2Co2eTonnes: 0, // Present but zero
+      attributedScope3Co2eTonnes: 0, // Present but zero
+    });
+  });
+
+  it("handles partial scope data (only Scope 2 available)", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Energy - Hydropower" });
+    const loans = [makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 })];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "project-finance",
+        attributedCo2eTonnes: 30,
+        attributedScope2Co2eTonnes: 30, // Only Scope 2 available
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      industry: "Energy - Hydropower",
+      assetClass: "project-finance",
+      attributedCo2eTonnes: 30,
+      attributedScope1Co2eTonnes: 0,
+      attributedScope2Co2eTonnes: 30,
+      attributedScope3Co2eTonnes: 0,
+    });
+  });
+
+  it("handles partial scope data (only Scope 3 available)", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Manufacturing - Cement" });
+    const loans = [makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 })];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 20,
+        attributedScope3Co2eTonnes: 20, // Only Scope 3 available
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      industry: "Manufacturing - Cement",
+      assetClass: "business-loans-unlisted-equity",
+      attributedCo2eTonnes: 20,
+      attributedScope1Co2eTonnes: 0,
+      attributedScope2Co2eTonnes: 0,
+      attributedScope3Co2eTonnes: 20,
+    });
+  });
+
+  it("accumulates scope emissions across multiple cells (different industries)", () => {
+    const borrowers = [
+      makeBorrower({ id: "b-1", nrbSector: "Manufacturing - Cement" }),
+      makeBorrower({ id: "b-2", nrbSector: "Energy - Hydropower" }),
+    ];
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-2", outstandingUsd: 5_000 }),
+    ];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 100,
+        attributedScope1Co2eTonnes: 60,
+        attributedScope2Co2eTonnes: 20,
+        attributedScope3Co2eTonnes: 20,
+      }),
+      makeAttribution({
+        loanId: "l-2",
+        borrowerId: "b-2",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 80,
+        attributedScope1Co2eTonnes: 10,
+        attributedScope2Co2eTonnes: 40,
+        attributedScope3Co2eTonnes: 30,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, borrowers, attributions);
+
+    expect(matrix).toHaveLength(2);
+
+    const cementCell = matrix.find((c) => c.industry === "Manufacturing - Cement");
+    expect(cementCell).toMatchObject({
+      attributedCo2eTonnes: 100,
+      attributedScope1Co2eTonnes: 60,
+      attributedScope2Co2eTonnes: 20,
+      attributedScope3Co2eTonnes: 20,
+    });
+
+    const hydropowerCell = matrix.find((c) => c.industry === "Energy - Hydropower");
+    expect(hydropowerCell).toMatchObject({
+      attributedCo2eTonnes: 80,
+      attributedScope1Co2eTonnes: 10,
+      attributedScope2Co2eTonnes: 40,
+      attributedScope3Co2eTonnes: 30,
+    });
+  });
+
+  it("verifies scope split sums to total emissions (consistency check)", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Manufacturing - Cement" });
+    const loans = [makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 })];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 150,
+        attributedScope1Co2eTonnes: 75,
+        attributedScope2Co2eTonnes: 50,
+        attributedScope3Co2eTonnes: 25,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    const cell = matrix[0];
+
+    // Total should equal sum of scopes
+    expect(cell.attributedCo2eTonnes).toBe(150);
+    expect(
+      (cell.attributedScope1Co2eTonnes ?? 0) +
+      (cell.attributedScope2Co2eTonnes ?? 0) +
+      (cell.attributedScope3Co2eTonnes ?? 0)
+    ).toBe(150);
+  });
+
+  it("handles mixed scope availability across different asset classes in same industry", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Manufacturing - Cement" });
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-1", outstandingUsd: 5_000 }),
+    ];
+    const attributions = [
+      // Business loan has scope data
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 100,
+        attributedScope1Co2eTonnes: 50,
+        attributedScope2Co2eTonnes: 30,
+        attributedScope3Co2eTonnes: 20,
+      }),
+      // Project finance has no scope data
+      makeAttribution({
+        loanId: "l-2",
+        borrowerId: "b-1",
+        pcafAssetClass: "project-finance",
+        attributedCo2eTonnes: 60,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(2);
+
+    const businessLoanCell = matrix.find((c) => c.assetClass === "business-loans-unlisted-equity");
+    expect(businessLoanCell).toMatchObject({
+      attributedCo2eTonnes: 100,
+      attributedScope1Co2eTonnes: 50,
+      attributedScope2Co2eTonnes: 30,
+      attributedScope3Co2eTonnes: 20,
+    });
+
+    const projectFinanceCell = matrix.find((c) => c.assetClass === "project-finance");
+    expect(projectFinanceCell).toMatchObject({
+      attributedCo2eTonnes: 60,
+    });
+    // Project finance cell should NOT have scope fields
+    expect(projectFinanceCell?.attributedScope1Co2eTonnes).toBeUndefined();
+    expect(projectFinanceCell?.attributedScope2Co2eTonnes).toBeUndefined();
+    expect(projectFinanceCell?.attributedScope3Co2eTonnes).toBeUndefined();
+  });
+
+  it("handles zero values in scope fields (treated as explicit data, not missing)", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Energy - Hydropower" });
+    const loans = [makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 })];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "project-finance",
+        attributedCo2eTonnes: 100,
+        attributedScope1Co2eTonnes: 100, // Only direct emissions
+        attributedScope2Co2eTonnes: 0,   // Explicit zero (no purchased energy)
+        attributedScope3Co2eTonnes: 0,   // Explicit zero (no supply chain tracked)
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      attributedCo2eTonnes: 100,
+      attributedScope1Co2eTonnes: 100,
+      attributedScope2Co2eTonnes: 0, // Zero is data, not absence of data
+      attributedScope3Co2eTonnes: 0,
+    });
+  });
+
+  it("accumulates scope emissions when multiple loans contribute to same cell with mixed scope availability", () => {
+    const borrower = makeBorrower({ id: "b-1", nrbSector: "Manufacturing - Cement" });
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-1", outstandingUsd: 8_000 }),
+      makeLoan({ id: "l-3", borrowerId: "b-1", outstandingUsd: 6_000 }),
+    ];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 100,
+        attributedScope1Co2eTonnes: 60,
+        attributedScope2Co2eTonnes: 20,
+        attributedScope3Co2eTonnes: 20,
+      }),
+      // Second loan has no scope data
+      makeAttribution({
+        loanId: "l-2",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 80,
+      }),
+      // Third loan has scope data
+      makeAttribution({
+        loanId: "l-3",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 50,
+        attributedScope1Co2eTonnes: 30,
+        attributedScope2Co2eTonnes: 10,
+        attributedScope3Co2eTonnes: 10,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      attributedCo2eTonnes: 230, // 100 + 80 + 50
+      // Scope fields present because at least one attribution has scope data
+      attributedScope1Co2eTonnes: 90, // 60 + 0 + 30
+      attributedScope2Co2eTonnes: 30, // 20 + 0 + 10
+      attributedScope3Co2eTonnes: 30, // 20 + 0 + 10
+    });
+  });
+});

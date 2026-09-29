@@ -106,6 +106,23 @@ export type GrossExposureCell = {
    * attributions before creating cells.
    */
   attributedCo2eTonnes?: number;
+  /**
+   * Sum of attributed Scope 1 emissions (direct) in CO2e tonnes for this cell.
+   * Per IFRS S2 B62(a), financed emissions must be disaggregated by Scope 1/2/3 for each
+   * industry × asset class combination.
+   * Optional - when undefined, scope split is not available for this cell.
+   */
+  attributedScope1Co2eTonnes?: number;
+  /**
+   * Sum of attributed Scope 2 emissions (indirect, purchased energy) in CO2e tonnes.
+   * Optional - when undefined, scope split is not available.
+   */
+  attributedScope2Co2eTonnes?: number;
+  /**
+   * Sum of attributed Scope 3 emissions (other indirect) in CO2e tonnes.
+   * Optional - when undefined, scope split is not available.
+   */
+  attributedScope3Co2eTonnes?: number;
 };
 
 /**
@@ -163,6 +180,10 @@ export function computeGrossExposureMatrix(
       grossExposureUsd: number;
       loanCount: number;
       attributedCo2eTonnes: number;
+      attributedScope1Co2eTonnes: number;
+      attributedScope2Co2eTonnes: number;
+      attributedScope3Co2eTonnes: number;
+      hasScopeData: boolean; // Track if ANY attribution in this cell has scope data
     }
   >();
 
@@ -183,11 +204,21 @@ export function computeGrossExposureMatrix(
     const assetClass = attr.pcafAssetClass;
     const key = `${industry}|${assetClass}`;
 
+    const hasScopeData =
+      attr.attributedScope1Co2eTonnes !== undefined ||
+      attr.attributedScope2Co2eTonnes !== undefined ||
+      attr.attributedScope3Co2eTonnes !== undefined;
+
     const existing = cellMap.get(key);
     if (existing) {
       existing.grossExposureUsd += grossExposureUsd(loan);
       existing.loanCount += 1;
       existing.attributedCo2eTonnes += attr.attributedCo2eTonnes;
+      // Accumulate scope emissions when available
+      existing.attributedScope1Co2eTonnes += attr.attributedScope1Co2eTonnes ?? 0;
+      existing.attributedScope2Co2eTonnes += attr.attributedScope2Co2eTonnes ?? 0;
+      existing.attributedScope3Co2eTonnes += attr.attributedScope3Co2eTonnes ?? 0;
+      existing.hasScopeData = existing.hasScopeData || hasScopeData;
     } else {
       cellMap.set(key, {
         industry,
@@ -195,14 +226,33 @@ export function computeGrossExposureMatrix(
         grossExposureUsd: grossExposureUsd(loan),
         loanCount: 1,
         attributedCo2eTonnes: attr.attributedCo2eTonnes,
+        attributedScope1Co2eTonnes: attr.attributedScope1Co2eTonnes ?? 0,
+        attributedScope2Co2eTonnes: attr.attributedScope2Co2eTonnes ?? 0,
+        attributedScope3Co2eTonnes: attr.attributedScope3Co2eTonnes ?? 0,
+        hasScopeData,
       });
     }
   }
 
-  // Convert map to array and sort by descending gross exposure
-  const matrix = Array.from(cellMap.values()).sort(
-    (a, b) => b.grossExposureUsd - a.grossExposureUsd,
-  );
+  // Convert map to array, map to final type, and sort by descending gross exposure
+  const matrix = Array.from(cellMap.values())
+    .map((cell) => ({
+      industry: cell.industry,
+      assetClass: cell.assetClass,
+      grossExposureUsd: cell.grossExposureUsd,
+      loanCount: cell.loanCount,
+      attributedCo2eTonnes: cell.attributedCo2eTonnes,
+      // Only include scope fields if at least one attribution in this cell has scope data
+      // Otherwise leave undefined to signal "scope split not available"
+      ...(cell.hasScopeData
+        ? {
+            attributedScope1Co2eTonnes: cell.attributedScope1Co2eTonnes,
+            attributedScope2Co2eTonnes: cell.attributedScope2Co2eTonnes,
+            attributedScope3Co2eTonnes: cell.attributedScope3Co2eTonnes,
+          }
+        : {}),
+    }))
+    .sort((a, b) => b.grossExposureUsd - a.grossExposureUsd);
 
   return matrix;
 }

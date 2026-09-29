@@ -81,6 +81,23 @@ export type MatchedFacility = {
   annualCo2eTonnes: number;
   /** Year of the most-recent emissions figure */
   emissionsYear: number;
+  /**
+   * Scope 1 emissions (direct, from owned/controlled sources) in CO2e tonnes.
+   * Per IFRS S2 B62(a), financed emissions must be disaggregated by Scope 1/2/3.
+   * Optional - undefined when scope-level data is not available from the data source.
+   * Climate TRACE provides total emissions only; GHG Protocol inventories may provide scopes.
+   */
+  scope1Co2eTonnes?: number;
+  /**
+   * Scope 2 emissions (indirect, from purchased electricity/heat) in CO2e tonnes.
+   * Optional - undefined when scope-level data is not available.
+   */
+  scope2Co2eTonnes?: number;
+  /**
+   * Scope 3 emissions (other indirect, supply chain etc.) in CO2e tonnes.
+   * Optional - undefined when scope-level data is not available.
+   */
+  scope3Co2eTonnes?: number;
   /** Optional multi-year time series for NFRS trend disclosure */
   emissionsByYear?: { year: number; co2eTonnes: number }[];
   /** Geographic context */
@@ -124,6 +141,23 @@ export type Borrower = {
   facilities: MatchedFacility[];
   /** Total emissions across all matched facilities (most recent year) */
   totalCo2eTonnes: number;
+  /**
+   * Scope 1 emissions (direct) for this borrower in CO2e tonnes.
+   * Per IFRS S2 B62(a), financed emissions must be disaggregated by Scope 1/2/3.
+   * Optional - when undefined, scope split is not available. Aggregated from facilities
+   * when available, or from borrower-provided GHG Protocol inventory.
+   */
+  scope1Co2eTonnes?: number;
+  /**
+   * Scope 2 emissions (indirect, purchased energy) for this borrower in CO2e tonnes.
+   * Optional - when undefined, scope split is not available.
+   */
+  scope2Co2eTonnes?: number;
+  /**
+   * Scope 3 emissions (other indirect) for this borrower in CO2e tonnes.
+   * Optional - when undefined, scope split is not available.
+   */
+  scope3Co2eTonnes?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -213,6 +247,23 @@ export type PcafAttribution = {
   attributionFactor: number;
   /** Attributed emissions = attribution factor x borrower total emissions */
   attributedCo2eTonnes: number;
+  /**
+   * Attributed Scope 1 emissions in CO2e tonnes.
+   * Per IFRS S2 B62(a), financed emissions must be disaggregated by Scope 1/2/3.
+   * Optional - when undefined, scope split is not available for this attribution.
+   * Calculated as: attributionFactor × borrower.scope1Co2eTonnes
+   */
+  attributedScope1Co2eTonnes?: number;
+  /**
+   * Attributed Scope 2 emissions in CO2e tonnes.
+   * Optional - when undefined, scope split is not available.
+   */
+  attributedScope2Co2eTonnes?: number;
+  /**
+   * Attributed Scope 3 emissions in CO2e tonnes.
+   * Optional - when undefined, scope split is not available.
+   */
+  attributedScope3Co2eTonnes?: number;
   /** PCAF data quality score (1=best, 5=worst) */
   dataQualityScore: 1 | 2 | 3 | 4 | 5;
   /** Explanation of the quality score */
