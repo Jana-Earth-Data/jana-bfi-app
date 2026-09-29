@@ -112,7 +112,7 @@ This is what turns "we publish a financed-emissions figure" into "we satisfy the
 | ☑ | N1.3 | **Exclude risk mitigants** from gross exposure, explicitly. | B62(c)(ii) | shared | shared | 1 |
 | ☑ | N1.4 | **Undrawn loan commitments** as a first-class asset class, with the percentage included disclosed **separately** from drawn. | B62(a)(ii), (c)(iii) | seed undrawn | needs CBS field | 3 |
 | ☑ | N1.5 | **Industry × asset-class disaggregation** of absolute gross financed emissions. | B62(a) | shared | shared | 4 |
-| ☐ | N1.6 | **Scope 1 / 2 / 3 split of financed emissions** within that matrix. Requires borrower-level scope data or a documented estimation basis. | B62(a) | shared | shared | 4 |
+| ☑ | N1.6 | **Scope 1 / 2 / 3 split of financed emissions** within that matrix. Requires borrower-level scope data or a documented estimation basis. | B62(a) | shared | shared | 2 |
 | ☐ | N1.7 | **NRB-sector → GICS 6-digit mapping table** for counterparty industry. **Confirmed required** — ND.2 found the NFRS draft mandates GICS with no alternative permitted. Not contingent. | B62(a)(i) | shared | shared | 3 |
 | ☐ | N1.8 | **Real asset-class router.** Ten PCAF classes are declared; five are reachable; two traverse the option ladder. Implement the classes a Nepal commercial book actually contains and make the rest explicitly unsupported rather than silently unreachable. | B62(a)(ii), PCAF §5 | shared | shared | 4 |
 | ☐ | N1.9 | **Per-asset-class attribution denominators.** EVIC (§5.1), equity+debt (§5.2), total project cost (§5.3) — not one EV for everything. Update the UI hint, which currently says "loan outstanding ÷ enterprise value" for every row. | PCAF §5 | shared | shared | 3 |
