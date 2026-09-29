@@ -383,3 +383,129 @@ describe("computeGrossExposureCoverage — N1.3 risk mitigant exclusion", () => 
     expect(coverage.totalRiskMitigantValueUsd).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// computeGrossExposureCoverage — N1.4 undrawn commitment tracking
+// ---------------------------------------------------------------------------
+
+describe("computeGrossExposureCoverage — N1.4 undrawn commitment tracking", () => {
+  it("tracks undrawn commitments and calculates percentage correctly", () => {
+    // Portfolio: 10k drawn + 2k undrawn → 16.67% undrawn
+    const loans = [
+      makeLoan({ id: "l-1", outstandingUsd: 10_000, lossAllowance: 0, undrawnCommitmentUsd: 2_000 }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1" }),
+    ];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    // Total commitment = 10k (drawn) + 2k (undrawn) = 12k
+    // Percentage undrawn = 2k / 12k = 16.67%
+    expect(coverage.totalUndrawnCommitmentUsd).toBe(2_000);
+    expect(coverage.percentageUndrawn).toBe(16.67);
+    expect(coverage.undrawnCommitmentsIncluded).toBe(false); // Always false per B62(b)
+  });
+
+  it("sets undrawnCommitmentsIncluded to false always (B62(b) funded carrying amount)", () => {
+    const loans = [
+      makeLoan({ id: "l-1", outstandingUsd: 10_000, undrawnCommitmentUsd: 5_000 }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1" }),
+    ];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    // Undrawn are NEVER included in gross exposure (unfunded)
+    expect(coverage.undrawnCommitmentsIncluded).toBe(false);
+  });
+
+  it("accumulates undrawn commitments across multiple loans", () => {
+    const loans = [
+      makeLoan({ id: "l-1", outstandingUsd: 10_000, lossAllowance: 0, undrawnCommitmentUsd: 2_000 }),
+      makeLoan({ id: "l-2", outstandingUsd: 8_000, lossAllowance: 0, undrawnCommitmentUsd: 1_500 }),
+      makeLoan({ id: "l-3", outstandingUsd: 6_000, lossAllowance: 0, undrawnCommitmentUsd: 500 }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1" }),
+      makeAttribution({ loanId: "l-2" }),
+      makeAttribution({ loanId: "l-3" }),
+    ];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    expect(coverage.totalUndrawnCommitmentUsd).toBe(4_000); // 2k + 1.5k + 0.5k
+    // Total commitment = 24k (drawn) + 4k (undrawn) = 28k
+    // Percentage undrawn = 4k / 28k = 14.29%
+    expect(coverage.percentageUndrawn).toBe(14.29);
+  });
+
+  it("handles portfolio with no undrawn commitments (0% undrawn)", () => {
+    const loans = [
+      makeLoan({ id: "l-1", outstandingUsd: 10_000, lossAllowance: 0, undrawnCommitmentUsd: undefined }),
+      makeLoan({ id: "l-2", outstandingUsd: 5_000, lossAllowance: 0, undrawnCommitmentUsd: 0 }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1" }),
+      makeAttribution({ loanId: "l-2" }),
+    ];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    expect(coverage.totalUndrawnCommitmentUsd).toBe(0);
+    expect(coverage.percentageUndrawn).toBe(0);
+    expect(coverage.undrawnCommitmentsIncluded).toBe(false);
+  });
+
+  it("calculates percentage correctly when risk mitigants present", () => {
+    // Loan 1: 10k + 200 - 3k (mitigant) = 7,200 gross exposure
+    // Loan 1 undrawn: 2k
+    // Total commitment = (10k + 200) gross before mitigant + 2k undrawn = 12,200
+    // Percentage undrawn = 2k / 12,200 = 16.39%
+    const loans = [
+      makeLoan({
+        id: "l-1",
+        outstandingUsd: 10_000,
+        lossAllowance: 200,
+        riskMitigantValueUsd: 3_000,
+        undrawnCommitmentUsd: 2_000,
+      }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1" }),
+    ];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    // Gross exposure includes mitigant subtraction: 10,200 - 3,000 = 7,200
+    expect(coverage.totalGrossExposureUsd).toBe(7_200);
+    // But percentage undrawn uses gross BEFORE mitigant: (10,200) + 2,000 = 12,200
+    expect(coverage.totalUndrawnCommitmentUsd).toBe(2_000);
+    expect(coverage.percentageUndrawn).toBe(16.39);
+  });
+
+  it("handles empty portfolio with undrawn commitments correctly", () => {
+    const coverage = computeGrossExposureCoverage([], []);
+
+    expect(coverage.undrawnCommitmentsIncluded).toBe(false);
+    expect(coverage.totalUndrawnCommitmentUsd).toBe(0);
+    expect(coverage.percentageUndrawn).toBe(0);
+  });
+
+  it("handles portfolio where all commitment is undrawn (100% undrawn)", () => {
+    // Loan with zero drawn (unusual but possible: approved but not yet disbursed)
+    const loans = [
+      makeLoan({ id: "l-1", outstandingUsd: 0, lossAllowance: 0, undrawnCommitmentUsd: 5_000 }),
+    ];
+    // No attribution since nothing is drawn/funded
+    const attributions: PcafAttribution[] = [];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    expect(coverage.totalGrossExposureUsd).toBe(0);
+    expect(coverage.totalUndrawnCommitmentUsd).toBe(5_000);
+    // Total commitment = 0 + 5k = 5k; 5k / 5k = 100%
+    expect(coverage.percentageUndrawn).toBe(100.0);
+  });
+});

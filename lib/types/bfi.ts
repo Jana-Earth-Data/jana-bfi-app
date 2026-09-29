@@ -171,6 +171,16 @@ export type Loan = {
    * Undefined in live until the bank provides it; demo seeds collateral on ~30% of loans.
    */
   riskMitigantValueUsd?: number;
+  /**
+   * Undrawn loan commitment (approved but not yet disbursed) in USD.
+   * Per IFRS S2 B62(a)(ii), asset classes shall include undrawn loan commitments.
+   * Per B62(c)(iii), entity shall disclose whether undrawn commitments are included
+   * in financed emissions calculation. Undrawn commitments are NOT funded, so they
+   * are excluded from gross exposure (which is funded carrying amount per B62(b)),
+   * but must be tracked and disclosed separately.
+   * Undefined in live until the bank provides it; demo seeds undrawn on ~20% of loans.
+   */
+  undrawnCommitmentUsd?: number;
   /** Disbursement date (ISO 8601) */
   disbursedDate: string;
   /** Maturity date (ISO 8601) */

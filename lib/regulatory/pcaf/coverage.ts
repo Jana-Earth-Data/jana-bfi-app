@@ -67,6 +67,20 @@ export type GrossExposureCoverage = {
   riskMitigantsExcluded: boolean;
   /** Total value of risk mitigants excluded (USD) across all loans */
   totalRiskMitigantValueUsd: number;
+  /**
+   * B62(c)(iii) disclosure: whether undrawn loan commitments are included in financed
+   * emissions calculation. Per B62(b), gross exposure is funded carrying amount, so
+   * undrawn (unfunded) commitments are excluded. This field is always false.
+   */
+  undrawnCommitmentsIncluded: boolean;
+  /** Total undrawn commitment value (USD) across all loans */
+  totalUndrawnCommitmentUsd: number;
+  /**
+   * Percentage of total commitment that is undrawn (0-100).
+   * Calculated as: undrawn / (drawn + undrawn) × 100
+   * where drawn = totalGrossExposureUsd (before risk mitigant subtraction).
+   */
+  percentageUndrawn: number;
 };
 
 /**
@@ -116,6 +130,7 @@ export function computeGrossExposureCoverage(
   let includedLoanCount = 0;
   let excludedLoanCount = 0;
   let totalRiskMitigantValueUsd = 0;
+  let totalUndrawnCommitmentUsd = 0;
 
   // Track which loan categories are excluded (have loans but zero attributions)
   const categoriesWithLoans = new Set<string>();
@@ -127,6 +142,9 @@ export function computeGrossExposureCoverage(
 
     // Accumulate risk mitigant values (B62(c)(ii))
     totalRiskMitigantValueUsd += loan.riskMitigantValueUsd ?? 0;
+
+    // Accumulate undrawn commitment values (B62(c)(iii))
+    totalUndrawnCommitmentUsd += loan.undrawnCommitmentUsd ?? 0;
 
     const category = loan.category ?? "uncategorized";
     categoriesWithLoans.add(category);
@@ -157,6 +175,16 @@ export function computeGrossExposureCoverage(
   // B62(c)(ii) disclosure: risk mitigants excluded if any loan has a non-zero value
   const riskMitigantsExcluded = totalRiskMitigantValueUsd > 0;
 
+  // B62(c)(iii) disclosure: undrawn commitments tracking
+  // Total commitment = drawn (gross exposure before mitigant subtraction) + undrawn
+  // We need gross exposure before mitigant subtraction for this calculation
+  const totalGrossExposureBeforeMitigants = totalGrossExposureUsd + totalRiskMitigantValueUsd;
+  const totalCommitment = totalGrossExposureBeforeMitigants + totalUndrawnCommitmentUsd;
+  const percentageUndrawn =
+    totalCommitment > 0
+      ? (totalUndrawnCommitmentUsd / totalCommitment) * 100
+      : 0;
+
   return {
     totalGrossExposureUsd: Math.round(totalGrossExposureUsd),
     includedGrossExposureUsd: Math.round(includedGrossExposureUsd),
@@ -166,5 +194,8 @@ export function computeGrossExposureCoverage(
     excludedAssetTypes,
     riskMitigantsExcluded,
     totalRiskMitigantValueUsd: Math.round(totalRiskMitigantValueUsd),
+    undrawnCommitmentsIncluded: false, // Always false - undrawn are excluded per B62(b)
+    totalUndrawnCommitmentUsd: Math.round(totalUndrawnCommitmentUsd),
+    percentageUndrawn: Math.round(percentageUndrawn * 100) / 100, // Round to 2 decimals
   };
 }
