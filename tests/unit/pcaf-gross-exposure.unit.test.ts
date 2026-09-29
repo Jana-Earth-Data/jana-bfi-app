@@ -712,3 +712,229 @@ describe("computeGrossExposureMatrix — Scope 1/2/3 disaggregation (N1.6)", () 
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// computeGrossExposureMatrix() — GICS 6-digit industry classification (N1.7)
+// ---------------------------------------------------------------------------
+
+describe("computeGrossExposureMatrix — GICS 6-digit industry classification (N1.7)", () => {
+  it("populates GICS code and label for NRB sectors with mappings", () => {
+    const borrower = makeBorrower({
+      id: "b-1",
+      nrbSector: "Manufacturing - Cement",
+      gicsCode: "151020", // Set by demo entities
+    });
+    const loans = [makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 })];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 100,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      gicsCode: "151020",
+      gicsLabel: "Materials / Materials / Construction Materials",
+      industry: "Manufacturing - Cement",
+      assetClass: "business-loans-unlisted-equity",
+      grossExposureUsd: 10_150, // 10_000 outstanding + 150 lossAllowance
+    });
+  });
+
+  it("includes NRB sector even when GICS code is present (backward compatibility)", () => {
+    const borrower = makeBorrower({
+      id: "b-1",
+      nrbSector: "Energy - Hydropower",
+      gicsCode: "551010",
+    });
+    const loans = [makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 5_000 })];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "project-finance",
+        attributedCo2eTonnes: 50,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0].industry).toBe("Energy - Hydropower"); // NRB sector preserved
+    expect(matrix[0].gicsCode).toBe("551010"); // GICS code present
+    expect(matrix[0].gicsLabel).toBe("Utilities / Utilities / Electric Utilities");
+  });
+
+  it("omits GICS fields for NRB sectors without mappings", () => {
+    const borrower = makeBorrower({
+      id: "b-1",
+      nrbSector: "Unknown Sector", // No GICS mapping
+    });
+    const loans = [makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 3_000 })];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 30,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, [borrower], attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0].industry).toBe("Unknown Sector");
+    expect(matrix[0].gicsCode).toBeUndefined();
+    expect(matrix[0].gicsLabel).toBeUndefined();
+  });
+
+  it("aggregates multiple loans from same GICS industry", () => {
+    const borrowers = [
+      makeBorrower({
+        id: "b-1",
+        nrbSector: "Manufacturing - Cement",
+        gicsCode: "151020",
+      }),
+      makeBorrower({
+        id: "b-2",
+        nrbSector: "Manufacturing - Brick",
+        gicsCode: "151020", // Same GICS code as Cement
+      }),
+    ];
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-2", outstandingUsd: 5_000 }),
+    ];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 100,
+      }),
+      makeAttribution({
+        loanId: "l-2",
+        borrowerId: "b-2",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 50,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, borrowers, attributions);
+
+    // Two separate cells because NRB sectors differ (even though GICS code is same)
+    expect(matrix).toHaveLength(2);
+    const cementCell = matrix.find((c) => c.industry === "Manufacturing - Cement");
+    const brickCell = matrix.find((c) => c.industry === "Manufacturing - Brick");
+
+    expect(cementCell).toMatchObject({
+      gicsCode: "151020",
+      industry: "Manufacturing - Cement",
+      grossExposureUsd: 10_150, // 10_000 outstanding + 150 lossAllowance
+      attributedCo2eTonnes: 100,
+    });
+    expect(brickCell).toMatchObject({
+      gicsCode: "151020",
+      industry: "Manufacturing - Brick",
+      grossExposureUsd: 5_150, // 5_000 outstanding + 150 lossAllowance
+      attributedCo2eTonnes: 50,
+    });
+  });
+
+  it("handles mixed GICS availability across different industries", () => {
+    const borrowers = [
+      makeBorrower({
+        id: "b-1",
+        nrbSector: "Manufacturing - Cement",
+        gicsCode: "151020", // Has GICS
+      }),
+      makeBorrower({
+        id: "b-2",
+        nrbSector: "Unknown Sector", // No GICS
+      }),
+    ];
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 10_000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-2", outstandingUsd: 5_000 }),
+    ];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 100,
+      }),
+      makeAttribution({
+        loanId: "l-2",
+        borrowerId: "b-2",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        attributedCo2eTonnes: 50,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, borrowers, attributions);
+
+    expect(matrix).toHaveLength(2);
+    const cementCell = matrix.find((c) => c.industry === "Manufacturing - Cement");
+    const unknownCell = matrix.find((c) => c.industry === "Unknown Sector");
+
+    // Cement has GICS
+    expect(cementCell?.gicsCode).toBe("151020");
+    expect(cementCell?.gicsLabel).toBeDefined();
+
+    // Unknown does not
+    expect(unknownCell?.gicsCode).toBeUndefined();
+    expect(unknownCell?.gicsLabel).toBeUndefined();
+  });
+
+  it("GICS codes are consistent across all borrowers in same NRB sector", () => {
+    const borrowers = [
+      makeBorrower({
+        id: "b-1",
+        nrbSector: "Energy - Hydropower",
+        gicsCode: "551010",
+      }),
+      makeBorrower({
+        id: "b-2",
+        nrbSector: "Energy - Hydropower",
+        gicsCode: "551010",
+      }),
+    ];
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingUsd: 8_000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-2", outstandingUsd: 6_000 }),
+    ];
+    const attributions = [
+      makeAttribution({
+        loanId: "l-1",
+        borrowerId: "b-1",
+        pcafAssetClass: "project-finance",
+        attributedCo2eTonnes: 80,
+      }),
+      makeAttribution({
+        loanId: "l-2",
+        borrowerId: "b-2",
+        pcafAssetClass: "project-finance",
+        attributedCo2eTonnes: 60,
+      }),
+    ];
+
+    const matrix = computeGrossExposureMatrix(loans, borrowers, attributions);
+
+    expect(matrix).toHaveLength(1);
+    expect(matrix[0]).toMatchObject({
+      gicsCode: "551010",
+      gicsLabel: "Utilities / Utilities / Electric Utilities",
+      industry: "Energy - Hydropower",
+      assetClass: "project-finance",
+      grossExposureUsd: 14_300, // 8_000 + 6_000 outstanding + 2×150 lossAllowance
+      loanCount: 2,
+      attributedCo2eTonnes: 140,
+    });
+  });
+});

@@ -54,6 +54,7 @@
 
 import type { Loan, Borrower, PcafAttribution } from "@/lib/types/bfi";
 import type { PcafAssetClass } from "./types";
+import { gicsCodeForNrbSector } from "@/lib/regulatory/industry/nrb-to-gics";
 
 /**
  * IFRS S2 B62(b) citation surfaced in tooltips / auditor exports.
@@ -91,7 +92,24 @@ export function grossExposureUsd(loan: Loan): number {
  * one industry × asset-class combination.
  */
 export type GrossExposureCell = {
-  /** Industry key (NRB sector or Climate TRACE facility sector) */
+  /**
+   * GICS 6-digit industry code (primary industry classification per IFRS S2 B62(a)(i)).
+   * Per IFRS S2 Climate-related Disclosures (June 2023) §B62(a)(i), entity **shall**
+   * use GICS to identify the industry. Optional - when undefined, the borrower's
+   * NRB sector has no GICS mapping (e.g., unmapped legacy data).
+   */
+  gicsCode?: string;
+  /**
+   * GICS industry label (human-readable, e.g., "Materials / Materials / Construction Materials").
+   * Optional - when undefined, no GICS mapping exists for this industry.
+   */
+  gicsLabel?: string;
+  /**
+   * NRB sector or Climate TRACE facility sector (secondary industry classification).
+   * Kept for backward compatibility and for banks that use NRB classifications
+   * alongside GICS. When gicsCode is present, this is the source sector that was
+   * mapped to GICS.
+   */
   industry: string;
   /** PCAF asset class (PCAF Part A 3rd Edition §5.1-§5.10) */
   assetClass: PcafAssetClass;
@@ -176,6 +194,8 @@ export function computeGrossExposureMatrix(
     string,
     {
       industry: string;
+      gicsCode?: string;
+      gicsLabel?: string;
       assetClass: PcafAssetClass;
       grossExposureUsd: number;
       loanCount: number;
@@ -202,6 +222,8 @@ export function computeGrossExposureMatrix(
 
     const industry = borrower.nrbSector;
     const assetClass = attr.pcafAssetClass;
+    // Look up GICS code and label from NRB sector (or use borrower's gicsCode if available)
+    const gics = gicsCodeForNrbSector(industry);
     const key = `${industry}|${assetClass}`;
 
     const hasScopeData =
@@ -222,6 +244,8 @@ export function computeGrossExposureMatrix(
     } else {
       cellMap.set(key, {
         industry,
+        gicsCode: gics?.code,
+        gicsLabel: gics?.label,
         assetClass,
         grossExposureUsd: grossExposureUsd(loan),
         loanCount: 1,
@@ -237,6 +261,10 @@ export function computeGrossExposureMatrix(
   // Convert map to array, map to final type, and sort by descending gross exposure
   const matrix = Array.from(cellMap.values())
     .map((cell) => ({
+      // GICS fields (primary industry classification per IFRS S2 B62(a)(i))
+      ...(cell.gicsCode ? { gicsCode: cell.gicsCode } : {}),
+      ...(cell.gicsLabel ? { gicsLabel: cell.gicsLabel } : {}),
+      // NRB sector (secondary, for backward compatibility)
       industry: cell.industry,
       assetClass: cell.assetClass,
       grossExposureUsd: cell.grossExposureUsd,

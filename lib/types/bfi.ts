@@ -122,6 +122,14 @@ export type Borrower = {
   kind?: BorrowerKind;
   /** NRB sector classification */
   nrbSector: string;
+  /**
+   * GICS 6-digit industry code for IFRS S2 B62(a)(i) compliance.
+   * Per IFRS S2 Climate-related Disclosures (June 2023) §B62(a)(i), entity shall
+   * use GICS to identify the industry to which a counterparty belongs. Derived
+   * from `nrbSector` via the NRB→GICS mapping table. Optional - when undefined,
+   * the borrower's NRB sector has no GICS mapping (e.g., unmapped legacy data).
+   */
+  gicsCode?: string;
   /** Estimated enterprise value in USD (for PCAF attribution) */
   enterpriseValueUsd: number;
   /** Source of the enterprise value estimate */
