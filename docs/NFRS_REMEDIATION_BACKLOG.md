@@ -110,7 +110,7 @@ This is what turns "we publish a financed-emissions figure" into "we satisfy the
 | ☑ | N1.1 | **Gross exposure** per industry per asset class, funded carrying amount **before loss allowance**, in presentation currency. Model it; surface it. | B62(b) | shared | needs loss-allowance field from bank | 3 |
 | ☑ | N1.2 | **Percentage of gross exposure included** in the financed-emissions calculation, with the **types of assets excluded** named. Replace the current facility-matched ÷ in-scope ratio, which has a different denominator. | B62(c), (c)(i) | shared | shared | 2 |
 | ☑ | N1.3 | **Exclude risk mitigants** from gross exposure, explicitly. | B62(c)(ii) | shared | shared | 1 |
-| ☐ | N1.4 | **Undrawn loan commitments** as a first-class asset class, with the percentage included disclosed **separately** from drawn. | B62(a)(ii), (c)(iii) | seed undrawn | needs CBS field | 3 |
+| ☑ | N1.4 | **Undrawn loan commitments** as a first-class asset class, with the percentage included disclosed **separately** from drawn. | B62(a)(ii), (c)(iii) | seed undrawn | needs CBS field | 3 |
 | ☐ | N1.5 | **Industry × asset-class disaggregation** of absolute gross financed emissions. | B62(a) | shared | shared | 4 |
 | ☐ | N1.6 | **Scope 1 / 2 / 3 split of financed emissions** within that matrix. Requires borrower-level scope data or a documented estimation basis. | B62(a) | shared | shared | 4 |
 | ☐ | N1.7 | **NRB-sector → GICS 6-digit mapping table** for counterparty industry. **Confirmed required** — ND.2 found the NFRS draft mandates GICS with no alternative permitted. Not contingent. | B62(a)(i) | shared | shared | 3 |
