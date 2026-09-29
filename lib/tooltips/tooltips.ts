@@ -75,8 +75,8 @@ export const TOOLTIPS: Record<string, TooltipContent> = {
   "attribution-factor": {
     title: "PCAF attribution factor",
     body:
-      "The share of a borrower's emissions attributable to this specific loan: outstanding loan ÷ borrower enterprise value.\n\nIt's a ratio, so the percentage is identical whether you compute it in NPR or USD. PCAF convention is to report it in USD for cross-border comparability.",
-    source: "PCAF Global GHG Standard, Part A §5.1 (attribution factor)",
+      "The share of a borrower's emissions attributable to this specific loan. Per PCAF Part A §5, the denominator varies by asset class:\n\n• Business loans (§5.2): outstanding ÷ (equity + debt)\n• Project finance (§5.3): outstanding ÷ total project cost\n• Mortgages (§5.5): outstanding ÷ property value\n• Motor vehicles (§5.6): outstanding ÷ vehicle value\n\nIt's a ratio, so the percentage is identical whether you compute it in NPR or USD. PCAF convention is to report it in USD for cross-border comparability.",
+    source: "PCAF Global GHG Standard, Part A §4.2 & §5.1–§5.6",
   },
   "national-co2-share": {
     title: "Share of Nepal's national CO₂",

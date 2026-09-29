@@ -355,7 +355,7 @@ function DrillDown({
         <StatRow
           label="Attribution factor"
           value={`${(attribution.attributionFactor * 100).toFixed(2)}%`}
-          hint="loan outstanding ÷ enterprise value"
+          hint={attribution.denominatorLabel || "Outstanding ÷ Enterprise Value"}
         />
         <StatRow
           label="Borrower CO₂e"
