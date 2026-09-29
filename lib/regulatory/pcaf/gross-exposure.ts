@@ -1,26 +1,30 @@
 /**
- * IFRS S2 B62(b) gross exposure computation — funded carrying amount before
- * loss allowance, aggregated per industry per asset class.
+ * IFRS S2 B62(b) gross exposure computation AND B62(a) financed emissions
+ * disaggregation — funded carrying amount before loss allowance and absolute
+ * gross financed emissions, both aggregated per industry per asset class.
  *
  * Per *IFRS Sustainability Disclosure Standard IFRS S2 Climate-related
  * Disclosures* (June 2023), paragraph B62 "Disclosure of financed emissions"
- * requires a bank to disclose absolute gross financed emissions disaggregated
- * by:
+ * requires a bank to disclose:
  *
- *   (a) asset classes;
- *   (b) industry, based on IFRS classification or other industry classification
- *       systems;
- *   (c) for business-loan asset classes, size of the investee or counterparty
- *       (e.g., micro, small, medium, large);
- *   (d) for mortgage asset classes, energy-efficiency rating.
+ *   (a) **Absolute gross financed emissions** disaggregated by:
+ *       - asset classes
+ *       - industry (based on IFRS classification or other industry systems)
+ *       - for business-loan asset classes, size of investee/counterparty
+ *       - for mortgage asset classes, energy-efficiency rating
+ *   (b) **Gross exposure** per industry per asset class, funded carrying
+ *       amount before loss allowance, in presentation currency
+ *
+ * This module serves BOTH requirements via a single industry × asset-class
+ * matrix that includes gross exposure USD AND attributed CO2e tonnes per cell.
  *
  * B62(b) and B62(c) note that gross exposure is the **funded carrying amount
  * before loss allowance**, not the net carrying amount after impairment
  * provisions. This module computes:
  *
- *     gross exposure USD = outstanding USD + loss allowance USD
+ *     gross exposure USD = outstanding USD + loss allowance USD - risk mitigants USD
  *
- * and aggregates that amount into an industry × asset-class matrix.
+ * and aggregates that amount plus financed emissions into an industry × asset-class matrix.
  *
  * WHY LOSS ALLOWANCE MUST BE ADDED BACK. The carrying amount on the balance
  * sheet is net of impairment. IFRS S2 explicitly requires the gross (before-
@@ -82,23 +86,33 @@ export function grossExposureUsd(loan: Loan): number {
 }
 
 /**
- * A single cell in the industry × asset-class gross exposure matrix.
+ * A single cell in the industry × asset-class matrix serving both B62(a) and B62(b).
+ * Each cell contains gross exposure (B62(b)) AND financed emissions (B62(a)) for
+ * one industry × asset-class combination.
  */
 export type GrossExposureCell = {
   /** Industry key (NRB sector or Climate TRACE facility sector) */
   industry: string;
   /** PCAF asset class (PCAF Part A 3rd Edition §5.1-§5.10) */
   assetClass: PcafAssetClass;
-  /** Sum of gross exposure USD across all loans in this cell */
+  /** Sum of gross exposure USD across all loans in this cell (B62(b)) */
   grossExposureUsd: number;
   /** Number of loans contributing to this cell */
   loanCount: number;
-  /** Sum of attributed CO2e tonnes for this cell (optional, for integrated disclosure) */
+  /**
+   * Sum of attributed CO2e tonnes for this cell (B62(a) financed emissions disaggregation).
+   * Optional for type safety (cells with zero attributions won't have emissions), but in
+   * practice always present since computeGrossExposureMatrix() filters out loans without
+   * attributions before creating cells.
+   */
   attributedCo2eTonnes?: number;
 };
 
 /**
- * The full industry × asset-class gross exposure matrix, per IFRS S2 B62(b).
+ * The full industry × asset-class matrix, per IFRS S2 B62(a) and B62(b).
+ * Serves dual purpose:
+ * - B62(a): Absolute gross financed emissions disaggregation by industry × asset class
+ * - B62(b): Gross exposure disaggregation by industry × asset class
  *
  * Rows are sorted by descending `grossExposureUsd` so the largest exposures
  * appear first in disclosure tables.
@@ -106,17 +120,22 @@ export type GrossExposureCell = {
 export type GrossExposureMatrix = GrossExposureCell[];
 
 /**
- * Compute the IFRS S2 B62(b) gross exposure matrix: industry × asset class
- * disaggregation of funded carrying amount before loss allowance.
+ * Compute the IFRS S2 B62(a) + B62(b) industry × asset-class matrix:
+ * - B62(a): Absolute gross financed emissions disaggregation
+ * - B62(b): Gross exposure disaggregation (funded carrying amount before loss allowance)
  *
  * @param loans - All loans in the portfolio
  * @param borrowers - All borrowers (needed for industry classification)
- * @param attributions - PCAF attributions (needed for asset-class routing and optional CO2e)
- * @returns Industry × asset-class matrix sorted by descending gross exposure
+ * @param attributions - PCAF attributions (needed for asset-class routing and CO2e tonnes)
+ * @returns Industry × asset-class matrix sorted by descending gross exposure, with both
+ *          gross exposure USD and attributed CO2e tonnes per cell
  *
  * Each loan contributes to exactly one cell: the cell keyed by
  * `(borrower.nrbSector, attribution.pcafAssetClass)`. Loans with no attribution
  * are excluded (out-of-scope retail loans).
+ *
+ * This function serves BOTH B62(a) and B62(b) requirements in a single matrix,
+ * since both require the same industry × asset-class disaggregation.
  */
 export function computeGrossExposureMatrix(
   loans: Loan[],
