@@ -474,6 +474,60 @@ export type MethodologyDisclosure = {
   }>;
 };
 
+/**
+ * Data extent disclosure per IFRS S2 B55–B56 and §29(a)(iii).
+ *
+ * Per IFRS S2 Climate-related Disclosures (June 2023) §B55, entity shall disclose
+ * the **extent to which Scope 3 financed emissions are measured using** primary
+ * activity data from counterparties (i.e., borrower-specific operational data).
+ * Per §B56, entity shall disclose the extent using verified data (third-party assured).
+ *
+ * This maps directly to PCAF data quality options:
+ * - **Primary-activity data** (B55): Options 2a (energy records) and 2b (production records)
+ * - **Verified data** (B56): Option 1a (third-party assurance opinion)
+ *
+ * Added for N1.11. Each extent metric includes count, exposure (USD), and emissions (CO2e)
+ * to show the portfolio coverage comprehensively.
+ */
+export type DataExtentDisclosure = {
+  /**
+   * Extent of primary-activity data (B55).
+   * Emissions measured using borrower-specific operational data (PCAF Options 2a, 2b).
+   */
+  primaryActivityData: {
+    /** Count of loans using primary-activity data */
+    loanCount: number;
+    /** Percentage of portfolio loans (by count) */
+    percentOfLoans: number;
+    /** Gross exposure (USD) covered by primary-activity data */
+    grossExposureUsd: number;
+    /** Percentage of total gross exposure */
+    percentOfExposure: number;
+    /** Attributed emissions (CO2e tonnes) from primary-activity data */
+    attributedCo2eTonnes: number;
+    /** Percentage of total attributed emissions */
+    percentOfEmissions: number;
+  };
+  /**
+   * Extent of verified data (B56).
+   * Emissions measured using third-party verified/assured data (PCAF Option 1a).
+   */
+  verifiedData: {
+    /** Count of loans using verified data */
+    loanCount: number;
+    /** Percentage of portfolio loans (by count) */
+    percentOfLoans: number;
+    /** Gross exposure (USD) covered by verified data */
+    grossExposureUsd: number;
+    /** Percentage of total gross exposure */
+    percentOfExposure: number;
+    /** Attributed emissions (CO2e tonnes) from verified data */
+    attributedCo2eTonnes: number;
+    /** Percentage of total attributed emissions */
+    percentOfEmissions: number;
+  };
+};
+
 export type PortfolioSummary = {
   totalLoans: number;
   totalOutstandingUsd: number;
@@ -529,6 +583,13 @@ export type PortfolioSummary = {
    * structured data showing the distribution of methodology approaches across the portfolio.
    */
   methodologyDisclosure?: MethodologyDisclosure;
+  /**
+   * IFRS S2 B55–B56 + §29(a)(iii) data extent disclosure — the extent to which
+   * emissions are measured using primary-activity data (borrower-specific operational
+   * data per Options 2a/2b) and verified data (third-party assured per Option 1a).
+   * Added for N1.11.
+   */
+  dataExtentDisclosure?: DataExtentDisclosure;
 };
 
 // ---------------------------------------------------------------------------

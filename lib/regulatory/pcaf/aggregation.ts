@@ -41,6 +41,7 @@ import { TREND_YEARS } from "@/lib/regulatory/reporting/period";
 import { computeGrossExposureMatrix } from "./gross-exposure";
 import { computeGrossExposureCoverage } from "./coverage";
 import { computeMethodologyDisclosure } from "./methodology";
+import { computeDataExtentDisclosure } from "./data-extent";
 
 function emptyTaxonomy(): TaxonomyBreakdown {
   return { green: 0, amber: 0, red: 0, unclassified: 0 };
@@ -254,6 +255,12 @@ export function summarise(
   // portfolio. Replaces the hardcoded `pcafMethodologyNote` prose strings (N1.10).
   const methodologyDisclosure = computeMethodologyDisclosure(attributions, loans);
 
+  // IFRS S2 B55–B56 + §29(a)(iii) data extent disclosure — the extent to which
+  // financed emissions are measured using primary-activity data (borrower-specific
+  // operational data, Options 2a/2b) and verified data (third-party assured, Option 1a).
+  // Added for N1.11.
+  const dataExtentDisclosure = computeDataExtentDisclosure(attributions, loans);
+
   return {
     totalLoans,
     totalOutstandingUsd: Math.round(totalOutstandingUsd),
@@ -269,5 +276,6 @@ export function summarise(
     grossExposureMatrix,
     grossExposureCoverage,
     methodologyDisclosure,
+    dataExtentDisclosure,
   };
 }
