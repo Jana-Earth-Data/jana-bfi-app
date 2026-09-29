@@ -221,9 +221,10 @@ function overlayLive(
       ...base.meta,
       isMock: false,
       generatedAt: new Date().toISOString(),
+      // Deprecated - use portfolio.methodologyDisclosure instead (N1.10)
       pcafMethodologyNote:
-        "Live: Climate TRACE facility emissions (Nepal) overlaid onto synthesized loan portfolio. " +
-        "PCAF Cat. 15 attribution: outstanding USD / enterprise value USD x facility CO2e.",
+        "Live: Climate TRACE facility emissions overlaid. " +
+        "See portfolio.methodologyDisclosure for detailed breakdown.",
     },
     borrowers,
     loans: base.loans,

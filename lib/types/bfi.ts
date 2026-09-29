@@ -399,6 +399,81 @@ export type PortfolioTrendPoint = {
   byTaxonomy: TaxonomyBreakdown;
 };
 
+/**
+ * Methodology disclosure per IFRS S2 B62(d) and §29(a)(iii).
+ *
+ * Per IFRS S2 Climate-related Disclosures (June 2023) §B62(d), entity shall disclose
+ * the **methodology** used to measure financed emissions, including the allocation method.
+ * Per §29(a)(iii), entity shall disclose the measurement approach, inputs, assumptions,
+ * and estimation techniques used, and the changes to those approaches with reasons.
+ *
+ * This replaces the hardcoded `pcafMethodologyNote` strings (N1.10) with structured
+ * disclosure showing which PCAF options, denominators, and data sources were used
+ * across the portfolio, both in count and weighted by emissions/exposure.
+ */
+export type MethodologyDisclosure = {
+  /**
+   * Breakdown by PCAF option (1a/1b/2a/2b/3a/3b/3c).
+   * Shows distribution of data quality approaches across the portfolio.
+   */
+  byOption: Array<{
+    option: "1a" | "1b" | "2a" | "2b" | "3a" | "3b" | "3c";
+    loanCount: number;
+    percentOfLoans: number;
+    outstandingUsd: number;
+    percentOfExposure: number;
+    attributedCo2eTonnes: number;
+    percentOfEmissions: number;
+  }>;
+  /**
+   * Breakdown by attribution denominator type (N1.9).
+   * Shows which PCAF §5 denominators were applied across asset classes.
+   */
+  byDenominator: Array<{
+    denominatorType:
+      | "equity-plus-debt"
+      | "project-cost"
+      | "property-value"
+      | "vehicle-value"
+      | "enterprise-value"
+      | "out-of-scope";
+    loanCount: number;
+    percentOfLoans: number;
+    outstandingUsd: number;
+    percentOfExposure: number;
+  }>;
+  /**
+   * Breakdown by PCAF data quality score (1-5).
+   * Weighted average score already exists in PortfolioSummary.weightedDataQuality.
+   */
+  byDataQualityScore: Array<{
+    score: 1 | 2 | 3 | 4 | 5;
+    loanCount: number;
+    percentOfLoans: number;
+    outstandingUsd: number;
+    percentOfExposure: number;
+    attributedCo2eTonnes: number;
+    percentOfEmissions: number;
+  }>;
+  /**
+   * Primary data sources used in the calculation.
+   * Lists unique data sources that enabled the financed emissions calculation
+   * (e.g., "Climate TRACE facility data", "EDGAR sector intensity", etc.).
+   */
+  dataSources: string[];
+  /**
+   * PCAF asset classes represented in the portfolio.
+   * Per B62(a)(ii), entity shall identify which asset classes are included.
+   */
+  assetClasses: Array<{
+    assetClass: string;
+    loanCount: number;
+    percentOfLoans: number;
+    outstandingUsd: number;
+    percentOfExposure: number;
+  }>;
+};
+
 export type PortfolioSummary = {
   totalLoans: number;
   totalOutstandingUsd: number;
@@ -447,6 +522,13 @@ export type PortfolioSummary = {
     riskMitigantsExcluded: boolean;
     totalRiskMitigantValueUsd: number;
   };
+  /**
+   * IFRS S2 B62(d) + §29(a)(iii) methodology disclosure — structured breakdown
+   * of which PCAF options, denominators, and data sources were used. Added for N1.10.
+   * Replaces the hardcoded `pcafMethodologyNote` prose strings with auditor-ready
+   * structured data showing the distribution of methodology approaches across the portfolio.
+   */
+  methodologyDisclosure?: MethodologyDisclosure;
 };
 
 // ---------------------------------------------------------------------------
@@ -486,6 +568,13 @@ export type BfiDemoMeta = {
   bankName: string;
   isMock: boolean;
   generatedAt: string;
+  /**
+   * @deprecated Use PortfolioSummary.methodologyDisclosure instead (N1.10).
+   * This field is kept for backward compatibility but contains only a brief
+   * summary. The structured methodologyDisclosure provides rich breakdown by
+   * PCAF option, denominator type, data source, and asset class per IFRS S2
+   * B62(d) + §29(a)(iii).
+   */
   pcafMethodologyNote: string;
   asOfDate?: string;
   /**

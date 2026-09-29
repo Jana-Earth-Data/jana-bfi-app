@@ -594,10 +594,10 @@ function buildPortfolio(): BfiDemoData {
       isMock: true,
       generatedAt: new Date().toISOString(),
       asOfDate: AS_OF_DATE,
+      // Deprecated - use portfolio.methodologyDisclosure instead (N1.10)
       pcafMethodologyNote:
-        "Attribution factor = loan outstanding (USD) / borrower enterprise value (USD). " +
-        "Facility-tier borrowers use Climate TRACE / GEM facility emissions. " +
-        "SME and synthesized commercial borrowers use EDGAR sector intensity benchmarks.",
+        "PCAF Part A 3rd Edition — financed emissions per B62(a)–(d). " +
+        "See portfolio.methodologyDisclosure for detailed breakdown.",
     },
     borrowers,
     loans,

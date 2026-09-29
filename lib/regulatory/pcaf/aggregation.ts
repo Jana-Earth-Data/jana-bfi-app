@@ -40,6 +40,7 @@ import {
 import { TREND_YEARS } from "@/lib/regulatory/reporting/period";
 import { computeGrossExposureMatrix } from "./gross-exposure";
 import { computeGrossExposureCoverage } from "./coverage";
+import { computeMethodologyDisclosure } from "./methodology";
 
 function emptyTaxonomy(): TaxonomyBreakdown {
   return { green: 0, amber: 0, red: 0, unclassified: 0 };
@@ -248,6 +249,11 @@ export function summarise(
   // (total gross exposure, not in-scope exposure). N1.2.
   const grossExposureCoverage = computeGrossExposureCoverage(loans, attributions);
 
+  // IFRS S2 B62(d) + §29(a)(iii) methodology disclosure — structured breakdown
+  // of which PCAF options, denominators, and data sources were used across the
+  // portfolio. Replaces the hardcoded `pcafMethodologyNote` prose strings (N1.10).
+  const methodologyDisclosure = computeMethodologyDisclosure(attributions, loans);
+
   return {
     totalLoans,
     totalOutstandingUsd: Math.round(totalOutstandingUsd),
@@ -262,5 +268,6 @@ export function summarise(
     trend,
     grossExposureMatrix,
     grossExposureCoverage,
+    methodologyDisclosure,
   };
 }
