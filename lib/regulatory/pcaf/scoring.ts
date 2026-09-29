@@ -36,6 +36,8 @@ import {
   PcafOption,
   PcafScore,
   SCORE_FOR_OPTION,
+  isSupportedForLoanOrigination,
+  isInvestmentPortfolioClass,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -61,11 +63,35 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Route a bank loan-category to a PCAF §5 asset class.
+ * Route a bank loan-category to a PCAF §5 asset class for **loan origination** portfolios.
  *
- * Retail personal / education loans have no matching PCAF Part A asset
- * class (they are neither §5.5 mortgages nor §5.6 vehicles); we mark them
- * `out-of-scope` per the "not in Part A" carve-out in §5 introduction.
+ * This router covers the five PCAF asset classes that apply to a commercial bank's
+ * **lending book** (loans originated by the bank). Returns one of:
+ * - `business-loans-unlisted-equity` (§5.2) — SME, commercial, corporate loans
+ * - `project-finance` (§5.3) — Infrastructure, hydropower, self-contained projects
+ * - `mortgages` (§5.5) — Residential real estate loans
+ * - `motor-vehicle-loans` (§5.6) — Consumer/business vehicle financing
+ * - `out-of-scope` — Retail personal/education (not in PCAF Cat. 15)
+ *
+ * **Investment portfolio classes are not returned** — the five classes for equity/bond
+ * holdings (`listed-equity-corporate-bonds`, `sovereign-debt`, `sub-sovereign-debt`,
+ * `securitisation-structured-products`, `use-of-proceeds-structures`) and
+ * `commercial-real-estate` (no matching loan category) require separate financed
+ * emissions calculation per PCAF Part A §5.1, §5.4, §5.7–§5.10. These are declared
+ * in the `PcafAssetClass` type for completeness but are **explicitly unsupported**
+ * for loan origination — see `isSupportedForLoanOrigination()` and
+ * `isInvestmentPortfolioClass()` helpers in `types.ts`.
+ *
+ * **Why the other five classes are unsupported:**
+ * - A bank does not "lend" to create equity or bonds — it invests in them (§5.1)
+ * - Sovereign/sub-sovereign debt are government bonds, not loans (§5.9, §5.10)
+ * - Securitisation packages existing loans into securities (§5.8)
+ * - Use-of-proceeds inherits from the underlying asset (§5.7)
+ * - Commercial real estate (§5.4) would require a separate loan category
+ *
+ * This explicit categorization satisfies IFRS S2 B62(a)(ii) requirement to disclose
+ * which asset classes are included in financed emissions calculation and resolves
+ * NFRS remediation backlog N1.8.
  */
 export function assetClassForLoanCategory(
   category: LoanCategory | undefined,
@@ -399,6 +425,14 @@ function buildCitation(option: PcafOption, assetClass: PcafAssetClass): string {
  * The returned {@link PcafComputationResult} is safe to embed in the
  * `PcafAttribution` shape as optional `pcafOption` / `pcafCitation`
  * fields — see `lib/data/portfolio.ts` for the wire-in.
+ *
+ * **Validation:** Only asset classes supported for loan origination are accepted.
+ * Investment portfolio classes (`listed-equity-corporate-bonds`, `sovereign-debt`,
+ * etc.) will throw an error — they require separate calculation logic per PCAF
+ * Part A §5.1, §5.7–§5.10.
+ *
+ * @throws {Error} if `assetClass` is an investment portfolio class (not supported
+ *   for loan origination financed emissions)
  */
 export function computePcafScore(
   loan: Loan,
@@ -417,6 +451,21 @@ export function computePcafScore(
       citation: "PCAF Part A 3rd Edition §5 — asset class not in Part A scope",
       assetClass: "out-of-scope",
     };
+  }
+
+  // Validate asset class is supported for loan origination.
+  // Investment portfolio classes (equity holdings, sovereign bonds, securitized
+  // products) are explicitly unsupported per N1.8 — they require separate
+  // calculation logic per PCAF Part A §5.1, §5.7–§5.10.
+  if (!isSupportedForLoanOrigination(assetClass)) {
+    throw new Error(
+      `Asset class "${assetClass}" is not supported for loan origination financed emissions. ` +
+        `This class applies to investment portfolios (equity/bond holdings, sovereign debt, ` +
+        `securitized products) and requires separate calculation per PCAF Part A §5.1, §5.7–§5.10. ` +
+        `Loan origination supports: business-loans-unlisted-equity, project-finance, mortgages, ` +
+        `motor-vehicle-loans, out-of-scope. See isSupportedForLoanOrigination() and ` +
+        `isInvestmentPortfolioClass() in lib/regulatory/pcaf/types.ts.`
+    );
   }
 
   const option = chooseOption(availability, assetClass);
