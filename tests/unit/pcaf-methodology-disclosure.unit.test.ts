@@ -435,6 +435,97 @@ describe("computeMethodologyDisclosure · Percentage calculations", () => {
     expect(disclosure.dataSources).toEqual([]);
     expect(disclosure.assetClasses).toHaveLength(0);
   });
+
+  it("handles zero totalOutstandingUsd gracefully (coverage: methodology.ts:157,208,262)", () => {
+    // Coverage: This test covers the `totalOutstandingUsd > 0 ? ... : 0` ternary branches
+    // on lines 157, 208, and 262 of methodology.ts when totalOutstandingUsd is 0.
+    // We have attributions but all loans have outstandingUsd = 0.
+    const loans = [
+      makeLoan("loan-1", 0), // outstandingUsd = 0
+      makeLoan("loan-2", 0), // outstandingUsd = 0
+    ];
+    const attributions = [
+      makeAttribution("loan-1", {
+        pcafOption: "2a",
+        denominatorType: "equity-plus-debt",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        dataQualityScore: 2,
+        pcafDataSource: "Borrower filing",
+        attributedCo2eTonnes: 100,
+      }),
+      makeAttribution("loan-2", {
+        pcafOption: "3a",
+        denominatorType: "enterprise-value",
+        pcafAssetClass: "business-loans-unlisted-equity",
+        dataQualityScore: 4,
+        pcafDataSource: "Sector benchmark",
+        attributedCo2eTonnes: 50,
+      }),
+    ];
+
+    const disclosure = computeMethodologyDisclosure(attributions, loans);
+
+    // byOption should have 2 entries (2a and 3a)
+    expect(disclosure.byOption).toHaveLength(2);
+    // percentOfExposure should be 0 when totalOutstandingUsd is 0
+    expect(disclosure.byOption[0].percentOfExposure).toBe(0);
+    expect(disclosure.byOption[1].percentOfExposure).toBe(0);
+
+    // byDenominator should have 2 entries
+    expect(disclosure.byDenominator).toHaveLength(2);
+    expect(disclosure.byDenominator[0].percentOfExposure).toBe(0);
+    expect(disclosure.byDenominator[1].percentOfExposure).toBe(0);
+
+    // byDataQualityScore should have 2 entries (scores 2 and 4)
+    expect(disclosure.byDataQualityScore).toHaveLength(2);
+    expect(disclosure.byDataQualityScore[0].percentOfExposure).toBe(0);
+    expect(disclosure.byDataQualityScore[1].percentOfExposure).toBe(0);
+
+    // assetClasses should have 1 entry
+    expect(disclosure.assetClasses).toHaveLength(1);
+    expect(disclosure.assetClasses[0].percentOfExposure).toBe(0);
+  });
+
+  it("handles attribution referencing non-existent loan (coverage: methodology.ts:91,146,252)", () => {
+    // Coverage: This test covers the `loanById.get(attr.loanId)?.outstandingUsd ?? 0`
+    // nullish coalescing branches on lines 91, 146, and 252 when a loan is not found.
+    const loans = [
+      makeLoan("loan-1", 100_000),
+      // loan-2 and loan-3 do not exist in the loans array
+    ];
+    const attributions = [
+      makeAttribution("loan-1", { pcafOption: "2a" }),
+      makeAttribution("loan-2", { pcafOption: "2b" }), // references non-existent loan
+      makeAttribution("loan-3", { pcafOption: "3a" }), // references non-existent loan
+    ];
+
+    const disclosure = computeMethodologyDisclosure(attributions, loans);
+
+    // Should handle missing loans gracefully by using 0 for outstandingUsd
+    expect(disclosure.byOption).toHaveLength(3);
+    // loan-1 should have its actual outstanding
+    expect(disclosure.byOption.find((x) => x.option === "2a")?.outstandingUsd).toBe(
+      100_000,
+    );
+    // loan-2 and loan-3 should have 0 outstanding (fallback for missing loans)
+    expect(disclosure.byOption.find((x) => x.option === "2b")?.outstandingUsd).toBe(0);
+    expect(disclosure.byOption.find((x) => x.option === "3a")?.outstandingUsd).toBe(0);
+  });
+
+  it("handles zero total emissions (coverage: methodology.ts:105)", () => {
+    // Coverage: This test covers the `totalAttributedCo2eTonnes > 0 ? ... : 0` ternary
+    // on line 105 when all attributions have 0 emissions.
+    const loans = [makeLoan("loan-1", 100_000), makeLoan("loan-2", 100_000)];
+    const attributions = [
+      makeAttribution("loan-1", { attributedCo2eTonnes: 0 }),
+      makeAttribution("loan-2", { attributedCo2eTonnes: 0 }),
+    ];
+
+    const disclosure = computeMethodologyDisclosure(attributions, loans);
+
+    // All percentOfEmissions should be 0 when totalAttributedCo2eTonnes is 0
+    expect(disclosure.byOption[0].percentOfEmissions).toBe(0);
+  });
 });
 
 describe("computeMethodologyDisclosure · Sorting", () => {

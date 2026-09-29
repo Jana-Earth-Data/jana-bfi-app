@@ -222,6 +222,34 @@ describe("summarise — defensive fallbacks", () => {
     expect(s.sectorBreakdown[0]).toMatchObject({ loanCount: 2, outstandingNpr: 3000, attributedCo2e: 30 });
   });
 
+  it("sorts sectorBreakdown by attributedCo2e descending (aggregation.ts:127)", () => {
+    // Coverage: ensures the .sort() call on line 127 of aggregation.ts executes.
+    // Need at least 2 sectors with different emissions to trigger sorting.
+    const borrower1 = makeBorrower({ id: "b-1", nrbSector: "Manufacturing - Cement" });
+    const borrower2 = makeBorrower({ id: "b-2", nrbSector: "Energy - Hydropower" });
+    const borrower3 = makeBorrower({ id: "b-3", nrbSector: "Agriculture" });
+    const loans = [
+      makeLoan({ id: "l-1", borrowerId: "b-1", outstandingNpr: 1000 }),
+      makeLoan({ id: "l-2", borrowerId: "b-2", outstandingNpr: 2000 }),
+      makeLoan({ id: "l-3", borrowerId: "b-3", outstandingNpr: 3000 }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1", borrowerId: "b-1", attributedCo2eTonnes: 50 }), // Cement
+      makeAttribution({ loanId: "l-2", borrowerId: "b-2", attributedCo2eTonnes: 200 }), // Hydro (highest)
+      makeAttribution({ loanId: "l-3", borrowerId: "b-3", attributedCo2eTonnes: 10 }), // Agriculture (lowest)
+    ];
+    const s = summarise(loans, [borrower1, borrower2, borrower3], attributions);
+
+    // Should be sorted descending by attributedCo2e: Hydro (200), Cement (50), Agriculture (10)
+    expect(s.sectorBreakdown).toHaveLength(3);
+    expect(s.sectorBreakdown[0].sector).toBe("Energy - Hydropower");
+    expect(s.sectorBreakdown[0].attributedCo2e).toBe(200);
+    expect(s.sectorBreakdown[1].sector).toBe("Manufacturing - Cement");
+    expect(s.sectorBreakdown[1].attributedCo2e).toBe(50);
+    expect(s.sectorBreakdown[2].sector).toBe("Agriculture");
+    expect(s.sectorBreakdown[2].attributedCo2e).toBe(10);
+  });
+
   it("uses `?? 0` when a data-quality bucket's loan is missing", () => {
     // Attribution references a loan id that isn't in the loan book → loanById
     // miss → outstandingUsd/Npr fall back to 0, but the bucket still counts.
