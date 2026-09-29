@@ -590,6 +590,16 @@ export type PortfolioSummary = {
    * Added for N1.11.
    */
   dataExtentDisclosure?: DataExtentDisclosure;
+  /**
+   * IFRS S2 B27 consolidation approach disclosure — which approach (equity-share
+   * or control) was used to measure financed emissions, and the reason for that choice.
+   * When undefined, consolidation approach has not been configured for this tenant.
+   * Added for N1.12.
+   */
+  consolidationApproach?: {
+    approach: "equity-share" | "control";
+    reason: string;
+  };
 };
 
 // ---------------------------------------------------------------------------

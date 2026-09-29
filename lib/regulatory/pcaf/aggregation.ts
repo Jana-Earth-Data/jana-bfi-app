@@ -51,11 +51,16 @@ function emptyTaxonomy(): TaxonomyBreakdown {
  * Aggregate a loan book + borrowers + attributions into the disclosed
  * PortfolioSummary. Pure function of its inputs; the demo synthesizer and the
  * live/overlay paths both call it so the two can never diverge.
+ *
+ * @param consolidationApproach - Optional IFRS S2 B27 consolidation approach disclosure.
+ *   When provided, included in the returned summary for B27 compliance. When undefined,
+ *   consolidation approach has not been configured for this tenant.
  */
 export function summarise(
   loans: Loan[],
   borrowers: Borrower[],
   attributions: PcafAttribution[],
+  consolidationApproach?: { approach: "equity-share" | "control"; reason: string },
 ): PortfolioSummary {
   const borrowerMap = new Map(borrowers.map((b) => [b.id, b]));
   const attrByLoan = new Map(attributions.map((a) => [a.loanId, a]));
@@ -277,5 +282,6 @@ export function summarise(
     grossExposureCoverage,
     methodologyDisclosure,
     dataExtentDisclosure,
+    consolidationApproach,
   };
 }

@@ -23,6 +23,38 @@ export type TenantId = "default" | "laxmi_sunrise";
  */
 export type BankClass = "A" | "B" | "C" | "other";
 
+/**
+ * Consolidation approach per IFRS S2 B27.
+ *
+ * Per IFRS S2 Climate-related Disclosures (June 2023) §B27, entity shall use
+ * either the **equity share approach** or the **control approach** when measuring
+ * financed emissions, and shall disclose which approach was used and the reason.
+ *
+ * - **equity-share**: Emissions attributed proportionally to the entity's ownership stake.
+ *   Most common for banks with minority stakes in borrowers (typical loan portfolio).
+ * - **control**: Emissions attributed based on operational or financial control.
+ *   Used when the entity controls the borrower (rare in commercial lending).
+ *
+ * This is a bank-wide accounting policy decision, not a per-loan choice.
+ */
+export type ConsolidationApproach = "equity-share" | "control";
+
+/**
+ * Consolidation approach configuration per IFRS S2 B27.
+ * Disclosed in PortfolioSummary to satisfy the B27 requirement.
+ */
+export type ConsolidationConfig = {
+  /** Approach used (equity-share or control) */
+  approach: ConsolidationApproach;
+  /**
+   * Reason for choosing this approach.
+   * Per B27, the entity shall disclose the reason for the choice.
+   * Example: "Equity share approach used because the bank does not exercise
+   * operational control over borrowers in its commercial loan portfolio."
+   */
+  reason: string;
+};
+
 /** Officer roles surfaced in the officer-picker (Phase 2 UI). */
 export type OfficerRole =
   | "loan_officer"
@@ -96,4 +128,11 @@ export type TenantConfig = {
    * valid access code is presented. Exactly one tenant must set this true.
    */
   isDefault: boolean;
+  /**
+   * IFRS S2 B27 consolidation approach configuration.
+   * When undefined, consolidation approach has not been configured for this tenant
+   * (honest disclosure - no fabricated default). Once set, disclosed in PortfolioSummary.
+   * Added for N1.12.
+   */
+  consolidationApproach?: ConsolidationConfig;
 };
