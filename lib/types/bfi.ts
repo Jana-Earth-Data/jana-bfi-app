@@ -163,6 +163,14 @@ export type Loan = {
    * Undefined in live until the bank provides it; demo seeds ~2% of outstanding.
    */
   lossAllowance?: number;
+  /**
+   * Risk mitigant value (collateral, guarantees, credit insurance) in USD.
+   * Per IFRS S2 B62(c)(ii), entity shall disclose whether risk mitigants have been
+   * excluded from gross exposure. When provided:
+   * Gross exposure = outstandingUsd + lossAllowance - riskMitigantValueUsd.
+   * Undefined in live until the bank provides it; demo seeds collateral on ~30% of loans.
+   */
+  riskMitigantValueUsd?: number;
   /** Disbursement date (ISO 8601) */
   disbursedDate: string;
   /** Maturity date (ISO 8601) */
@@ -301,6 +309,7 @@ export type PortfolioSummary = {
   /**
    * IFRS S2 B62(c) coverage — percentage of gross exposure included in
    * financed-emissions calculation, with excluded asset types named. Added for N1.2.
+   * Risk mitigant exclusion disclosure added for N1.3.
    */
   grossExposureCoverage?: {
     totalGrossExposureUsd: number;
@@ -309,6 +318,8 @@ export type PortfolioSummary = {
     includedLoanCount: number;
     excludedLoanCount: number;
     excludedAssetTypes: string[];
+    riskMitigantsExcluded: boolean;
+    totalRiskMitigantValueUsd: number;
   };
 };
 

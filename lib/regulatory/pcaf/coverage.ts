@@ -60,6 +60,13 @@ export type GrossExposureCoverage = {
   excludedLoanCount: number;
   /** Human-readable list of excluded asset types (B62(c)(i)) */
   excludedAssetTypes: string[];
+  /**
+   * B62(c)(ii) disclosure: whether risk mitigants have been excluded from gross exposure.
+   * True if any loan in the portfolio has riskMitigantValueUsd > 0.
+   */
+  riskMitigantsExcluded: boolean;
+  /** Total value of risk mitigants excluded (USD) across all loans */
+  totalRiskMitigantValueUsd: number;
 };
 
 /**
@@ -108,6 +115,7 @@ export function computeGrossExposureCoverage(
   let includedGrossExposureUsd = 0;
   let includedLoanCount = 0;
   let excludedLoanCount = 0;
+  let totalRiskMitigantValueUsd = 0;
 
   // Track which loan categories are excluded (have loans but zero attributions)
   const categoriesWithLoans = new Set<string>();
@@ -116,6 +124,9 @@ export function computeGrossExposureCoverage(
   for (const loan of loans) {
     const grossExp = grossExposureUsd(loan);
     totalGrossExposureUsd += grossExp;
+
+    // Accumulate risk mitigant values (B62(c)(ii))
+    totalRiskMitigantValueUsd += loan.riskMitigantValueUsd ?? 0;
 
     const category = loan.category ?? "uncategorized";
     categoriesWithLoans.add(category);
@@ -143,6 +154,9 @@ export function computeGrossExposureCoverage(
       ? (includedGrossExposureUsd / totalGrossExposureUsd) * 100
       : 0;
 
+  // B62(c)(ii) disclosure: risk mitigants excluded if any loan has a non-zero value
+  const riskMitigantsExcluded = totalRiskMitigantValueUsd > 0;
+
   return {
     totalGrossExposureUsd: Math.round(totalGrossExposureUsd),
     includedGrossExposureUsd: Math.round(includedGrossExposureUsd),
@@ -150,5 +164,7 @@ export function computeGrossExposureCoverage(
     includedLoanCount,
     excludedLoanCount,
     excludedAssetTypes,
+    riskMitigantsExcluded,
+    totalRiskMitigantValueUsd: Math.round(totalRiskMitigantValueUsd),
   };
 }

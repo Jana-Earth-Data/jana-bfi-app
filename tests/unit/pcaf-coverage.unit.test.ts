@@ -172,8 +172,8 @@ describe("computeGrossExposureCoverage — edge cases", () => {
 
   it("handles portfolio with zero attributions (0% coverage)", () => {
     const loans = [
-      makeLoan({ id: "l-1", category: "retail-mortgage", outstandingUsd: 5_000 }),
-      makeLoan({ id: "l-2", category: "retail-personal", outstandingUsd: 3_000 }),
+      makeLoan({ id: "l-1", category: "retail-mortgage", outstandingUsd: 5_000, lossAllowance: 0 }),
+      makeLoan({ id: "l-2", category: "retail-personal", outstandingUsd: 3_000, lossAllowance: 0 }),
     ];
     const attributions: PcafAttribution[] = []; // No attributions
 
@@ -297,5 +297,89 @@ describe("computeGrossExposureCoverage — N1.2 correction", () => {
     expect(coverage.coveragePercent).toBe(20.0);
     expect(coverage.includedLoanCount).toBe(2);
     expect(coverage.excludedLoanCount).toBe(8);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeGrossExposureCoverage — N1.3 risk mitigant exclusion
+// ---------------------------------------------------------------------------
+
+describe("computeGrossExposureCoverage — N1.3 risk mitigant exclusion", () => {
+  it("sets riskMitigantsExcluded to true when any loan has risk mitigants", () => {
+    const loans = [
+      makeLoan({ id: "l-1", outstandingUsd: 10_000, riskMitigantValueUsd: 2_000 }),
+      makeLoan({ id: "l-2", outstandingUsd: 5_000, riskMitigantValueUsd: 0 }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1" }),
+      makeAttribution({ loanId: "l-2" }),
+    ];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    expect(coverage.riskMitigantsExcluded).toBe(true);
+    expect(coverage.totalRiskMitigantValueUsd).toBe(2_000);
+  });
+
+  it("sets riskMitigantsExcluded to false when no loans have risk mitigants", () => {
+    const loans = [
+      makeLoan({ id: "l-1", outstandingUsd: 10_000, riskMitigantValueUsd: undefined }),
+      makeLoan({ id: "l-2", outstandingUsd: 5_000, riskMitigantValueUsd: 0 }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1" }),
+      makeAttribution({ loanId: "l-2" }),
+    ];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    expect(coverage.riskMitigantsExcluded).toBe(false);
+    expect(coverage.totalRiskMitigantValueUsd).toBe(0);
+  });
+
+  it("accumulates risk mitigant values across all loans", () => {
+    const loans = [
+      makeLoan({ id: "l-1", outstandingUsd: 10_000, riskMitigantValueUsd: 2_000 }),
+      makeLoan({ id: "l-2", outstandingUsd: 8_000, riskMitigantValueUsd: 1_500 }),
+      makeLoan({ id: "l-3", outstandingUsd: 6_000, riskMitigantValueUsd: 500 }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1" }),
+      makeAttribution({ loanId: "l-2" }),
+      makeAttribution({ loanId: "l-3" }),
+    ];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    expect(coverage.totalRiskMitigantValueUsd).toBe(4_000);
+    expect(coverage.riskMitigantsExcluded).toBe(true);
+  });
+
+  it("reduces gross exposure when risk mitigants present", () => {
+    // Loan 1: 10k + 200 - 3k = 7,200 gross
+    // Loan 2: 5k + 100 - 0 = 5,100 gross
+    // Total gross = 12,300 (not 15,300)
+    const loans = [
+      makeLoan({ id: "l-1", outstandingUsd: 10_000, lossAllowance: 200, riskMitigantValueUsd: 3_000 }),
+      makeLoan({ id: "l-2", outstandingUsd: 5_000, lossAllowance: 100, riskMitigantValueUsd: 0 }),
+    ];
+    const attributions = [
+      makeAttribution({ loanId: "l-1" }),
+      makeAttribution({ loanId: "l-2" }),
+    ];
+
+    const coverage = computeGrossExposureCoverage(loans, attributions);
+
+    expect(coverage.totalGrossExposureUsd).toBe(12_300);
+    expect(coverage.includedGrossExposureUsd).toBe(12_300);
+    expect(coverage.riskMitigantsExcluded).toBe(true);
+    expect(coverage.totalRiskMitigantValueUsd).toBe(3_000);
+  });
+
+  it("handles empty portfolio with risk mitigants correctly", () => {
+    const coverage = computeGrossExposureCoverage([], []);
+
+    expect(coverage.riskMitigantsExcluded).toBe(false);
+    expect(coverage.totalRiskMitigantValueUsd).toBe(0);
   });
 });

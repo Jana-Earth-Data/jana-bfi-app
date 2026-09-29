@@ -85,6 +85,16 @@ describe("grossExposureUsd", () => {
     expect(grossExposureUsd(loan)).toBe(10_200);
   });
 
+  it("subtracts risk mitigant value per IFRS S2 B62(c)(ii) (N1.3)", () => {
+    const loan = makeLoan({
+      outstandingUsd: 10_000,
+      lossAllowance: 200,
+      riskMitigantValueUsd: 3_000,
+    });
+    // Gross exposure = 10,000 + 200 - 3,000 = 7,200
+    expect(grossExposureUsd(loan)).toBe(7_200);
+  });
+
   it("falls back to outstanding USD when lossAllowance is undefined", () => {
     const loan = makeLoan({ outstandingUsd: 10_000, lossAllowance: undefined });
     expect(grossExposureUsd(loan)).toBe(10_000);
@@ -93,6 +103,24 @@ describe("grossExposureUsd", () => {
   it("treats zero lossAllowance as zero, not undefined", () => {
     const loan = makeLoan({ outstandingUsd: 10_000, lossAllowance: 0 });
     expect(grossExposureUsd(loan)).toBe(10_000);
+  });
+
+  it("treats undefined riskMitigantValueUsd as zero", () => {
+    const loan = makeLoan({
+      outstandingUsd: 10_000,
+      lossAllowance: 200,
+      riskMitigantValueUsd: undefined,
+    });
+    expect(grossExposureUsd(loan)).toBe(10_200);
+  });
+
+  it("treats zero riskMitigantValueUsd as zero, not undefined", () => {
+    const loan = makeLoan({
+      outstandingUsd: 10_000,
+      lossAllowance: 200,
+      riskMitigantValueUsd: 0,
+    });
+    expect(grossExposureUsd(loan)).toBe(10_200);
   });
 
   it("exposes an IFRS S2 B62(b) citation string", () => {

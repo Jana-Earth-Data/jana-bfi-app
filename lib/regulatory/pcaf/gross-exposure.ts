@@ -58,20 +58,27 @@ export const IFRS_S2_B62_CITATION =
   "IFRS S2 Climate-related Disclosures (June 2023) §B62(b) — gross exposure per industry per asset class";
 
 /**
- * Compute the gross exposure (funded carrying amount before loss allowance)
- * for a single loan, per IFRS S2 B62(b).
+ * Compute the gross exposure (funded carrying amount before loss allowance,
+ * less risk mitigants if excluded) for a single loan, per IFRS S2 B62(b) and (c)(ii).
  *
- * Returns:
- *     outstanding USD + loss allowance USD
+ * Formula:
+ *     outstanding USD + loss allowance USD - risk mitigant value USD
  *
- * If `lossAllowance` is undefined (bank has not provided impairment data yet),
- * falls back to `outstandingUsd` alone. This is a temporary gap — live
- * deployments will require the bank to provide loss-allowance figures for
- * every in-scope loan. Demo mode seeds ~2 % loss allowance on every loan to
- * demonstrate the full disclosure logic.
+ * Per B62(c)(ii), an entity shall disclose whether it has excluded risk mitigants
+ * (collateral, guarantees, credit insurance) from its gross exposure calculation.
+ * When `riskMitigantValueUsd` is provided, it is subtracted from the gross exposure.
+ * This reduces the bank's reported climate risk exposure to reflect secured positions.
+ *
+ * If `lossAllowance` or `riskMitigantValueUsd` are undefined, they default to zero.
+ * Demo mode seeds ~2% loss allowance and collateral on ~30% of loans to demonstrate
+ * the full disclosure logic.
  */
 export function grossExposureUsd(loan: Loan): number {
-  return loan.outstandingUsd + (loan.lossAllowance ?? 0);
+  return (
+    loan.outstandingUsd +
+    (loan.lossAllowance ?? 0) -
+    (loan.riskMitigantValueUsd ?? 0)
+  );
 }
 
 /**
