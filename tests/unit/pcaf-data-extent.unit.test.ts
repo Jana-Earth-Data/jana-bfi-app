@@ -23,11 +23,12 @@ function makeLoan(id: string, outstandingUsd: number): Loan {
   return {
     id,
     borrowerId: `borrower-${id}`,
+    product: "SME Working Capital",
     outstandingNpr: outstandingUsd * 133.5,
     outstandingUsd,
     disbursedDate: "2024-01-01",
     maturityDate: "2029-01-01",
-    status: "performing",
+    status: "disbursed",
     nrbTaxonomy: "unclassified",
     purpose: "Working capital",
     category: "sme-working-capital",
