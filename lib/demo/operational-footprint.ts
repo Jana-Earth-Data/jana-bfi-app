@@ -410,6 +410,11 @@ function generateScope2Emissions(
 
 /**
  * Aggregate Scope 1 emissions by category.
+ *
+ * Per IFRS S2 §29(a)(iv) (N2.5), disaggregates emissions between consolidated
+ * accounting group and other investees. For the demo (First Bank of Nepal),
+ * all emissions are from the bank's own operations (consolidated group = 100%,
+ * other investees = 0) since the bank has no associates or joint ventures.
  */
 function aggregateScope1(
   fuel: FuelEmission[],
@@ -421,26 +426,45 @@ function aggregateScope1(
   const refrigerantsCo2eTonnes = refrigerants.reduce((sum, e) => sum + e.co2eTonnes, 0);
   const totalCo2eTonnes = fuelCo2eTonnes + fleetCo2eTonnes + refrigerantsCo2eTonnes;
 
+  // N2.5: Organizational boundary disaggregation (§29(a)(iv))
+  // Demo bank has no investees, so 100% = consolidated group, 0% = other investees
+  const roundedTotal = Math.round(totalCo2eTonnes * 1000) / 1000;
+
   return {
     fuel,
     fleet,
     refrigerants,
-    totalCo2eTonnes: Math.round(totalCo2eTonnes * 1000) / 1000,
+    totalCo2eTonnes: roundedTotal,
     fuelCo2eTonnes: Math.round(fuelCo2eTonnes * 1000) / 1000,
     fleetCo2eTonnes: Math.round(fleetCo2eTonnes * 1000) / 1000,
     refrigerantsCo2eTonnes: Math.round(refrigerantsCo2eTonnes * 1000) / 1000,
+    // Organizational boundary disaggregation (N2.5)
+    consolidatedGroupCo2eTonnes: roundedTotal, // 100% from bank's own operations
+    otherInvesteesCo2eTonnes: 0, // No associates/JVs in demo
   };
 }
 
 /**
  * Aggregate Scope 2 location-based emissions.
+ *
+ * Per IFRS S2 §29(a)(iv) (N2.5), disaggregates emissions between consolidated
+ * accounting group and other investees. For the demo (First Bank of Nepal),
+ * all emissions are from the bank's own operations (consolidated group = 100%,
+ * other investees = 0) since the bank has no associates or joint ventures.
  */
 function aggregateScope2(locationBased: LocationBasedScope2Emission[]): Scope2Emissions {
   const totalLocationBasedCo2eTonnes = locationBased.reduce((sum, e) => sum + e.co2eTonnes, 0);
 
+  // N2.5: Organizational boundary disaggregation (§29(a)(iv))
+  // Demo bank has no investees, so 100% = consolidated group, 0% = other investees
+  const roundedTotal = Math.round(totalLocationBasedCo2eTonnes * 1000) / 1000;
+
   return {
     locationBased,
-    totalLocationBasedCo2eTonnes: Math.round(totalLocationBasedCo2eTonnes * 1000) / 1000,
+    totalLocationBasedCo2eTonnes: roundedTotal,
+    // Organizational boundary disaggregation (N2.5)
+    consolidatedGroupLocationBasedCo2eTonnes: roundedTotal, // 100% from bank's own operations
+    otherInvesteesLocationBasedCo2eTonnes: 0, // No associates/JVs in demo
     // marketBased is optional - only when contractual instruments exist (renewable certificates, PPAs)
     // Not included in demo by default
   };

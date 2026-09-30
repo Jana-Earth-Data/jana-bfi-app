@@ -538,3 +538,118 @@ describe("Realistic emission ranges", () => {
     expect(hypotheticalSouthAsiaEmissions / footprint.scope2!.totalLocationBasedCo2eTonnes).toBeLessThan(80);
   });
 });
+
+describe("Organizational boundary disaggregation (N2.5)", () => {
+  it("Scope 1 includes organizational boundary disaggregation per §29(a)(iv)", () => {
+    const footprint = generateOperationalFootprint(2024, 25, 20);
+
+    expect(footprint.scope1.consolidatedGroupCo2eTonnes).toBeDefined();
+    expect(footprint.scope1.otherInvesteesCo2eTonnes).toBeDefined();
+  });
+
+  it("Scope 1 disaggregation sums to total emissions", () => {
+    const footprint = generateOperationalFootprint(2024, 25, 20);
+
+    const consolidatedGroup = footprint.scope1.consolidatedGroupCo2eTonnes ?? 0;
+    const otherInvestees = footprint.scope1.otherInvesteesCo2eTonnes ?? 0;
+    const calculatedTotal = consolidatedGroup + otherInvestees;
+
+    expect(footprint.scope1.totalCo2eTonnes).toBeCloseTo(calculatedTotal, 3);
+  });
+
+  it("Scope 1 demo bank has 100% consolidated group, 0% other investees", () => {
+    // First Bank of Nepal (demo) has no associates or joint ventures
+    const footprint = generateOperationalFootprint(2024, 25, 20);
+
+    expect(footprint.scope1.consolidatedGroupCo2eTonnes).toBe(footprint.scope1.totalCo2eTonnes);
+    expect(footprint.scope1.otherInvesteesCo2eTonnes).toBe(0);
+  });
+
+  it("Scope 2 includes organizational boundary disaggregation per §29(a)(iv)", () => {
+    const footprint = generateOperationalFootprint(2024, 25, 20);
+
+    expect(footprint.scope2).toBeDefined();
+    expect(footprint.scope2!.consolidatedGroupLocationBasedCo2eTonnes).toBeDefined();
+    expect(footprint.scope2!.otherInvesteesLocationBasedCo2eTonnes).toBeDefined();
+  });
+
+  it("Scope 2 disaggregation sums to total location-based emissions", () => {
+    const footprint = generateOperationalFootprint(2024, 25, 20);
+
+    expect(footprint.scope2).toBeDefined();
+    const consolidatedGroup = footprint.scope2!.consolidatedGroupLocationBasedCo2eTonnes ?? 0;
+    const otherInvestees = footprint.scope2!.otherInvesteesLocationBasedCo2eTonnes ?? 0;
+    const calculatedTotal = consolidatedGroup + otherInvestees;
+
+    expect(footprint.scope2!.totalLocationBasedCo2eTonnes).toBeCloseTo(calculatedTotal, 3);
+  });
+
+  it("Scope 2 demo bank has 100% consolidated group, 0% other investees", () => {
+    // First Bank of Nepal (demo) has no associates or joint ventures
+    const footprint = generateOperationalFootprint(2024, 25, 20);
+
+    expect(footprint.scope2).toBeDefined();
+    expect(footprint.scope2!.consolidatedGroupLocationBasedCo2eTonnes).toBe(
+      footprint.scope2!.totalLocationBasedCo2eTonnes
+    );
+    expect(footprint.scope2!.otherInvesteesLocationBasedCo2eTonnes).toBe(0);
+  });
+
+  it("Organizational boundary disaggregation is deterministic", () => {
+    const fp1 = generateOperationalFootprint(2024, 15, 15);
+    const fp2 = generateOperationalFootprint(2024, 15, 15);
+
+    // Scope 1
+    expect(fp1.scope1.consolidatedGroupCo2eTonnes).toBe(fp2.scope1.consolidatedGroupCo2eTonnes);
+    expect(fp1.scope1.otherInvesteesCo2eTonnes).toBe(fp2.scope1.otherInvesteesCo2eTonnes);
+
+    // Scope 2
+    expect(fp1.scope2!.consolidatedGroupLocationBasedCo2eTonnes).toBe(
+      fp2.scope2!.consolidatedGroupLocationBasedCo2eTonnes
+    );
+    expect(fp1.scope2!.otherInvesteesLocationBasedCo2eTonnes).toBe(
+      fp2.scope2!.otherInvesteesLocationBasedCo2eTonnes
+    );
+  });
+
+  it("Organizational boundary disaggregation scales with bank size", () => {
+    const small = generateOperationalFootprint(2024, 5, 5);
+    const large = generateOperationalFootprint(2024, 50, 50);
+
+    // Larger bank → more consolidated group emissions (no investees in either case)
+    expect(large.scope1.consolidatedGroupCo2eTonnes!).toBeGreaterThan(
+      small.scope1.consolidatedGroupCo2eTonnes!
+    );
+    expect(large.scope2!.consolidatedGroupLocationBasedCo2eTonnes!).toBeGreaterThan(
+      small.scope2!.consolidatedGroupLocationBasedCo2eTonnes!
+    );
+
+    // Both have zero investees
+    expect(small.scope1.otherInvesteesCo2eTonnes).toBe(0);
+    expect(large.scope1.otherInvesteesCo2eTonnes).toBe(0);
+    expect(small.scope2!.otherInvesteesLocationBasedCo2eTonnes).toBe(0);
+    expect(large.scope2!.otherInvesteesLocationBasedCo2eTonnes).toBe(0);
+  });
+
+  it("Arithmetic neutrality: disaggregation does not change total emissions", () => {
+    // Generate footprint twice - once before we added disaggregation fields (hypothetically)
+    // and once after. The totals should be identical because we only added breakdowns.
+    const footprint = generateOperationalFootprint(2024, 25, 20);
+
+    // Scope 1: Total should be unaffected by disaggregation
+    const scope1Total = footprint.scope1.totalCo2eTonnes;
+    const scope1Disaggregated =
+      (footprint.scope1.consolidatedGroupCo2eTonnes ?? 0) +
+      (footprint.scope1.otherInvesteesCo2eTonnes ?? 0);
+
+    expect(scope1Total).toBe(scope1Disaggregated);
+
+    // Scope 2: Total should be unaffected by disaggregation
+    const scope2Total = footprint.scope2!.totalLocationBasedCo2eTonnes;
+    const scope2Disaggregated =
+      (footprint.scope2!.consolidatedGroupLocationBasedCo2eTonnes ?? 0) +
+      (footprint.scope2!.otherInvesteesLocationBasedCo2eTonnes ?? 0);
+
+    expect(scope2Total).toBe(scope2Disaggregated);
+  });
+});

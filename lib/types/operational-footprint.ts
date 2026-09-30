@@ -185,6 +185,10 @@ export type RefrigerantEmission = {
  * Aggregated Scope 1 emissions.
  * Per IFRS S2 §29(a)(i), disclose absolute gross Scope 1 GHG emissions in metric
  * tonnes of CO2 equivalent.
+ *
+ * Per IFRS S2 §29(a)(iv) (N2.5), entity shall disaggregate Scope 1 emissions between:
+ * - Consolidated accounting group (entities on the consolidated balance sheet)
+ * - Other investees (associates, joint ventures, equity investments not consolidated)
  */
 export type Scope1Emissions = {
   /** Individual fuel combustion records */
@@ -201,6 +205,26 @@ export type Scope1Emissions = {
   fleetCo2eTonnes: number;
   /** Subtotal: refrigerant (fugitive) emissions in CO2e tonnes */
   refrigerantsCo2eTonnes: number;
+
+  /**
+   * Organizational boundary disaggregation (N2.5, per IFRS S2 §29(a)(iv)).
+   * Scope 1 emissions from entities in the consolidated accounting group (the bank's
+   * own operations + fully controlled subsidiaries on the consolidated balance sheet).
+   * Should equal totalCo2eTonnes minus otherInvesteesCo2eTonnes.
+   * Optional for backward compatibility; undefined when disaggregation not available.
+   */
+  consolidatedGroupCo2eTonnes?: number;
+
+  /**
+   * Organizational boundary disaggregation (N2.5, per IFRS S2 §29(a)(iv)).
+   * Scope 1 emissions from other investees (associates, joint ventures, equity
+   * investments) that are NOT part of the consolidated accounting group. Emissions
+   * are included based on the consolidation approach (N1.12): equity-share approach
+   * includes proportionate share; control approach includes 100% if controlled, 0% otherwise.
+   * Should equal totalCo2eTonnes minus consolidatedGroupCo2eTonnes.
+   * Optional for backward compatibility; undefined when disaggregation not available.
+   */
+  otherInvesteesCo2eTonnes?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -250,12 +274,52 @@ export type MarketBasedScope2Emission = {
  * Aggregated Scope 2 emissions.
  * Per IFRS S2 §29(a)(v) and B30, disclose location-based Scope 2 emissions
  * (mandatory) and optionally market-based where contractual instruments exist.
+ *
+ * Per IFRS S2 §29(a)(iv) (N2.5), entity shall disaggregate Scope 2 emissions between:
+ * - Consolidated accounting group (entities on the consolidated balance sheet)
+ * - Other investees (associates, joint ventures, equity investments not consolidated)
  */
 export type Scope2Emissions = {
   locationBased: LocationBasedScope2Emission[];
   marketBased?: MarketBasedScope2Emission[];
   totalLocationBasedCo2eTonnes: number;
   totalMarketBasedCo2eTonnes?: number;
+
+  /**
+   * Organizational boundary disaggregation (N2.5, per IFRS S2 §29(a)(iv)).
+   * Location-based Scope 2 emissions from entities in the consolidated accounting
+   * group (the bank's own operations + fully controlled subsidiaries).
+   * Should equal totalLocationBasedCo2eTonnes minus otherInvesteesLocationBasedCo2eTonnes.
+   * Optional for backward compatibility; undefined when disaggregation not available.
+   */
+  consolidatedGroupLocationBasedCo2eTonnes?: number;
+
+  /**
+   * Organizational boundary disaggregation (N2.5, per IFRS S2 §29(a)(iv)).
+   * Location-based Scope 2 emissions from other investees (associates, joint ventures,
+   * equity investments) that are NOT part of the consolidated accounting group.
+   * Should equal totalLocationBasedCo2eTonnes minus consolidatedGroupLocationBasedCo2eTonnes.
+   * Optional for backward compatibility; undefined when disaggregation not available.
+   */
+  otherInvesteesLocationBasedCo2eTonnes?: number;
+
+  /**
+   * Organizational boundary disaggregation (N2.5, per IFRS S2 §29(a)(iv)).
+   * Market-based Scope 2 emissions from entities in the consolidated accounting
+   * group (the bank's own operations + fully controlled subsidiaries).
+   * Should equal totalMarketBasedCo2eTonnes minus otherInvesteesMarketBasedCo2eTonnes.
+   * Optional - only present when market-based method is used.
+   */
+  consolidatedGroupMarketBasedCo2eTonnes?: number;
+
+  /**
+   * Organizational boundary disaggregation (N2.5, per IFRS S2 §29(a)(iv)).
+   * Market-based Scope 2 emissions from other investees (associates, joint ventures,
+   * equity investments) that are NOT part of the consolidated accounting group.
+   * Should equal totalMarketBasedCo2eTonnes minus consolidatedGroupMarketBasedCo2eTonnes.
+   * Optional - only present when market-based method is used.
+   */
+  otherInvesteesMarketBasedCo2eTonnes?: number;
 };
 
 // ---------------------------------------------------------------------------
