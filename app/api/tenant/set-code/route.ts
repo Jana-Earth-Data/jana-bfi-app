@@ -65,19 +65,28 @@ export async function POST(request: NextRequest) {
     path: "/",
     maxAge: TENANT_COOKIE_MAX_AGE_SECONDS,
   });
-  // Entering a bank is a fresh start: clear any lingering demo-mode override
-  // so the demo comes back ON (the default for a demo build — see
-  // lib/demo/mode.ts, where an absent cookie means on). Exiting the demo pins
-  // jana_demo_mode=off so nothing fabricated survives the exit; without this
-  // reset, clicking "Continue as … (demo)" from the landing screen would drop
-  // the visitor into an empty dashboard with the toggle stuck off. Deleting
-  // the cookie (rather than writing "on") restores the build's natural default
-  // and keeps the session-scoped semantics the toggle route relies on.
-  response.cookies.set(DEMO_MODE_COOKIE, "", {
-    httpOnly: false,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
+  // Entering a bank is a fresh start for this user's demo-mode choice.
+  //
+  // A real bank code (matched) returns the session to the default, which is
+  // OFF -- production data (lib/demo/mode.ts: an absent cookie means off).
+  //
+  // "Continue as … (demo)" -- no code, or an unrecognised one -- lands on the
+  // fictional default bank, which only has anything to show in demo mode, so
+  // it switches demo ON for this session. Session-scoped (no maxAge), the same
+  // semantics as the toggle route, and it affects only this user.
+  if (matched) {
+    response.cookies.set(DEMO_MODE_COOKIE, "", {
+      httpOnly: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+  } else {
+    response.cookies.set(DEMO_MODE_COOKIE, "on", {
+      httpOnly: false,
+      sameSite: "lax",
+      path: "/",
+    });
+  }
   return response;
 }
