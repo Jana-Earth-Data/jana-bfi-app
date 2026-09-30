@@ -6,16 +6,21 @@ ARG NEXT_PUBLIC_API_URL=https://api-test.jana.earth
 ARG NEXT_PUBLIC_AUTH_URL=https://auth-dev.jana.earth
 ARG NEXT_PUBLIC_DEMO_USE_MOCKS=true
 
-# Does this image contain the demo layer?
+# Is the demo switch available in this image?
 #
-# "1" bakes in the 80,035-loan synthesizer, the PCAF name fixtures, the
-# synthetic air-quality generator and the Demo menu. Anything else produces a
-# live image: no synthesizer in the bundle, empty loan book, no demo controls.
+# The demo code (the 80,035-loan synthesizer, PCAF name fixtures, synthetic
+# air-quality generator, Demo menu) is in the bundle either way -- nothing is
+# compiled out. JANA_DEMO decides two things: whether the precomputed demo
+# portfolio file is generated at build time, and (via ENV below and in the
+# runner stage) whether the running server offers the per-user demo switch.
+# "1": demo switch available, precomputed portfolio included. Anything else:
+# no demo switch, no precomputed portfolio, users see only the bank's own data.
 #
-# Defaults to 1 because this Dockerfile builds the demo. A customer image is
-# produced by passing JANA_DEMO=0 explicitly -- and the difference is real, not
-# cosmetic: the fabricated data is absent from the bundle, not merely hidden.
-# See lib/demo/provider.ts.
+# Defaults to 1. A deployment without the demo switch is produced by passing
+# JANA_DEMO=0. What keeps fabricated data out of a bank's real data is the
+# lib/demo/provider.ts boundary and the `origin` provenance column, not code
+# absence. See lib/demo/provider.ts. PROJECT_PLAN P5.8 collapses the two image
+# variants into one build.
 ARG JANA_DEMO=1
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
@@ -34,14 +39,15 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Carry the build-time demo decision into the runtime stage.
+# Carry the JANA_DEMO decision into the runtime stage.
 #
-# isDemoBuild() reads process.env.JANA_DEMO in the running server, not just at
-# compile time -- it gates the Demo menu, the /api/demo/mode toggle route and
-# the provider's dynamic import. Without this line the image would contain the
-# demo layer but refuse to serve it, and the failure would be silent: an empty
-# loan book in an image built to be the demo, with no error anywhere saying
-# why. Re-declared here because ARGs do not cross FROM boundaries.
+# This is where JANA_DEMO actually takes effect: isDemoBuild() reads
+# process.env.JANA_DEMO in the running server -- it gates the Demo menu, the
+# /api/demo/mode toggle route and the provider's dynamic import. Without this
+# line the demo switch would be unavailable even though the image was built
+# with the precomputed portfolio, and the failure would be silent: no Demo
+# menu and an empty loan book, with no error anywhere saying why.
+# Re-declared here because ARGs do not cross FROM boundaries.
 ARG JANA_DEMO=1
 ENV JANA_DEMO=$JANA_DEMO
 

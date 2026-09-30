@@ -9,8 +9,9 @@
  * ------------------------------------------------
  * A boundary maintained by everyone remembering it is a boundary that erodes,
  * and the erosion is invisible: one direct import of the synthesizer compiles
- * fine, passes review, and quietly puts 80,035 fabricated loans back into a
- * production bundle. Nothing fails, nothing warns, and the loans look real.
+ * fine, passes review, and quietly serves 80,035 fabricated loans with demo
+ * mode off, where the bank's own data should be. Nothing fails, nothing
+ * warns, and the loans look real.
  *
  * The same failure mode has already cost this codebase real bugs -- a
  * swallowed query error, a missing scope filter, a stale precompute -- all of
@@ -108,9 +109,9 @@ if (violations.length > 0) {
   }
   console.error(
     "Application code must reach the demo layer only through\n" +
-      "lib/demo/provider.ts, which returns null in a live build. Importing\n" +
-      "directly compiles fine and silently returns fabricated data into a\n" +
-      "production bundle.\n",
+      "lib/demo/provider.ts, whose getActiveDemoProvider() returns null when\n" +
+      "demo mode is off. Importing directly compiles fine and silently returns\n" +
+      "fabricated data where the bank's own data should be.\n",
   );
   process.exit(1);
 }

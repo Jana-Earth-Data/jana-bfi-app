@@ -31,7 +31,9 @@
  *
  * OfficerPicker portals for the same reason and says so in its own docstring.
  *
- * Rendered only in a demo build. A live build never mounts this.
+ * Rendered only where the demo switch is available on this deployment
+ * (JANA_DEMO=1), whether demo mode is currently on or off -- it is how a user
+ * switches demo mode on. Where the switch is unavailable it is never mounted.
  */
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";

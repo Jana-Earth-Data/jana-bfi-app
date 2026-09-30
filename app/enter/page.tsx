@@ -44,9 +44,9 @@ export default async function EnterPage({
       path: "/",
       maxAge: TENANT_COOKIE_MAX_AGE_SECONDS,
     });
-    // Fresh entry clears any lingering demo-mode override so the demo starts
-    // ON again (see the matching reset in app/api/tenant/set-code/route.ts).
-    // Exit pins jana_demo_mode=off; a ?bank= deep-link should not inherit that.
+    // Fresh entry clears any lingering demo-mode choice, so the session starts
+    // on the default -- production data (see lib/demo/mode.ts). Users who
+    // want the training portfolio switch it on from the demo menu.
     jar.delete(DEMO_MODE_COOKIE);
     redirect("/");
   }

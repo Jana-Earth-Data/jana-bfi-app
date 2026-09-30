@@ -8,10 +8,11 @@
  *     is redirected by middleware to /enter, the bank-select landing (first)
  *     screen.
  *   jana_demo_mode   — whether the synthetic portfolio is shown. Pinned to
- *     "off" so that if the visitor re-enters a bank, they land on the empty
- *     product rather than the 80K fabricated loans. Without this, demo mode
- *     defaults back ON (see lib/demo/mode.ts) and "exit" would still show
- *     fabricated data — the opposite of what "exit demo" promises.
+ *     "off" so that if the visitor re-enters a bank, they see the bank's own
+ *     data rather than the 80K fabricated loans. The default has been OFF
+ *     since 2026-09-30 (see lib/demo/mode.ts), so an absent cookie would
+ *     already mean off; pinning it explicitly keeps "exit demo" correct
+ *     regardless of the default.
  *
  * Idempotent: safe to call when neither cookie is set.
  */

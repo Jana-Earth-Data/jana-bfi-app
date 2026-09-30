@@ -161,9 +161,9 @@ export async function applyOfficerPcafOverlay(
     data.attributions.map((a) => [a.loanId, a]),
   );
 
-  // Resolved once: in a demo build this returns the seeded PCAF evidence the
+  // Resolved once: with demo mode on this returns the seeded PCAF evidence the
   // synthesizer used, so the score computed here matches the one baked into the
-  // portfolio. In a live build it is undefined and nothing is seeded — a
+  // portfolio. With demo mode off it is undefined and nothing is seeded — a
   // borrower's Score 1/2 then rests solely on the officer's saved review below.
   const evidenceFor = await demoPcafEvidenceRecords();
 
@@ -187,8 +187,8 @@ export async function applyOfficerPcafOverlay(
 
     // Same derivation the build-time pcafFor() uses, so the base score here
     // matches the one baked into the portfolio: infer the observable flags,
-    // then raise the two published-emissions flags from evidence (seeded in a
-    // demo build, none in live) through the same resolveAvailability the live
+    // then raise the two published-emissions flags from evidence (seeded in
+    // demo mode, none otherwise) through the same resolveAvailability the real
     // officer review flows through.
     const inferred = inferPcafAvailability(borrower, loan.category);
     const evidenced = resolveAvailability(

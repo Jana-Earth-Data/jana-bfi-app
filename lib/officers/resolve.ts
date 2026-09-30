@@ -29,7 +29,7 @@ export const OFFICER_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
  *
  * Riya Sharma, Anish Rai, Priya Karki and Bikram Thapa are invented people.
  * They live in lib/tenants/registry.ts as `demoOfficers`, hardcoded in TypeScript
- * rather than in a table, so neither the build-time boundary nor the `origin`
+ * rather than in a table, so neither the lib/demo provider boundary nor the `origin`
  * column ever touched them: with demo mode off, the portfolio was empty, the
  * queue was empty, and the header still said "As Riya Sharma · Loan officer".
  *

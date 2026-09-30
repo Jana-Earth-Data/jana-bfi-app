@@ -106,8 +106,8 @@ export async function GET(_req: Request, { params }: Params) {
     );
   }
 
-  // Reduction-target seed (N0.3): demo build supplies the ~15% fixture; live
-  // build supplies nothing, so the base inference asserts no target and the
+  // Reduction-target seed (N0.3): with demo mode on it supplies the ~15%
+  // fixture; with demo mode off nothing is supplied, so the base inference asserts no target and the
   // Supabase override below becomes the sole source.
   const reductionSeed = await demoReductionTargetSeed();
   const inferred = getBorrowerClimateBundle(borrower, reductionSeed);

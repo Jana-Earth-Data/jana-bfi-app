@@ -261,7 +261,7 @@ function pcafFor(loan: Loan, borrower: Borrower): PcafAttribution {
   //     document exists. This module IS the demo layer, so it seeds that
   //     evidence directly (lib/demo/pcaf-evidence-seed.ts) — a verified
   //     assurance opinion for the Score-1 exemplar, a verified GHG inventory
-  //     for the Score-2 exemplars. A live build seeds nothing and the flags are
+  //     for the Score-2 exemplars. With demo mode off nothing is seeded and the flags are
   //     established by an officer's real document review through this same
   //     resolveAvailability path (backlog N0.4). disclosureYear is the latest
   //     fully-reported year so a reportingYear-2024 record is not stale.
@@ -693,7 +693,7 @@ export async function getPortfolio(): Promise<BfiDemoData> {
       return portfolioCache;
     }
 
-    // Loud, not silent: a demo build that reaches synthesis has a packaging
+    // Loud, not silent: a JANA_DEMO=1 deployment that reaches synthesis has a packaging
     // bug (the tracer did not include the artifact where any candidate path
     // resolves). Log the paths we tried so the mismatch is diagnosable from
     // the deploy logs instead of surfacing only as an 83s request.

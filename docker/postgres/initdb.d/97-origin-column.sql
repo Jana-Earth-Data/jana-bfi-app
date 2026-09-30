@@ -42,7 +42,7 @@ DECLARE
     'bfi_climate_risk_assessments',
     'bfi_hydro_doc_status',
     'bfi_borrower_overrides',
-    -- Denormalised mirror of the loan book. In a demo build these rows ARE
+    -- Denormalised mirror of the loan book. When seeded for demo mode these rows ARE
     -- the synthesized portfolio, so they carry provenance like everything else.
     'bfi_loans_denorm',
     -- Written by the seeder, therefore demo. A real deployment gets its own

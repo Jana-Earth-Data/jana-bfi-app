@@ -278,7 +278,7 @@ function DashboardInner({ data }: { data: DashboardSsrData }) {
       <footer className="border-t border-line bg-panel/30 py-4 text-center text-xs text-slate-500">
         {/*
           This line used to read "demo dashboard · Synthesized portfolio"
-          unconditionally, which in a live build would have been a false
+          unconditionally, which with demo mode off would have been a false
           statement printed on every page of a real bank's instance.
         */}
         {data.meta.bankName}

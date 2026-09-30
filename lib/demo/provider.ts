@@ -19,19 +19,26 @@
  * error.
  *
  * So the guarantee is structural instead. Everything fabricated lives under
- * lib/demo/, nothing outside may import it directly, and a live build resolves
- * this module's dynamic import to nothing. You cannot leak what was never
- * shipped.
+ * lib/demo/, nothing outside may import it directly (enforced by
+ * scripts/check-demo-imports.mjs and the other boundary guards), and this
+ * module hands the demo layer out only when demo mode is on. Captures made in
+ * demo mode are tagged with the `origin` provenance column, so they never
+ * appear in the bank's own data.
  *
  * How the switch works
  * --------------------
- * JANA_DEMO is a build-time flag, not a runtime setting. A live build has no
- * demo code in it at all -- not hidden behind a toggle, absent -- so there is
- * nothing for a misconfiguration or a crafted cookie to re-enable.
- *
- * The runtime demo-mode toggle, added separately, lives INSIDE a demo build.
- * It lets you show the clean empty product mid-conversation without a rebuild.
- * A live build has no toggle because it has nothing to toggle.
+ * This is one application. The demo code (./impl) is present in every
+ * bundle -- there is no next.config.ts alias -- and isDemoBuild() reads
+ * process.env.JANA_DEMO at RUNTIME. What JANA_DEMO decides is whether the demo
+ * switch is available on this deployment (and whether the precomputed
+ * portfolio file is generated). Where it is available, the per-user demo-mode
+ * switch (./mode.ts) chooses per request between the demo portfolio and the
+ * bank's own data. The guarantee that fabricated rows never reach production
+ * data comes from this module being the only door to lib/demo plus the
+ * provenance column on capture tables -- not from code being absent.
+ * (Correction 2026-09-30: this block used to describe JANA_DEMO as a
+ * build-time flag that compiles the demo code out of a "live build". It does
+ * not. PROJECT_PLAN P5.8 makes this one build in name as well as in fact.)
  */
 
 import type { BfiDemoData, Borrower } from "@/lib/types/bfi";
@@ -40,8 +47,8 @@ import type { PcafEvidenceRecord } from "@/lib/regulatory/pcaf/evidence-matrix";
 /**
  * Everything the application is allowed to ask the demo layer for.
  *
- * Deliberately small. Each method added here is another thing a live build
- * has to have an answer for, so the pressure is toward keeping the real code
+ * Deliberately small. Each method added here is another thing the
+ * demo-mode-off path has to have an answer for, so the pressure is toward keeping the real code
  * paths honest rather than reaching for fabricated data.
  */
 export type DemoProvider = {
@@ -76,7 +83,7 @@ export type DemoProvider = {
    * arithmetic — so lib/regulatory/climate/infer.ts no longer fabricates it
    * (N0.3). This returns the demo seed (~15% share, canned commitments) that
    * is injected into inferEmissionsFlag / summarisePortfolioClimate so demo
-   * output is unchanged. A live build has no seed, so those functions assert
+   * output is unchanged. With demo mode off there is no seed, so those functions assert
    * no target until an officer records a real one.
    */
   reductionTargetSeed(
@@ -85,10 +92,12 @@ export type DemoProvider = {
 };
 
 /**
- * Whether this build contains the demo layer at all.
+ * Whether the demo switch is available on this deployment at all.
  *
- * Read from the environment at module scope so the value is fixed for the
- * process. A request cannot change it.
+ * Despite the name, this is not a build property: it reads JANA_DEMO from the
+ * environment at runtime (on each call). It is set per deployment, not per
+ * request, so a request cannot change it. The demo code itself is in every
+ * bundle regardless.
  */
 export function isDemoBuild(): boolean {
   return process.env.JANA_DEMO === "1";
@@ -97,16 +106,17 @@ export function isDemoBuild(): boolean {
 let cached: DemoProvider | null | undefined;
 
 /**
- * Returns the demo provider, or null in a live build.
+ * Returns the demo provider, or null when the demo switch is not available on
+ * this deployment (JANA_DEMO unset).
  *
  * Callers must handle null. That is the point: it forces every consumer to
  * have a real-data path rather than treating fabricated data as the default
- * and live as the exception, which is how the current code got here.
+ * and the bank's own data as the exception, which is how the current code got
+ * here.
  *
- * The import is dynamic so that a live build can drop the module entirely.
- * next.config.ts additionally aliases lib/demo/* to a stub when JANA_DEMO is
- * unset, so exclusion does not depend on the bundler proving this branch
- * dead.
+ * The import is dynamic so the demo module is loaded only when used. It is
+ * still present in every bundle -- no next.config.ts alias exists (see the
+ * correction note at the top of this file).
  */
 export async function getDemoProvider(): Promise<DemoProvider | null> {
   if (cached !== undefined) return cached;
@@ -122,9 +132,10 @@ export async function getDemoProvider(): Promise<DemoProvider | null> {
 /**
  * The provider, but only when demo mode is switched ON for this request.
  *
- * getDemoProvider() answers "was the demo layer compiled in?". This answers
- * "should it be used right now?", which is what almost every caller actually
- * means. Use this one unless you specifically need the build-time answer.
+ * getDemoProvider() answers "is the demo switch available on this
+ * deployment?". This answers "is demo mode on for this request?", which is
+ * what almost every caller actually means. Use this one unless you
+ * specifically need the deployment-level answer.
  *
  * Server-only: isDemoMode() reads the cookie jar. The import is dynamic to
  * break the cycle (mode.ts imports isDemoBuild from this file) and to keep
@@ -142,16 +153,16 @@ export async function getActiveDemoProvider(): Promise<DemoProvider | null> {
  * Convenience for the request-time call site that re-scores officer-reviewed
  * borrowers (lib/api/pcaf-overlay.ts).
  *
- * Returns the seeded PCAF evidence records for a borrower in an active demo
- * build, or `undefined` in a live build / demo-off — which is exactly what the
- * overlay wants when nothing should be seeded: a live borrower's Score 1/2
- * rests only on the officer's own verified documents. Resolving through the
- * provider keeps the demo boundary intact (lib/api may not import lib/demo
- * directly) and keeps the overlay's derivation identical to the build-time
- * pcafFor(), so the score an officer saw when they saved matches the one baked
+ * Returns the seeded PCAF evidence records for a borrower when demo mode is
+ * on, or `undefined` when it is off (or the switch is unavailable) — which is
+ * exactly what the overlay wants when nothing should be seeded: a real
+ * borrower's Score 1/2 rests only on the officer's own verified documents.
+ * Resolving through the provider keeps the demo boundary intact (lib/api may
+ * not import lib/demo directly) and keeps the overlay's derivation identical
+ * to the precompute-time pcafFor(), so the score an officer saw when they saved matches the one baked
  * into the portfolio.
  *
- * Gating on mode as well as build matters even though demo-off means an empty
+ * Gating on mode as well as switch availability matters even though demo-off means an empty
  * portfolio today. The seed grants PCAF Score 1 and 2 to a handful of named
  * borrowers; once real borrowers are imported, a name collision with "Ghorahi"
  * or "Butwal Power" must not silently seed a real loan a verified-disclosure
@@ -168,12 +179,13 @@ export async function demoPcafEvidenceRecords(): Promise<
 /**
  * Convenience for the call sites that compute the reduction-target flag.
  *
- * Returns a per-borrower seed function in an active demo build, or `undefined`
- * in a live build / demo-off — which is exactly what inferEmissionsFlag,
- * getBorrowerClimateBundle and summarisePortfolioClimate want when nothing
- * should be asserted (N0.3). Resolve it once, then pass it into the sync
- * regulatory function; the same gate on build AND mode that protects the PCAF
- * name fixtures protects this fixture too, so a live import cannot conjure a
+ * Returns a per-borrower seed function when demo mode is on, or `undefined`
+ * when it is off (or the switch is unavailable) — which is exactly what
+ * inferEmissionsFlag, getBorrowerClimateBundle and summarisePortfolioClimate
+ * want when nothing should be asserted (N0.3). Resolve it once, then pass it
+ * into the sync regulatory function; the same gate on switch availability AND
+ * mode that protects the PCAF name fixtures protects this fixture too, so a
+ * real loan-book import cannot conjure a
  * fabricated reduction target onto a real borrower.
  */
 export async function demoReductionTargetSeed(): Promise<

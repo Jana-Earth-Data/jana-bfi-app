@@ -3,11 +3,12 @@
  *
  * The trap this closes
  * --------------------
- * precompute-guard.mjs deletes the artifact on every live build -- correctly,
- * because a live bundle must not ship 80,035 synthesized loans. But only
- * `next build` regenerates it, and `dev:demo` runs `next dev`, which does not.
+ * precompute-guard.mjs deletes the artifact on every build with JANA_DEMO
+ * unset (no demo switch) -- a deployment where demo mode cannot be switched
+ * on has no use for the 2.7 MB file. But only `next build` regenerates it,
+ * and `dev:demo` runs `next dev`, which does not.
  *
- * So the sequence "run a live build, then start the demo dev server" leaves
+ * So the sequence "build without JANA_DEMO, then start the demo dev server" leaves
  * dev with no artifact. Nothing fails. lib/demo/portfolio.ts falls back to
  * synthesizing the whole book in-process on every single request, and page
  * loads go from under a second to fifty. The only symptom is slowness, which
@@ -41,8 +42,9 @@ if (existsSync(artifact)) {
 }
 
 console.log(
-  "[ensure-precompute] No precomputed portfolio found — a live build removes\n" +
-    "                    it, and `next dev` does not rebuild it. Generating\n" +
+  "[ensure-precompute] No precomputed portfolio found — a build without\n" +
+    "                    JANA_DEMO removes it, and `next dev` does not\n" +
+    "                    rebuild it. Generating\n" +
     "                    now (~15s). Without this every request would\n" +
     "                    re-synthesize 80,035 loans.",
 );

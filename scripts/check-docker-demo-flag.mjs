@@ -3,26 +3,29 @@
  *
  * Why this exists
  * ---------------
- * Docker is the environment this demo actually runs in. The npm scripts are
- * incidental. But Phase 1 wired the demo flag through npm only, so the
- * Dockerfile ran a bare `npm run build` with JANA_DEMO unset -- which after
- * Phase 1 means a LIVE build. Rebuilding the demo image would have produced a
- * container with an empty loan book and no Demo menu, and nothing would have
- * errored. It would simply have looked like the data had vanished.
+ * Docker is one environment the app runs in with the demo switch available.
+ * But Phase 1 wired the demo flag through npm only, so the Dockerfile ran a
+ * bare `npm run build` with JANA_DEMO unset -- which means no precomputed
+ * portfolio and, at runtime, no demo switch. Rebuilding the image would have
+ * produced a container with an empty loan book and no Demo menu, and nothing
+ * would have errored. It would simply have looked like the data had vanished.
  *
  * There are two halves and both are required:
  *
- *   build ARG  -- decides whether the synthesizer is compiled into the bundle
- *                 and whether the precompute artifact is generated.
+ *   build ARG  -- decides whether the precomputed portfolio file is
+ *                 generated. (The demo code is in the bundle either way;
+ *                 nothing is compiled out.)
  *   runtime ENV -- isDemoBuild() reads process.env in the running server to
  *                 gate the Demo menu, the toggle route and the provider's
- *                 dynamic import.
+ *                 dynamic import. This is what makes the demo switch
+ *                 available.
  *
- * Setting only the ARG yields the worst case: an image that contains the demo
- * layer but refuses to serve it, failing silently.
+ * Setting only the ARG yields the worst case: an image built with the
+ * precomputed portfolio that never offers the demo switch, failing silently.
  *
  * Usage:  node scripts/check-docker-demo-flag.mjs
- * Exit 0 = wired, 1 = a stage or compose file would produce a silent live build.
+ * Exit 0 = wired, 1 = a stage or compose file would silently lose the demo
+ * switch.
  */
 
 import { readFileSync, existsSync } from "node:fs";
@@ -58,11 +61,11 @@ if (!existsSync(dockerfilePath)) {
       failures.push(
         `Dockerfile stage "${stage.name}": no \`ENV JANA_DEMO=\`. ` +
           (stage.name === "builder"
-            ? "next build will run unflagged and produce a live bundle -- no " +
-              "synthesizer, no precompute artifact."
+            ? "next build will run unflagged and skip the precomputed " +
+              "portfolio file."
             : "The running server reads process.env.JANA_DEMO; without it the " +
-              "Demo menu and /api/demo/mode disappear from an image that does " +
-              "contain the demo layer."),
+              "Demo menu and /api/demo/mode disappear, even though the demo " +
+              "code is in the image."),
       );
     }
     if (!/^ARG\s+JANA_DEMO/m.test(stage.body)) {
@@ -103,8 +106,8 @@ if (failures.length > 0) {
   console.error("\nJANA_DEMO does not reach the Docker image.\n");
   for (const f of failures) console.error(`  - ${f}\n`);
   console.error(
-    "Docker is where this demo runs. A live build there is not a fallback,\n" +
-      "it is an empty product with no error explaining itself.\n",
+    "Without JANA_DEMO the Docker deployment loses the demo switch silently:\n" +
+      "an empty product with no error explaining itself.\n",
   );
   process.exit(1);
 }

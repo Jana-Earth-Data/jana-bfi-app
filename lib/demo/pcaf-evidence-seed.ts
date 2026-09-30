@@ -27,7 +27,7 @@
  * its Score-2 exemplars. Those records run through the SAME resolveAvailability
  * the live path uses. Demo and live now differ only in where the evidence comes
  * from — seeded here, or entered by an officer against a real report — not in
- * how a score is derived from it. A live build has no seed, so the two publish
+ * how a score is derived from it. With demo mode off there is no seed, so the two publish
  * flags start false and are established only by real document review.
  *
  * Arithmetic-neutral: the borrowers chosen below are the same names the old
@@ -56,7 +56,7 @@ const SEED_VERIFIED_NAMES = ["ghorahi"] as const;
  * `ghg-inventory` document → borrower_publishes_unverified → Option 1b →
  * Score 2. Plausible for the NEPSE-listed subset whose annual reports carry
  * scope 1/2 without ISO 14064 assurance — but plausible is not established,
- * which is why this is a seed and a live build has none.
+ * which is why this is a seed and the bank's own data has none.
  */
 const SEED_UNVERIFIED_NAMES = [
   "arghakhanchi",

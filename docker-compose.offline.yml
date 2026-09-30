@@ -125,8 +125,8 @@ services:
       PORT: 3000
 
       # Runtime half of the build ARG above. isDemoBuild() reads this per
-      # request; without it the Demo menu and toggle route go missing from an
-      # image that does contain the demo layer.
+      # request; without it the Demo menu and toggle route go missing (the
+      # demo code is in the image regardless).
       JANA_DEMO: "1"
 
       # Force mock mode at runtime too — belt-and-suspenders vs the build ARG.

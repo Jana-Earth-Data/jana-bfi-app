@@ -300,15 +300,15 @@ async function fetchLiveAndOverlay(
  * - With token: fetch live Climate TRACE data, overlay onto borrowers.
  */
 /**
- * The base portfolio, from whichever source this build has -- and only if the
- * demo layer is switched on right now.
+ * The base portfolio: the demo book only if demo mode is switched on for this
+ * request, otherwise the bank's own loan book.
  *
- * A demo build gets the synthesized 80K-loan book. A live build has no
- * synthesizer compiled into it at all, so it gets a genuinely empty envelope:
- * no loans, no borrowers, no fabricated exposures. That is the correct state
- * for a bank whose core-banking import has not happened yet, and giving the
- * live path a real answer is what removes the temptation to keep the
- * synthesizer around "just for the empty case".
+ * With demo mode on, the user gets the synthesized 80K-loan book. With it off
+ * (or the demo switch unavailable on this deployment), they get a genuinely
+ * empty envelope: no loans, no borrowers, no fabricated exposures. That is
+ * the correct state for a bank whose core-banking import has not happened
+ * yet, and giving the production path a real answer is what removes the
+ * temptation to reach for the synthesizer "just for the empty case".
  *
  * The isDemoMode() check is the one that makes the header toggle mean
  * something. Without it the switch would repaint the chrome while the
@@ -389,9 +389,9 @@ export async function fetchClimateTraceSummary(token: string) {
 
 /**
  * Drop the synthesizer's in-process cache. Used by the seed routes after they
- * rewrite the loan book. A no-op in a live build, where there is no cache and
- * no synthesizer -- callers do not need to know which kind of build they are
- * in.
+ * rewrite the loan book. A no-op when the demo switch is unavailable on this
+ * deployment (JANA_DEMO unset), where the provider is null -- callers do not
+ * need to know which kind of deployment they are in.
  */
 export async function invalidatePortfolioCache(): Promise<void> {
   const provider = await getDemoProvider();

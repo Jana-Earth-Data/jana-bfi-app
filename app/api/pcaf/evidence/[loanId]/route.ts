@@ -138,8 +138,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const year = disclosureYear();
 
   // Real officer rows first, then the demo seed. recordFor() takes the first
-  // match, so a genuine review always wins over the illustrative seed; in a
-  // live build the seed is empty and only the officer's own rows count.
+  // match, so a genuine review always wins over the illustrative seed; with
+  // demo mode off the seed is empty and only the officer's own rows count.
   const evidenceFor = await demoPcafEvidenceRecords();
   const seeded = evidenceFor ? evidenceFor(borrower) : [];
   const evidence = [...records, ...seeded];

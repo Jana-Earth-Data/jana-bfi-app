@@ -213,14 +213,15 @@ function stableHash(s: string): number {
 // ---------------------------------------------------------------------------
 //
 // Whether an above-threshold borrower has a documented GHG reduction target is
-// DATA, not arithmetic — in a live deployment it is a fact the ESRM officer
+// DATA, not arithmetic — for the bank's own data it is a fact the ESRM officer
 // records (persisted in `bfi_climate_risk_assessments.reduction_target_on_file`;
 // see the API override in app/api/climate/borrower/[id]/route.ts). It must NOT
-// be fabricated inside lib/regulatory, or a live build inherits invented
+// be fabricated inside lib/regulatory, or production data inherits invented
 // reduction targets on a disclosure surface (backlog N0.3, §0 principle).
 //
 // So the reduction-target value is INJECTED. `inferEmissionsFlag` accepts an
-// optional seed keyed by borrower id; when absent — the live default — the flag
+// optional seed keyed by borrower id; when absent — the default whenever demo
+// mode is off — the flag
 // is `false` / `null` and the officer override (empty by default) is the sole
 // source. The demo passes `demoReductionTargetSeed` from lib/demo/climate-seed
 // to reproduce the previous ~15% distribution, so demo output is unchanged.

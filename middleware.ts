@@ -30,7 +30,10 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Demo builds skip rate limiting entirely. A bank demo room is behind
+    // Deployments with the demo switch available (JANA_DEMO=1) skip rate
+    // limiting entirely -- for every user, whether or not demo mode is on,
+    // which is why it is ineffective on the deployed app (PROJECT_PLAN P3.8).
+    // The original rationale: a bank demo room is behind
     // one NAT — every attendee shares a single IP. A single page load can
     // fire 6+ parallel API calls (taxonomy-summary, followups, officer-queue,
     // dashboard-data, …), so even a modest group trips the limit and the

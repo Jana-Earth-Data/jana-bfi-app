@@ -452,8 +452,8 @@ export async function GET(_request: NextRequest) {
   // ------------------------------------------------------------------
   // 6. Build a LoanCard for every candidate loan, then bucket.
   // ------------------------------------------------------------------
-  // Reduction-target seed (N0.3): demo build supplies the ~15% fixture; live
-  // build supplies nothing, so the card's reductionTargetOnFile stays false
+  // Reduction-target seed (N0.3): with demo mode on it supplies the ~15%
+  // fixture; with demo mode off nothing is supplied, so the card's reductionTargetOnFile stays false
   // until an officer records a real target.
   const reductionSeed = await demoReductionTargetSeed();
   const cards: LoanCard[] = [];

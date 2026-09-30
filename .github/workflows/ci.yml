@@ -91,9 +91,10 @@ jobs:
       # `next build` so a guard failure is attributed clearly and doesn't
       # require a full build first.
       #
-      # JANA_DEMO is left UNSET here: precompute-guard treats that as a live
-      # build and asserts no fabricated portfolio is present — the safer of the
-      # two invariants to enforce on every push.
+      # JANA_DEMO is left UNSET here: precompute-guard treats that as a
+      # deployment without the demo switch and asserts no precomputed demo
+      # portfolio file is present — the safer of the two invariants to
+      # enforce on every push.
       - name: Build guards (prebuild)
         run: npm run prebuild
 
@@ -110,7 +111,10 @@ jobs:
 
   # --------------------------------------------------------------------------
   # Build the real production image both ways. This is the "test in Docker"
-  # signal: the exact artifact that ships must build.
+  # signal: the exact artifact that ships must build. The two variants differ
+  # only in JANA_DEMO (demo switch available or not, precomputed portfolio
+  # generated or not); the demo code is in both bundles. PROJECT_PLAN P5.8
+  # collapses them into one build.
   # --------------------------------------------------------------------------
   docker-build:
     name: Docker image build (demo + live)
@@ -122,8 +126,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Demo image: JANA_DEMO=1 bakes in the 80,035-loan synthesizer. This is
-      # the image the sales demo runs.
+      # "Demo image": JANA_DEMO=1 — the demo switch is available at runtime
+      # and the precomputed 80,035-loan portfolio is generated and included.
+      # This matches the deployed app, where users can switch demo mode on.
       - name: Build demo image (JANA_DEMO=1)
         uses: docker/build-push-action@v6
         with:
@@ -135,9 +140,11 @@ jobs:
           cache-to: type=gha,mode=max,scope=demo
           tags: jana-bfi-app:ci-demo
 
-      # Live image: JANA_DEMO=0 must produce a bundle with NO fabricated
-      # portfolio. Building it here proves the live artifact compiles and that
-      # precompute-guard correctly strips the demo layer.
+      # "Live image": JANA_DEMO=0 — a deployment without the demo switch; the
+      # precomputed portfolio is not generated. Building it here proves that
+      # variant builds and that precompute-guard removes any stale
+      # precomputed portfolio file. (The demo code itself is still in the
+      # bundle; nothing is compiled out.)
       - name: Build live image (JANA_DEMO=0)
         uses: docker/build-push-action@v6
         with:

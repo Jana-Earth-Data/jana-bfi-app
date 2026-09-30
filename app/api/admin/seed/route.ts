@@ -48,14 +48,16 @@ export async function POST(request: NextRequest) {
   }
 
   const t0 = Date.now();
-  // Through the provider like every other consumer. In a live build this is
-  // null and there is nothing to seed -- which is correct, because seeding
-  // means writing fabricated rows and a live deployment must not have any.
+  // Through the provider like every other consumer. Where the demo switch is
+  // not available on this deployment (JANA_DEMO unset) this is null and
+  // seeding is refused -- a deployment that never offers demo mode has no use
+  // for fabricated rows. Where it is available, the rows are tagged
+  // origin='demo' above, which is what keeps them out of the bank's own data.
   const demo = await getDemoProvider();
   if (!demo) {
     return apiError(
-      "Seeding is unavailable: this build has no demo layer. Fabricated " +
-      "loan data cannot be written to a live deployment.",
+      "Seeding is unavailable: demo mode is not available on this " +
+      "deployment (JANA_DEMO is not set), so fabricated loan data is not written.",
       400,
     );
   }

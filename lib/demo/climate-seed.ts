@@ -7,7 +7,7 @@
  * with four canned strings. It was moved here by N0.3 so `lib/regulatory`
  * fabricates nothing: whether a borrower has a reduction target on file is a
  * FACT a live bank records (persisted per borrower and applied as an officer
- * override), not something arithmetic can invent. A live build injects no seed,
+ * override), not something arithmetic can invent. With demo mode off no seed is injected,
  * so the flag is `false`/`null` until an officer records a real target; the
  * demo injects `demoReductionTargetSeed` to reproduce the previous ~15%
  * distribution and canned commitments, keeping demo output unchanged.

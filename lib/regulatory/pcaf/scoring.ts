@@ -82,7 +82,7 @@ import {
 // So inferPcafAvailability() below leaves both publish flags FALSE. They are
 // set only by a verified evidence document, via resolveAvailability() in
 // evidence-matrix.ts. The demo seeds that evidence (lib/demo/pcaf-evidence-
-// seed.ts); a live build has none until an officer reviews a real report. This
+// seed.ts); with demo mode off there is none until an officer reviews a real report. This
 // module no longer takes name fixtures at all -- there is nothing fabricated
 // left in the scoring path (backlog N0.4).
 
@@ -180,7 +180,7 @@ export function assetClassForLoanCategory(
  * they default false and are set by verified document evidence instead — see
  * resolveAvailability() in evidence-matrix.ts. The demo seeds that evidence
  * (lib/demo/pcaf-evidence-seed.ts) to populate the top of the 1..5 histogram;
- * a live build seeds nothing and establishes the flags by real review.
+ * with demo mode off nothing is seeded and the flags are established by real review.
  */
 export function inferPcafAvailability(
   borrower: Borrower,
@@ -208,7 +208,7 @@ export function inferPcafAvailability(
   // Not inferable. These two flags start FALSE here and are established only by
   // a verified evidence document in resolveAvailability() (evidence-matrix.ts):
   // seeded in the demo (lib/demo/pcaf-evidence-seed.ts), reviewed by an officer
-  // in a live build. Nothing in this module asserts them.
+  // for the bank's own data. Nothing in this module asserts them.
   const publishesVerified = false;
   const publishesUnverified = false;
 
@@ -262,7 +262,7 @@ export function inferPcafAvailability(
  * The demo default is to infer the observable availability flags from the
  * borrower catalog (Climate TRACE match, publicly-listed flag) and raise the
  * two published-emissions flags from verified evidence documents (seeded in
- * the demo, none in a live build).  When an officer has reviewed the actual annual
+ * demo mode, none otherwise).  When an officer has reviewed the actual annual
  * report / assurance statement and persisted a row via the
  * `PCAF Data Availability` collection panel, those saved flags take
  * precedence per-flag.  Missing flags on the saved side fall through
