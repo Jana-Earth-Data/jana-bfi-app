@@ -10,11 +10,19 @@ Next.js 15 application for the Nepal banking sector, covering five regulatory fr
 Green Finance Taxonomy, PCAF, IFC Performance Standards, CAP/Monitoring) plus NFRS S1/S2 disclosure.
 Deployed on Vercel.
 
-**Demo mode is a built-in product capability, not the product.** A single build ships two modes,
-toggled at runtime: *live* (real officer captures via Supabase, empty loan book) and *demo* (an
-80,000-loan fabricated portfolio). Demo mode exists for sales and for officer training, and the
-separation is enforced — see the `lib/demo` boundary, the `JANA_DEMO` build flag, the DEMO MODE
-banner, and the provenance column that keeps demo captures out of live data.
+**Demo mode is a built-in product capability, not the product.** It is **one application with a
+runtime demo switch**: with demo mode on, the UI shows the fabricated 80,000-loan training
+portfolio; with it off, the bank sees its own data (officer captures in Supabase; the loan book stays
+empty until the loan-book import, P4.1a, exists). Demo mode exists for sales and for officer training.
+The separation is enforced by the `lib/demo` boundary, the build guards, the DEMO MODE banner, and the
+provenance column that keeps demo captures out of live data.
+
+**`JANA_DEMO` is a runtime switch-availability setting, not a build split.** The demo code ships in
+every bundle and `isDemoBuild()` reads `JANA_DEMO` at runtime; it decides only whether the demo switch
+is offered on a deployment (and whether the precomputed demo portfolio is generated). Demo mode itself
+is **per user** (session cookie) and **defaults to off** — production data — since 2026-09-30.
+Comments that described a separate "live build" with demo code compiled out were corrected on
+2026-09-30; collapsing the remaining two-image CI/Docker setup is task P5.8.
 
 So: `lib/regulatory` is production regulatory logic and is held to that standard. `lib/demo` is
 fixture generation. Fabricated data in `lib/regulatory` is a defect — that is what the Tier N0 tasks
@@ -28,8 +36,12 @@ At the start of every session, read these files **in this order** to reconstruct
 1. **`PROJECT_PLAN.md` — the source of truth for status.** Read two things:
    - The **task tables** (§3 onward): each row has a status glyph — `☐` not
      started · `◐` in progress · `☑` done · `⊘` dropped. The next task is the
-     first `☐`/`◐` in phase order (P0 → PR0 → P1 → PR1 → …). PR0 sits **between
-     P0 and P1** and is the current correctness gate — do it before any P1 work.
+     first `☐`/`◐` in phase order (P0 → PR0 → P1 → PR1 → …). P0, PR0 and P1
+     are complete. **PR1 and PR2 were reopened by the 2026-09-30 code audit**
+     (PROJECT_PLAN §1.0) — their `◐` rows are the current correctness work.
+     **Never mark a task ☑ unless its output reaches a disclosure surface and
+     works for a live tenant, not just the demo** — the audit found PR1/PR2 marked
+     done on the strength of computed-but-unshown values and demo-only paths.
    - **§13 Changelog** (newest-first): the top row is the most recent landed
      work. Per the §0 maintenance protocol, a task is not "done" until it appears
      here as ☑ with its commit/PR. A row whose Commit/PR column still says
@@ -51,21 +63,19 @@ At the start of every session, read these files **in this order** to reconstruct
    - `gh pr list` — any open PR (e.g. PR0-a) whose merge + `_this PR_` backfill
      is the actual next step.
 
-**PR0 sub-PR strategy (in flight):** PR0 is split by risk — PR0-a (N0.8/N0.9/
-N0.10, arithmetic-neutral) → PR0-b (N0.6/N0.7/N0.3/N0.2, small reviewed nudges)
-→ PR0-c (N0.1/N0.4/N0.5, heavy structural). The `check-regulatory-boundary.mjs`
-guard grandfathers the not-yet-moved constants; each PR0-b/c task removes its
-baseline entry as it relocates the constant into `lib/regulatory`.
+**PR0 (complete):** split by risk into PR0-a/b/c. The `check-regulatory-boundary.mjs`
+guard's grandfather baseline is now empty, so any new policy constant or hand-rolled
+aggregator outside `lib/regulatory` fails the build.
 
-## Production readiness work — status as of 2026-09-15
+## Production readiness work — status as of 2026-09-30
 
-A full code review and production readiness assessment were completed. Four hardening phases have been done. September work added the phased production plan, the test strategy, and the Vercel performance fixes. Remaining work is documented below.
+A full code review and production readiness assessment were completed, and the phased plan now carries all remaining work. **`PROJECT_PLAN.md` is authoritative;** the lists below are a summary and may lag it.
 
 ### Key documents (read these before resuming)
 
-- `PROJECT_PLAN.md` — phased plan to production, with the PR-cadence maintenance protocol. Dated 2026-09-09. **Start here.**
-- `TEST_STRATEGY.md` — proposed test approach. Dated 2026-09-09. Nothing wired up yet; §8 records the current zero-test baseline.
-- `CODE_REVIEW_REPORT.md` — full codebase audit (41 routes, ~42 components, ~65 lib modules). 0 critical, 3 high, 9 medium, 9 low findings.
+- `PROJECT_PLAN.md` — phased plan to production, with the PR-cadence maintenance protocol. Audited against the code 2026-09-30 (§1.0). **Start here.**
+- `TEST_STRATEGY.md` — test approach. Dated 2026-09-09 and partly stale (ND.13): Vitest now runs in CI with ~40 test files, golden tests, route tests and a 100% coverage gate on `lib/regulatory/**`.
+- `CODE_REVIEW_REPORT.md` — full codebase audit (41 routes, ~42 components, ~65 lib modules). Its summary says 3 high / 9 medium / 9 low; the body lists 4 / 11 / 13 (ND.13).
 - `PRODUCTION_READINESS_ASSESSMENT.md` — scored assessment with remediation roadmap.
 - `DEPLOYMENT_CONFIG_ANALYSIS.md` — Vercel and Next.js configuration inventory and analysis.
 - `docs/ARCHITECTURE.md` — technical architecture with mermaid diagrams. (Note the `docs/` prefix.)
@@ -73,7 +83,7 @@ A full code review and production readiness assessment were completed. Four hard
 
 ### Already completed (Phases 1-4)
 
-- Rate limiting middleware (demo-exempt)
+- Rate limiting middleware — **but it is demo-exempt and per-process, so it does nothing on the deployed build (P3.8)**
 - Health check endpoint + Dockerfile HEALTHCHECK
 - Shared route helpers (eliminated boilerplate across 41 routes)
 - Request body size guard (256 KB)
@@ -86,7 +96,7 @@ A full code review and production readiness assessment were completed. Four hard
 
 ### Remaining Phase 1 (high priority)
 
-1. CI/CD pipeline (GitHub Actions) — ~1 day
+1. ~~CI/CD pipeline~~ — done (P0.1, P0.5)
 2. Supabase backups — ~2 hours (critical for officer data)
 3. Structured logging (replace console.*) — ~1 day
 4. CSP and security headers — ~4 hours
@@ -98,7 +108,7 @@ A full code review and production readiness assessment were completed. Four hard
 
 - Error tracking (Sentry)
 - Database migration system
-- Unit tests for regulatory logic
+- ~~Unit tests for regulatory logic~~ — done (P1)
 - Server-side session state
 - Metrics/APM integration
 - CDN deployment
@@ -108,8 +118,8 @@ A full code review and production readiness assessment were completed. Four hard
 
 ### Open high-severity code review items
 
-- `components/bfi/tabs/esrm-tab.tsx` is ~3,140 lines — needs decomposition. (There is no `src/` directory in this repo; earlier revisions of this file cited `src/components/esrm-tab.tsx`, which does not exist.)
-- No automated tests exist — see `TEST_STRATEGY.md` for the proposed remedy.
+- `components/bfi/tabs/esrm-tab.tsx` is 3,157 lines — needs decomposition (P4.8). (There is no `src/` directory in this repo.)
+- Security items found by the 2026-09-30 audit: rate limiting ineffective on the deployed build (P3.8), PostgREST filter injection in `/api/portfolio/loans` (P3.9), no role check on loan reassignment (P3.10).
 
 ## Git workflow
 
