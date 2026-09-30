@@ -48,6 +48,7 @@ import { demoPcafEvidenceRecords } from "@/lib/demo/pcaf-evidence-seed";
 import { SCORE_FOR_OPTION } from "@/lib/regulatory/pcaf/types";
 import { attributionDenominatorUsd } from "@/lib/regulatory/pcaf/attribution";
 import { summarise } from "@/lib/regulatory/pcaf/aggregation";
+import { generateOperationalFootprint } from "@/lib/demo/operational-footprint";
 import {
   RETAIL_PROXY_CITATION,
   retailProxyEmissionsTonnes,
@@ -588,6 +589,10 @@ function buildPortfolio(): BfiDemoData {
 
   const portfolio = summarise(loans, borrowers, attributions);
 
+  // Generate bank's own operational footprint (Scope 1 emissions - N2.1)
+  // First Bank of Nepal: ~25 branches, ~20 vehicles (mid-size Nepal bank)
+  const operationalFootprint = generateOperationalFootprint(LATEST_FULL_YEAR, 25, 20);
+
   return {
     meta: {
       bankName: "First Bank of Nepal",
@@ -603,6 +608,7 @@ function buildPortfolio(): BfiDemoData {
     loans,
     attributions,
     portfolio,
+    operationalFootprint,
   };
 }
 

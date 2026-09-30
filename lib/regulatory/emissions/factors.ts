@@ -1,0 +1,425 @@
+/**
+ * GHG Emission Factors for Scope 1 and Scope 2
+ *
+ * Per IFRS S2 B29, an entity shall disclose the emission factors it used in measuring
+ * its greenhouse gas emissions, including the source of the emission factors.
+ *
+ * All factors here are CO₂e-basis (CO₂ equivalent values already converted using GWP),
+ * so per IFRS S2 B22 first sentence, no additional GWP recalculation is required.
+ *
+ * Sources:
+ * - IPCC 2006 Guidelines for National GHG Inventories, Vol. 2 (Energy)
+ * - UK DEFRA / BEIS Greenhouse Gas Conversion Factors (2024)
+ * - US EPA Emission Factors for Greenhouse Gas Inventories
+ *
+ * Created for N2.1 (Scope 1 capture).
+ */
+
+// ---------------------------------------------------------------------------
+// Fuel combustion (stationary sources)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fuel combustion emission factors in kg CO₂e per unit.
+ * Source: IPCC 2006 Vol.2 Ch.2 (Stationary Combustion) and DEFRA 2024.
+ */
+export const FUEL_EMISSION_FACTORS = {
+  /**
+   * Natural gas combustion.
+   * Source: IPCC 2006 Vol.2 Table 2.2 (natural gas, default CO₂ factor 56.1 TJ/Gg,
+   * net calorific value 48 TJ/Gg → 0.056 kg CO₂/MJ = 0.201 kg CO₂/kWh).
+   * DEFRA 2024 reports 0.18385 kg CO₂e/kWh (gross calorific value).
+   */
+  "natural-gas-kwh": {
+    kgCo2ePerUnit: 0.184, // kg CO₂e per kWh (gross)
+    unit: "kWh" as const,
+    source: "DEFRA 2024 (natural gas, gross CV)",
+  },
+  "natural-gas-m3": {
+    kgCo2ePerUnit: 1.849, // kg CO₂e per m³ (approx. 10 kWh/m³ × 0.184)
+    unit: "m3" as const,
+    source: "DEFRA 2024 (derived from kWh factor)",
+  },
+
+  /**
+   * Diesel combustion.
+   * Source: DEFRA 2024 average diesel (mineral diesel) 2.527 kg CO₂e/liter.
+   * IPCC 2006 Vol.2 Table 2.3 gives 74.1 TJ/Gg CO₂, net CV 43 TJ/Gg → 2.68 kg CO₂/liter.
+   */
+  "diesel-liters": {
+    kgCo2ePerUnit: 2.527, // kg CO₂e per liter
+    unit: "liters" as const,
+    source: "DEFRA 2024 (average diesel)",
+  },
+
+  /**
+   * Petrol (gasoline) combustion.
+   * Source: DEFRA 2024 average petrol 2.296 kg CO₂e/liter.
+   * IPCC 2006 Vol.2 Table 2.3 gives 69.3 TJ/Gg CO₂, net CV 44.3 TJ/Gg → 2.28 kg CO₂/liter.
+   */
+  "petrol-liters": {
+    kgCo2ePerUnit: 2.296, // kg CO₂e per liter
+    unit: "liters" as const,
+    source: "DEFRA 2024 (average petrol)",
+  },
+
+  /**
+   * Heating oil (fuel oil, kerosene).
+   * Source: DEFRA 2024 burning oil (kerosene) 2.534 kg CO₂e/liter.
+   */
+  "heating-oil-liters": {
+    kgCo2ePerUnit: 2.534, // kg CO₂e per liter
+    unit: "liters" as const,
+    source: "DEFRA 2024 (burning oil/kerosene)",
+  },
+
+  /**
+   * Liquefied Petroleum Gas (LPG) combustion.
+   * Source: DEFRA 2024 LPG 1.516 kg CO₂e/liter, 2.983 kg CO₂e/kg.
+   */
+  "lpg-liters": {
+    kgCo2ePerUnit: 1.516, // kg CO₂e per liter
+    unit: "liters" as const,
+    source: "DEFRA 2024 (LPG, liters)",
+  },
+  "lpg-kg": {
+    kgCo2ePerUnit: 2.983, // kg CO₂e per kg
+    unit: "kg" as const,
+    source: "DEFRA 2024 (LPG, kg)",
+  },
+
+  /**
+   * Coal combustion.
+   * Source: IPCC 2006 Vol.2 Table 2.4 (anthracite coal, default 98.3 TJ/Gg CO₂,
+   * net CV 26.7 TJ/Gg → 94.6 kg CO₂/GJ = 0.341 kg CO₂/kg coal @ 3.6 MJ/kg).
+   * DEFRA 2024 industrial coal 3117.3 kg CO₂e/tonne → 3.117 kg CO₂e/kg.
+   */
+  "coal-kg": {
+    kgCo2ePerUnit: 3.117, // kg CO₂e per kg
+    unit: "kg" as const,
+    source: "DEFRA 2024 (industrial coal)",
+  },
+  "coal-tonnes": {
+    kgCo2ePerUnit: 3117.3, // kg CO₂e per tonne
+    unit: "tonnes" as const,
+    source: "DEFRA 2024 (industrial coal)",
+  },
+
+  /**
+   * Biomass combustion.
+   * Per IPCC 2006 Vol.2 Ch.2 §2.3.1.4, biomass CO₂ emissions are typically reported
+   * separately (not counted as fossil fuel emissions if sustainably sourced). However,
+   * non-CO₂ emissions (CH₄, N₂O) from biomass combustion should be included in Scope 1.
+   * Source: IPCC default factors for wood/wood waste (Vol.2 Table 2.5).
+   * Note: This is a placeholder; actual biomass emissions accounting requires
+   * sustainability assessment per GHG Protocol and IFRS guidance.
+   */
+  "biomass-kg": {
+    kgCo2ePerUnit: 0.112, // kg CO₂e per kg (CH₄ + N₂O only, no biogenic CO₂)
+    unit: "kg" as const,
+    source: "IPCC 2006 Vol.2 Table 2.5 (non-CO₂ emissions from wood)",
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Fleet (mobile combustion)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fleet vehicle emission factors.
+ * Source: DEFRA 2024 (average passenger cars, LDVs, goods vehicles).
+ * Both fuel-based (kg CO₂e/liter) and distance-based (kg CO₂e/km) factors.
+ */
+export const FLEET_EMISSION_FACTORS = {
+  /**
+   * Passenger car (average, petrol).
+   * Fuel-based: 2.296 kg CO₂e/liter (same as stationary petrol).
+   * Distance-based: DEFRA 2024 average petrol car 0.17345 kg CO₂e/km.
+   */
+  "car-petrol-fuel": {
+    kgCo2ePerLiter: 2.296,
+    source: "DEFRA 2024 (average petrol)",
+  },
+  "car-petrol-distance": {
+    kgCo2ePerKm: 0.173, // kg CO₂e per km
+    source: "DEFRA 2024 (average petrol car)",
+  },
+
+  /**
+   * Passenger car (average, diesel).
+   * Fuel-based: 2.527 kg CO₂e/liter (same as stationary diesel).
+   * Distance-based: DEFRA 2024 average diesel car 0.16942 kg CO₂e/km.
+   */
+  "car-diesel-fuel": {
+    kgCo2ePerLiter: 2.527,
+    source: "DEFRA 2024 (average diesel)",
+  },
+  "car-diesel-distance": {
+    kgCo2ePerKm: 0.169, // kg CO₂e per km
+    source: "DEFRA 2024 (average diesel car)",
+  },
+
+  /**
+   * Motorcycle (average, petrol).
+   * Smaller engine, lower fuel consumption per km.
+   * DEFRA 2024 average motorcycle 0.11371 kg CO₂e/km.
+   */
+  "motorcycle-petrol-fuel": {
+    kgCo2ePerLiter: 2.296, // same as petrol
+    source: "DEFRA 2024 (average petrol)",
+  },
+  "motorcycle-petrol-distance": {
+    kgCo2ePerKm: 0.114, // kg CO₂e per km
+    source: "DEFRA 2024 (average motorcycle)",
+  },
+
+  /**
+   * Light goods vehicle / van (diesel).
+   * DEFRA 2024 average van (up to 3.5 tonnes) 0.26749 kg CO₂e/km.
+   */
+  "van-diesel-fuel": {
+    kgCo2ePerLiter: 2.527,
+    source: "DEFRA 2024 (average diesel)",
+  },
+  "van-diesel-distance": {
+    kgCo2ePerKm: 0.267, // kg CO₂e per km
+    source: "DEFRA 2024 (average van, up to 3.5t)",
+  },
+
+  /**
+   * Heavy goods vehicle / truck (diesel).
+   * DEFRA 2024 average HGV (all) 0.78574 kg CO₂e/km.
+   */
+  "truck-diesel-fuel": {
+    kgCo2ePerLiter: 2.527,
+    source: "DEFRA 2024 (average diesel)",
+  },
+  "truck-diesel-distance": {
+    kgCo2ePerKm: 0.786, // kg CO₂e per km
+    source: "DEFRA 2024 (average HGV)",
+  },
+
+  /**
+   * Compressed Natural Gas (CNG) vehicle.
+   * DEFRA 2024 CNG 0.18669 kg CO₂e/kWh, typical CNG vehicle 0.12 kg CO₂e/km.
+   */
+  "car-cng-distance": {
+    kgCo2ePerKm: 0.12, // kg CO₂e per km (estimated)
+    source: "DEFRA 2024 (CNG fuel factor, vehicle estimate)",
+  },
+
+  /**
+   * Electric vehicle (no direct Scope 1 emissions).
+   * Electricity consumption is Scope 2, not Scope 1.
+   * Included for completeness; actual emissions accounted in Scope 2.
+   */
+  "car-electric-distance": {
+    kgCo2ePerKm: 0, // Scope 1 only; Scope 2 handled separately
+    source: "N/A (electricity is Scope 2)",
+  },
+
+  /**
+   * Hybrid vehicle (petrol).
+   * DEFRA 2024 average hybrid car 0.11019 kg CO₂e/km.
+   */
+  "car-hybrid-distance": {
+    kgCo2ePerKm: 0.11, // kg CO₂e per km
+    source: "DEFRA 2024 (average hybrid car)",
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Refrigerants (fugitive emissions)
+// ---------------------------------------------------------------------------
+
+/**
+ * Global Warming Potential (GWP) values for common refrigerants.
+ * Per IFRS S2 B21, use latest IPCC GWP values. Per B22, if refrigerant quantity
+ * is measured directly (not pre-converted to CO₂e), apply GWP₁₀₀.
+ *
+ * Source: IPCC Fifth Assessment Report (AR5) 100-year GWP values.
+ * Note: IPCC Sixth Assessment Report (AR6) provides updated values; entities should
+ * disclose which IPCC report they use (B21, B29).
+ */
+export const REFRIGERANT_GWP_AR5 = {
+  /**
+   * R-410A (HFC blend, common in modern HVAC systems).
+   * Composition: R-32 (50%) + R-125 (50%).
+   * GWP₁₀₀ = 2,088 (AR5).
+   */
+  "R-410A": {
+    gwp100: 2088,
+    composition: "R-32 / R-125 blend (50/50)",
+    source: "IPCC AR5",
+  },
+
+  /**
+   * R-134a (HFC, older HVAC and automotive AC).
+   * GWP₁₀₀ = 1,430 (AR5).
+   */
+  "R-134a": {
+    gwp100: 1430,
+    composition: "HFC-134a (1,1,1,2-tetrafluoroethane)",
+    source: "IPCC AR5",
+  },
+
+  /**
+   * R-32 (HFC, newer HVAC, lower GWP alternative).
+   * GWP₁₀₀ = 675 (AR5).
+   */
+  "R-32": {
+    gwp100: 675,
+    composition: "HFC-32 (difluoromethane)",
+    source: "IPCC AR5",
+  },
+
+  /**
+   * R-22 (HCFC, older HVAC, being phased out under Montreal Protocol).
+   * GWP₁₀₀ = 1,810 (AR5).
+   */
+  "R-22": {
+    gwp100: 1810,
+    composition: "HCFC-22 (chlorodifluoromethane)",
+    source: "IPCC AR5",
+  },
+
+  /**
+   * R-404A (HFC blend, commercial refrigeration).
+   * GWP₁₀₀ = 3,922 (AR5).
+   */
+  "R-404A": {
+    gwp100: 3922,
+    composition: "R-125 / R-143a / R-134a blend",
+    source: "IPCC AR5",
+  },
+
+  /**
+   * R-407C (HFC blend, HVAC).
+   * GWP₁₀₀ = 1,774 (AR5).
+   */
+  "R-407C": {
+    gwp100: 1774,
+    composition: "R-32 / R-125 / R-134a blend (23/25/52)",
+    source: "IPCC AR5",
+  },
+
+  /**
+   * R-744 (CO₂, natural refrigerant).
+   * GWP₁₀₀ = 1 (by definition).
+   */
+  "R-744": {
+    gwp100: 1,
+    composition: "CO₂ (carbon dioxide)",
+    source: "IPCC AR5",
+  },
+
+  /**
+   * R-290 (propane, natural refrigerant).
+   * GWP₁₀₀ = 3 (AR5).
+   */
+  "R-290": {
+    gwp100: 3,
+    composition: "Propane (C₃H₈)",
+    source: "IPCC AR5",
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Scope 2: Electricity grid emission factors (placeholder for N2.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Location-based grid emission factors (kg CO₂e per kWh).
+ * Per IFRS S2 B30, location-based method is mandatory for Scope 2.
+ *
+ * Source: IEA Emissions Factors (2023) or national electricity authority data.
+ * Nepal grid intensity: approximately 0.001 kg CO₂e/kWh (mostly hydropower, very low).
+ * This is a placeholder for N2.2 implementation.
+ */
+export const GRID_EMISSION_FACTORS = {
+  /**
+   * Nepal national grid (location-based).
+   * Nepal's electricity mix is >90% hydropower (very low carbon intensity).
+   * Source: IEA 2023 or Nepal Electricity Authority data.
+   * Placeholder value; actual value should be obtained from official source.
+   */
+  "nepal-grid": {
+    kgCo2ePerKWh: 0.001, // kg CO₂e per kWh (placeholder, mostly hydro)
+    source: "IEA 2023 (Nepal grid average - placeholder)",
+  },
+
+  /**
+   * South Asia regional grid average (for comparison).
+   * Source: IEA 2023.
+   */
+  "south-asia-grid": {
+    kgCo2ePerKWh: 0.708, // kg CO₂e per kWh (regional average, coal-heavy)
+    source: "IEA 2023 (South Asia grid average)",
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Helper functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Calculate CO₂e tonnes from fuel consumption.
+ * @param quantity Fuel quantity consumed
+ * @param fuelType Fuel type key from FUEL_EMISSION_FACTORS
+ * @returns CO₂e tonnes
+ */
+export function calculateFuelEmissions(
+  quantity: number,
+  fuelType: keyof typeof FUEL_EMISSION_FACTORS,
+): number {
+  const factor = FUEL_EMISSION_FACTORS[fuelType];
+  return (quantity * factor.kgCo2ePerUnit) / 1000; // convert kg to tonnes
+}
+
+/**
+ * Calculate CO₂e tonnes from refrigerant leakage.
+ * @param quantityKg Refrigerant quantity in kg
+ * @param refrigerantType Refrigerant type key from REFRIGERANT_GWP_AR5
+ * @returns CO₂e tonnes
+ */
+export function calculateRefrigerantEmissions(
+  quantityKg: number,
+  refrigerantType: keyof typeof REFRIGERANT_GWP_AR5,
+): number {
+  const gwp = REFRIGERANT_GWP_AR5[refrigerantType].gwp100;
+  return (quantityKg * gwp) / 1000; // convert kg CO₂e to tonnes CO₂e
+}
+
+/**
+ * Calculate CO₂e tonnes from fleet distance traveled.
+ * @param distanceKm Distance in kilometers
+ * @param vehicleType Vehicle type key from FLEET_EMISSION_FACTORS (distance-based)
+ * @returns CO₂e tonnes
+ */
+export function calculateFleetEmissionsFromDistance(
+  distanceKm: number,
+  vehicleType: keyof typeof FLEET_EMISSION_FACTORS,
+): number {
+  const factor = FLEET_EMISSION_FACTORS[vehicleType];
+  if (!("kgCo2ePerKm" in factor)) {
+    throw new Error(`Vehicle type ${vehicleType} does not have distance-based factor`);
+  }
+  return (distanceKm * factor.kgCo2ePerKm) / 1000; // convert kg to tonnes
+}
+
+/**
+ * Calculate CO₂e tonnes from fleet fuel consumption.
+ * @param fuelLiters Fuel consumed in liters
+ * @param vehicleType Vehicle type key from FLEET_EMISSION_FACTORS (fuel-based)
+ * @returns CO₂e tonnes
+ */
+export function calculateFleetEmissionsFromFuel(
+  fuelLiters: number,
+  vehicleType: keyof typeof FLEET_EMISSION_FACTORS,
+): number {
+  const factor = FLEET_EMISSION_FACTORS[vehicleType];
+  if (!("kgCo2ePerLiter" in factor)) {
+    throw new Error(`Vehicle type ${vehicleType} does not have fuel-based factor`);
+  }
+  return (fuelLiters * factor.kgCo2ePerLiter) / 1000; // convert kg to tonnes
+}

@@ -10,6 +10,18 @@
 
 export type StatusKind = "live" | "mock";
 
+// Re-export operational footprint types (Scope 1/2 - bank's own emissions)
+export type {
+  BankOperationalFootprint,
+  Scope1Emissions,
+  Scope2Emissions,
+  FuelEmission,
+  FleetEmission,
+  RefrigerantEmission,
+  LocationBasedScope2Emission,
+  MarketBasedScope2Emission,
+} from "./operational-footprint";
+
 // ---------------------------------------------------------------------------
 // Loan categorisation
 // ---------------------------------------------------------------------------
@@ -663,4 +675,13 @@ export type BfiDemoData = {
   loans: Loan[];
   attributions: PcafAttribution[];
   portfolio: PortfolioSummary;
+  /**
+   * The bank's own operational emissions (Scopes 1 and 2).
+   * Per IFRS S2 §29(a)(i), entity shall disclose absolute gross GHG emissions
+   * for Scope 1 (direct emissions) and Scope 2 (purchased energy), separate from
+   * Scope 3 Category 15 financed emissions (which are in `portfolio`).
+   * Optional - undefined when bank has not yet populated its operational footprint.
+   * Added for N2.1 (Scope 1) and N2.2 (Scope 2).
+   */
+  operationalFootprint?: BankOperationalFootprint;
 };

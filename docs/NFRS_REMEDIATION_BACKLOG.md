@@ -134,7 +134,7 @@ Currently absent entirely, and conspicuous in a product called a financed emissi
 
 | S | # | Task | Standard | Demo | Live | Eff |
 |---|---|------|----------|------|------|-----|
-| ☐ | N2.1 | **Scope 1 capture** — fuel, fleet, refrigerants — with evidence attachment. Small data model, mandatory disclosure. | §29(a)(i) | seeded | officer capture | 3 |
+| ☑ | N2.1 | **Scope 1 capture** — fuel, fleet, refrigerants — with evidence attachment. Small data model, mandatory disclosure. | §29(a)(i) | seeded | officer capture | 3 |
 | ☐ | N2.2 | **Scope 2, location-based** — mandatory basis under B30. Market-based optional and only where contractual instruments exist. | §29(a)(v), B30–B31 | seeded | officer capture | 3 |
 | ⊘ | N2.3 | ~~Seven-gas model~~ **Dropped.** B22 first sentence exempts factors already expressed in CO₂e from GWP recalculation, and every factor and feed we have is CO₂e-basis — the ingested Climate TRACE extract is a single `co2e_2024` column with no per-gas breakout. A single CO₂e scalar is the compliant shape. Residual obligation folded into N2.6. | B20–B22 | — | — | ~~4~~ 0 |
 | ☑ | N2.4 | **Resolve the hydro CH₄ / CO₂ contradiction — up to a 30× error.** `entities.ts:250` computes `capacityMw × 15` and calls it "tCO₂/MW/yr"; `pcaf/scoring.ts:183,349` tell the user the same factor is an "IPCC 2019 reservoir **CH₄** EF (Vol.4 Ch.7)". Stored raw into `annualCo2eTonnes` with no GWP conversion. If it is CH₄, the true CO₂e is ~28–30× higher. Establish which is right, apply GWP₁₀₀ if gas-specific (B22 second sentence), align both modules. | B22, correctness | shared | shared | 1 |
