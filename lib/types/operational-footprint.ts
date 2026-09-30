@@ -204,7 +204,7 @@ export type Scope1Emissions = {
 };
 
 // ---------------------------------------------------------------------------
-// Scope 2: Indirect emissions from purchased energy (N2.2 - not yet implemented)
+// Scope 2: Indirect emissions from purchased energy (N2.2)
 // ---------------------------------------------------------------------------
 
 /**
@@ -212,8 +212,6 @@ export type Scope1Emissions = {
  * Per IFRS S2 B30, location-based method is mandatory. Market-based is optional
  * additional disclosure where contractual instruments (e.g., renewable energy
  * certificates) exist.
- *
- * Placeholder for N2.2 implementation.
  */
 export type LocationBasedScope2Emission = {
   id: string;
@@ -232,8 +230,6 @@ export type LocationBasedScope2Emission = {
  * Scope 2 market-based electricity emissions (optional, per B30).
  * Only disclosed when contractual instruments exist (e.g., renewable energy
  * contracts, unbundled RECs).
- *
- * Placeholder for N2.2 implementation.
  */
 export type MarketBasedScope2Emission = {
   id: string;
@@ -251,7 +247,7 @@ export type MarketBasedScope2Emission = {
 };
 
 /**
- * Aggregated Scope 2 emissions (placeholder for N2.2).
+ * Aggregated Scope 2 emissions.
  * Per IFRS S2 §29(a)(v) and B30, disclose location-based Scope 2 emissions
  * (mandatory) and optionally market-based where contractual instruments exist.
  */
@@ -283,6 +279,6 @@ export type BankOperationalFootprint = {
   reportingPeriodEnd: string;
   /** Scope 1: Direct emissions from owned/controlled sources (N2.1) */
   scope1: Scope1Emissions;
-  /** Scope 2: Indirect emissions from purchased energy (N2.2 - not yet implemented) */
+  /** Scope 2: Indirect emissions from purchased energy (N2.2) */
   scope2?: Scope2Emissions;
 };

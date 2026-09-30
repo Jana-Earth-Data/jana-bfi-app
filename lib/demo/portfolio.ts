@@ -589,7 +589,7 @@ function buildPortfolio(): BfiDemoData {
 
   const portfolio = summarise(loans, borrowers, attributions);
 
-  // Generate bank's own operational footprint (Scope 1 emissions - N2.1)
+  // Generate bank's own operational footprint (Scope 1 + Scope 2 emissions - N2.1, N2.2)
   // First Bank of Nepal: ~25 branches, ~20 vehicles (mid-size Nepal bank)
   const operationalFootprint = generateOperationalFootprint(LATEST_FULL_YEAR, 25, 20);
 

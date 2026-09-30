@@ -22,6 +22,9 @@ export type {
   MarketBasedScope2Emission,
 } from "./operational-footprint";
 
+// Import for local use in this file
+import type { BankOperationalFootprint } from "./operational-footprint";
+
 // ---------------------------------------------------------------------------
 // Loan categorisation
 // ---------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 /**
- * Unit tests for bank operational footprint (Scope 1 emissions).
+ * Unit tests for bank operational footprint (Scope 1 and Scope 2 emissions).
  * Tests emission factor calculations, demo seeding, and aggregation.
  *
- * Created for N2.1.
+ * Created for N2.1 (Scope 1) and N2.2 (Scope 2).
  */
 
 import { describe, it, expect } from "vitest";
@@ -11,9 +11,11 @@ import {
   calculateRefrigerantEmissions,
   calculateFleetEmissionsFromDistance,
   calculateFleetEmissionsFromFuel,
+  calculateLocationBasedScope2Emissions,
   FUEL_EMISSION_FACTORS,
   FLEET_EMISSION_FACTORS,
   REFRIGERANT_GWP_AR5,
+  GRID_EMISSION_FACTORS,
 } from "@/lib/regulatory/emissions/factors";
 import { generateOperationalFootprint } from "@/lib/demo/operational-footprint";
 
@@ -124,6 +126,39 @@ describe("Emission factor calculations", () => {
       }).toThrow("does not have fuel-based factor");
     });
   });
+
+  describe("calculateLocationBasedScope2Emissions (N2.2)", () => {
+    it("calculates Nepal grid emissions correctly (very low due to 99.8% hydro)", () => {
+      // 10,000 kWh × 0.01 kg CO₂e/kWh = 100 kg = 0.1 tonnes
+      const tonnes = calculateLocationBasedScope2Emissions(10000, "nepal-grid");
+      expect(tonnes).toBeCloseTo(0.1, 4);
+    });
+
+    it("calculates South Asia grid emissions for comparison (coal-heavy)", () => {
+      // 10,000 kWh × 0.708 kg CO₂e/kWh = 7,080 kg = 7.08 tonnes
+      const tonnes = calculateLocationBasedScope2Emissions(10000, "south-asia-grid");
+      expect(tonnes).toBeCloseTo(7.08, 2);
+    });
+
+    it("calculates India grid emissions correctly", () => {
+      // 10,000 kWh × 0.709 kg CO₂e/kWh = 7,090 kg = 7.09 tonnes
+      const tonnes = calculateLocationBasedScope2Emissions(10000, "india-grid");
+      expect(tonnes).toBeCloseTo(7.09, 2);
+    });
+
+    it("handles zero electricity consumption", () => {
+      const tonnes = calculateLocationBasedScope2Emissions(0, "nepal-grid");
+      expect(tonnes).toBe(0);
+    });
+
+    it("Nepal emissions are ~70x lower than regional average (hydro advantage)", () => {
+      const nepalTonnes = calculateLocationBasedScope2Emissions(10000, "nepal-grid");
+      const southAsiaTonnes = calculateLocationBasedScope2Emissions(10000, "south-asia-grid");
+
+      expect(southAsiaTonnes / nepalTonnes).toBeGreaterThan(60);
+      expect(southAsiaTonnes / nepalTonnes).toBeLessThan(80);
+    });
+  });
 });
 
 describe("Emission factor constants", () => {
@@ -154,10 +189,27 @@ describe("Emission factor constants", () => {
       source: expect.any(String),
     });
   });
+
+  it("GRID_EMISSION_FACTORS (N2.2) has expected structure", () => {
+    expect(GRID_EMISSION_FACTORS["nepal-grid"]).toMatchObject({
+      kgCo2ePerKWh: 0.01,
+      source: expect.stringContaining("IEA"),
+    });
+    expect(GRID_EMISSION_FACTORS["nepal-grid"].source).toContain("99.8% hydro");
+  });
+
+  it("Nepal grid factor is dramatically lower than regional average (99.8% hydro)", () => {
+    const nepal = GRID_EMISSION_FACTORS["nepal-grid"].kgCo2ePerKWh;
+    const southAsia = GRID_EMISSION_FACTORS["south-asia-grid"].kgCo2ePerKWh;
+
+    expect(nepal).toBeLessThan(0.02); // Very low due to hydro
+    expect(southAsia).toBeGreaterThan(0.7); // Coal-heavy
+    expect(southAsia / nepal).toBeGreaterThan(60);
+  });
 });
 
 describe("generateOperationalFootprint", () => {
-  it("generates complete footprint with all categories", () => {
+  it("generates complete footprint with all categories (Scope 1 + Scope 2)", () => {
     const footprint = generateOperationalFootprint(2024, 25, 20);
 
     // Structure
@@ -173,12 +225,20 @@ describe("generateOperationalFootprint", () => {
         fleetCo2eTonnes: expect.any(Number),
         refrigerantsCo2eTonnes: expect.any(Number),
       },
+      scope2: {
+        locationBased: expect.any(Array),
+        totalLocationBasedCo2eTonnes: expect.any(Number),
+      },
     });
 
-    // Has emissions in all categories
+    // Has emissions in all Scope 1 categories
     expect(footprint.scope1.fuel.length).toBeGreaterThan(0);
     expect(footprint.scope1.fleet.length).toBeGreaterThan(0);
     expect(footprint.scope1.refrigerants.length).toBeGreaterThan(0);
+
+    // Has Scope 2 emissions (N2.2)
+    expect(footprint.scope2).toBeDefined();
+    expect(footprint.scope2!.locationBased.length).toBeGreaterThan(0);
   });
 
   it("fuel emissions have required fields and valid values", () => {
@@ -244,18 +304,89 @@ describe("generateOperationalFootprint", () => {
     expect(refrigEmission.co2eTonnes).toBeGreaterThan(0);
   });
 
-  it("aggregates totals correctly", () => {
+  it("scope 2 location-based emissions have required fields and valid values (N2.2)", () => {
+    const footprint = generateOperationalFootprint(2024, 10, 10);
+    expect(footprint.scope2).toBeDefined();
+
+    const scope2Emission = footprint.scope2!.locationBased[0];
+
+    expect(scope2Emission).toMatchObject({
+      id: expect.stringMatching(/^scope2-\d+$/),
+      periodStart: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      periodEnd: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      electricityConsumedKWh: expect.any(Number),
+      gridEmissionFactorKgCo2ePerKWh: expect.any(Number),
+      emissionFactorSource: expect.any(String),
+      co2eTonnes: expect.any(Number),
+      facility: expect.any(String),
+      description: expect.any(String),
+    });
+
+    expect(scope2Emission.electricityConsumedKWh).toBeGreaterThan(0);
+    expect(scope2Emission.gridEmissionFactorKgCo2ePerKWh).toBe(0.01); // Nepal grid
+    expect(scope2Emission.emissionFactorSource).toContain("IEA");
+    expect(scope2Emission.co2eTonnes).toBeGreaterThan(0);
+  });
+
+  it("scope 2 includes quarterly records for head office and all branches (N2.2)", () => {
+    const numBranches = 10;
+    const footprint = generateOperationalFootprint(2024, numBranches, 10);
+
+    expect(footprint.scope2).toBeDefined();
+
+    // 4 quarters × (1 head office + 10 branches) = 44 records
+    const expectedRecords = 4 * (1 + numBranches);
+    expect(footprint.scope2!.locationBased.length).toBe(expectedRecords);
+
+    // Check for head office records
+    const headOfficeRecords = footprint.scope2!.locationBased.filter(
+      (e) => e.facility === "Head Office"
+    );
+    expect(headOfficeRecords.length).toBe(4); // Q1, Q2, Q3, Q4
+
+    // Check for branch records
+    const branchRecords = footprint.scope2!.locationBased.filter((e) =>
+      e.facility?.startsWith("Branch")
+    );
+    expect(branchRecords.length).toBe(numBranches * 4);
+  });
+
+  it("head office electricity consumption is higher than branch average (N2.2)", () => {
+    const footprint = generateOperationalFootprint(2024, 10, 10);
+    expect(footprint.scope2).toBeDefined();
+
+    const headOfficeRecords = footprint.scope2!.locationBased.filter(
+      (e) => e.facility === "Head Office"
+    );
+    const branchRecords = footprint.scope2!.locationBased.filter((e) =>
+      e.facility?.startsWith("Branch")
+    );
+
+    const avgHeadOfficeKWh =
+      headOfficeRecords.reduce((sum, e) => sum + e.electricityConsumedKWh, 0) /
+      headOfficeRecords.length;
+    const avgBranchKWh =
+      branchRecords.reduce((sum, e) => sum + e.electricityConsumedKWh, 0) / branchRecords.length;
+
+    // Head office should use more electricity (servers, HVAC, more staff)
+    expect(avgHeadOfficeKWh).toBeGreaterThan(avgBranchKWh);
+    expect(avgHeadOfficeKWh).toBeGreaterThan(10000); // 10,000-15,000 kWh per quarter
+    expect(avgBranchKWh).toBeGreaterThan(500); // 500-2000 kWh per quarter
+    expect(avgBranchKWh).toBeLessThan(2500);
+  });
+
+  it("aggregates totals correctly (Scope 1 and Scope 2)", () => {
     const footprint = generateOperationalFootprint(2024, 10, 10);
 
-    // Sum of categories should equal total
-    const calculatedTotal =
+    // Scope 1: Sum of categories should equal total
+    const calculatedScope1Total =
       footprint.scope1.fuelCo2eTonnes +
       footprint.scope1.fleetCo2eTonnes +
       footprint.scope1.refrigerantsCo2eTonnes;
 
-    expect(footprint.scope1.totalCo2eTonnes).toBeCloseTo(calculatedTotal, 2);
+    expect(footprint.scope1.totalCo2eTonnes).toBeCloseTo(calculatedScope1Total, 2);
 
-    // Category totals should match sum of individual emissions
+    // Scope 1 category totals should match sum of individual emissions
     const fuelSum = footprint.scope1.fuel.reduce((sum, e) => sum + e.co2eTonnes, 0);
     const fleetSum = footprint.scope1.fleet.reduce((sum, e) => sum + e.co2eTonnes, 0);
     const refrigSum = footprint.scope1.refrigerants.reduce((sum, e) => sum + e.co2eTonnes, 0);
@@ -263,16 +394,28 @@ describe("generateOperationalFootprint", () => {
     expect(footprint.scope1.fuelCo2eTonnes).toBeCloseTo(fuelSum, 2);
     expect(footprint.scope1.fleetCo2eTonnes).toBeCloseTo(fleetSum, 2);
     expect(footprint.scope1.refrigerantsCo2eTonnes).toBeCloseTo(refrigSum, 2);
+
+    // Scope 2 (N2.2): Total should match sum of individual emissions
+    expect(footprint.scope2).toBeDefined();
+    const scope2Sum = footprint.scope2!.locationBased.reduce((sum, e) => sum + e.co2eTonnes, 0);
+    expect(footprint.scope2!.totalLocationBasedCo2eTonnes).toBeCloseTo(scope2Sum, 2);
   });
 
-  it("generates deterministic results for same inputs", () => {
+  it("generates deterministic results for same inputs (Scope 1 and Scope 2)", () => {
     const fp1 = generateOperationalFootprint(2024, 15, 15);
     const fp2 = generateOperationalFootprint(2024, 15, 15);
 
+    // Scope 1 determinism
     expect(fp1.scope1.totalCo2eTonnes).toBe(fp2.scope1.totalCo2eTonnes);
     expect(fp1.scope1.fuel.length).toBe(fp2.scope1.fuel.length);
     expect(fp1.scope1.fleet.length).toBe(fp2.scope1.fleet.length);
     expect(fp1.scope1.refrigerants.length).toBe(fp2.scope1.refrigerants.length);
+
+    // Scope 2 determinism (N2.2)
+    expect(fp1.scope2!.totalLocationBasedCo2eTonnes).toBe(
+      fp2.scope2!.totalLocationBasedCo2eTonnes
+    );
+    expect(fp1.scope2!.locationBased.length).toBe(fp2.scope2!.locationBased.length);
   });
 
   it("scales with number of branches", () => {
@@ -352,5 +495,46 @@ describe("Realistic emission ranges", () => {
 
     expect(footprint.scope1.refrigerantsCo2eTonnes).toBeGreaterThan(1);
     // Refrigerants often dominate Scope 1 due to high GWP
+  });
+
+  it("Scope 2 emissions are VERY low due to Nepal's 99.8% hydro grid (N2.2)", () => {
+    // Mid-size Nepal bank: 25 branches
+    // Total electricity: ~100,000-200,000 kWh/year
+    // Nepal grid: 0.01 kg CO₂e/kWh
+    // Expected Scope 2: ~1-2 tonnes CO₂e (extremely low compared to Scope 1)
+    const footprint = generateOperationalFootprint(2024, 25, 20);
+
+    expect(footprint.scope2).toBeDefined();
+    expect(footprint.scope2!.totalLocationBasedCo2eTonnes).toBeGreaterThan(0.5);
+    expect(footprint.scope2!.totalLocationBasedCo2eTonnes).toBeLessThan(3);
+
+    // Scope 2 should be much smaller than Scope 1 (hydro advantage)
+    expect(footprint.scope1.totalCo2eTonnes).toBeGreaterThan(
+      footprint.scope2!.totalLocationBasedCo2eTonnes * 10
+    );
+  });
+
+  it("Scope 2 would be ~70x higher if bank were on coal-heavy grid (N2.2 comparison)", () => {
+    // This test demonstrates the dramatic difference between Nepal's hydro-heavy grid
+    // and the South Asia regional average (coal-heavy)
+    // Actual bank uses nepal-grid (0.01 kg/kWh), but if it used south-asia-grid (0.708 kg/kWh),
+    // the same electricity consumption would produce ~70x more emissions
+
+    const footprint = generateOperationalFootprint(2024, 25, 20);
+    expect(footprint.scope2).toBeDefined();
+
+    // Calculate total kWh consumed
+    const totalKWh = footprint.scope2!.locationBased.reduce(
+      (sum, e) => sum + e.electricityConsumedKWh,
+      0
+    );
+
+    // Hypothetical emissions if on South Asia grid
+    const hypotheticalSouthAsiaEmissions =
+      (totalKWh * GRID_EMISSION_FACTORS["south-asia-grid"].kgCo2ePerKWh) / 1000;
+
+    // Actual emissions are ~70x lower
+    expect(hypotheticalSouthAsiaEmissions / footprint.scope2!.totalLocationBasedCo2eTonnes).toBeGreaterThan(60);
+    expect(hypotheticalSouthAsiaEmissions / footprint.scope2!.totalLocationBasedCo2eTonnes).toBeLessThan(80);
   });
 });

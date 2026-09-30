@@ -1,12 +1,11 @@
 /**
- * Demo seeding for bank operational footprint (Scope 1 emissions).
+ * Demo seeding for bank operational footprint (Scope 1 and Scope 2 emissions).
  *
- * Generates realistic Scope 1 emissions for a Nepal bank with:
- * - Fuel: Branch heating (diesel/LPG), backup generators
- * - Fleet: Officer vehicles (cars, motorcycles)
- * - Refrigerants: HVAC system maintenance and leaks
+ * Generates realistic emissions for a Nepal bank with:
+ * - **Scope 1** (N2.1): Fuel, fleet, refrigerants
+ * - **Scope 2** (N2.2): Location-based electricity consumption
  *
- * Created for N2.1. Demo mode only - live banks capture via officer forms.
+ * Created for N2.1 and N2.2. Demo mode only - live banks capture via officer forms.
  */
 
 import type {
@@ -15,11 +14,14 @@ import type {
   FleetEmission,
   RefrigerantEmission,
   Scope1Emissions,
+  LocationBasedScope2Emission,
+  Scope2Emissions,
 } from "@/lib/types/operational-footprint";
 import {
   FUEL_EMISSION_FACTORS,
   FLEET_EMISSION_FACTORS,
   REFRIGERANT_GWP_AR5,
+  GRID_EMISSION_FACTORS,
 } from "@/lib/regulatory/emissions/factors";
 
 /**
@@ -339,6 +341,74 @@ function generateRefrigerantEmissions(
 }
 
 /**
+ * Generate deterministic Scope 2 location-based emissions for a reporting period.
+ * Simulates electricity consumption across bank branches and head office.
+ * Nepal grid is 99.8% hydro, so Scope 2 emissions are very low.
+ */
+function generateScope2Emissions(
+  reportingYear: number,
+  numBranches: number,
+): LocationBasedScope2Emission[] {
+  const emissions: LocationBasedScope2Emission[] = [];
+  let idCounter = 1;
+
+  const quarters = [
+    { start: `${reportingYear}-01-01`, end: `${reportingYear}-03-31`, q: "Q1" },
+    { start: `${reportingYear}-04-01`, end: `${reportingYear}-06-30`, q: "Q2" },
+    { start: `${reportingYear}-07-01`, end: `${reportingYear}-09-30`, q: "Q3" },
+    { start: `${reportingYear}-10-01`, end: `${reportingYear}-12-31`, q: "Q4" },
+  ];
+
+  const gridFactor = GRID_EMISSION_FACTORS["nepal-grid"];
+
+  for (const quarter of quarters) {
+    // Head office electricity (higher consumption - servers, HVAC, lighting)
+    {
+      const seed = `headoffice-elec-${reportingYear}-${quarter.q}`;
+      const variance = hashToFloat(seed);
+      // Head office: 10,000-15,000 kWh per quarter
+      const kWh = 10000 + variance * 5000;
+      const co2eTonnes = (kWh * gridFactor.kgCo2ePerKWh) / 1000;
+
+      emissions.push({
+        id: `scope2-${idCounter++}`,
+        periodStart: quarter.start,
+        periodEnd: quarter.end,
+        electricityConsumedKWh: Math.round(kWh * 10) / 10,
+        gridEmissionFactorKgCo2ePerKWh: gridFactor.kgCo2ePerKWh,
+        emissionFactorSource: gridFactor.source,
+        co2eTonnes: Math.round(co2eTonnes * 1000) / 1000,
+        facility: "Head Office",
+        description: `Head office electricity (${quarter.q} ${reportingYear})`,
+      });
+    }
+
+    // Branch electricity (all branches)
+    for (let i = 0; i < numBranches; i++) {
+      const seed = `branch-elec-${reportingYear}-${quarter.q}-${i}`;
+      const variance = hashToFloat(seed);
+      // Branch: 500-2000 kWh per quarter (smaller than head office)
+      const kWh = 500 + variance * 1500;
+      const co2eTonnes = (kWh * gridFactor.kgCo2ePerKWh) / 1000;
+
+      emissions.push({
+        id: `scope2-${idCounter++}`,
+        periodStart: quarter.start,
+        periodEnd: quarter.end,
+        electricityConsumedKWh: Math.round(kWh * 10) / 10,
+        gridEmissionFactorKgCo2ePerKWh: gridFactor.kgCo2ePerKWh,
+        emissionFactorSource: gridFactor.source,
+        co2eTonnes: Math.round(co2eTonnes * 1000) / 1000,
+        facility: `Branch ${i + 1}`,
+        description: `Branch electricity (${quarter.q} ${reportingYear})`,
+      });
+    }
+  }
+
+  return emissions;
+}
+
+/**
  * Aggregate Scope 1 emissions by category.
  */
 function aggregateScope1(
@@ -363,6 +433,20 @@ function aggregateScope1(
 }
 
 /**
+ * Aggregate Scope 2 location-based emissions.
+ */
+function aggregateScope2(locationBased: LocationBasedScope2Emission[]): Scope2Emissions {
+  const totalLocationBasedCo2eTonnes = locationBased.reduce((sum, e) => sum + e.co2eTonnes, 0);
+
+  return {
+    locationBased,
+    totalLocationBasedCo2eTonnes: Math.round(totalLocationBasedCo2eTonnes * 1000) / 1000,
+    // marketBased is optional - only when contractual instruments exist (renewable certificates, PPAs)
+    // Not included in demo by default
+  };
+}
+
+/**
  * Generate demo operational footprint for a Nepal bank.
  *
  * @param reportingYear Fiscal year (e.g., 2024)
@@ -381,10 +465,13 @@ export function generateOperationalFootprint(
 
   const scope1 = aggregateScope1(fuel, fleet, refrigerants);
 
+  const locationBasedScope2 = generateScope2Emissions(reportingYear, numBranches);
+  const scope2 = aggregateScope2(locationBasedScope2);
+
   return {
     reportingPeriodStart: `${reportingYear}-01-01`,
     reportingPeriodEnd: `${reportingYear}-12-31`,
     scope1,
-    // scope2 will be added in N2.2
+    scope2,
   };
 }
