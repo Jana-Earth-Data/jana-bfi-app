@@ -24,6 +24,34 @@
  * 3. **Cite the paragraph.** Every result carries a citation like
  *    "PCAF Part A 3rd Edition §5.2 · Option 2b" so an auditor can trace
  *    the number back to a specific standard section.
+ *
+ * **Hydropower lifecycle emission factor (N2.4 resolution):**
+ * The 15 tCO₂e/MW/yr factor applied to Nepal hydropower capacity is a
+ * LIFECYCLE CO₂e factor (construction + operation + decommissioning), not a
+ * reservoir CH₄ emission factor. This determination is based on:
+ *
+ * 1. **Consistency with literature:** 15 tCO₂e/MW/yr converts to ~3-4 gCO₂e/kWh
+ *    (at typical 50% capacity factor), matching run-of-river hydropower
+ *    lifecycle emissions in peer-reviewed LCA studies (median ~4 gCO₂e/kWh,
+ *    Peruvian Andes run-of-river <3 gCO₂e/kWh).
+ *
+ * 2. **Nepal hydro context:** Nepal's hydropower sector is predominantly
+ *    run-of-river with minimal reservoir storage, so lifecycle emissions are
+ *    dominated by construction/materials rather than reservoir methane.
+ *
+ * 3. **IPCC 2019 Refinement guidance:** Vol.4 Ch.7 provides CH₄ emission
+ *    factors in kg CH₄/ha/yr (area-based), NOT tCO₂e/MW/yr (capacity-based).
+ *    Converting area-based CH₄ to capacity-based CO₂e requires reservoir area,
+ *    CH₄→CO₂e conversion (GWP₁₀₀ ×28-30), plus CO₂ and lifecycle components.
+ *
+ * 4. **Field name:** The factor flows into `annualCo2eTonnes`, and entities.ts
+ *    explicitly documents it as "lifecycle attribution" (entities.ts:250).
+ *
+ * If this were CH₄-basis requiring GWP conversion per IFRS S2 B22, the CO₂e
+ * figure would be 28-30× higher (~450 tCO₂e/MW/yr), which is inconsistent with
+ * all hydropower LCA literature. Therefore: NO GWP conversion is applied; the
+ * 15 tCO₂e/MW/yr is used as-is per the B22 first-sentence exemption (factors
+ * already expressed in CO₂e are not recalculated).
  */
 
 import type { Borrower, Loan, LoanCategory } from "@/lib/types/bfi";
@@ -195,7 +223,7 @@ export function inferPcafAvailability(
   const hasPhysicalActivity =
     // Cement → Global Cement Tracker capacity (Mt/yr).
     (isCement && hasFacilityMatch) ||
-    // Hydro → installed capacity in MW (used with IPCC 2019 reservoir CH4 EFs).
+    // Hydro → installed capacity in MW (used with lifecycle CO₂e factors).
     (isHydro && hasFacilityMatch) ||
     // Any other facility-tier borrower with CT-matched emissions.
     (borrower.dataTier === "facility" && hasFacilityMatch);
@@ -362,7 +390,7 @@ function methodDescription(
       if (assetClass === "project-finance" && isHydro) {
         return {
           method:
-            "Project installed capacity (MW) × sector emission factor (IPCC 2019 reservoir CH4 refinement, Vol.4 Ch.7)",
+            "Project installed capacity (MW) × lifecycle CO₂e factor (~15 tCO₂e/MW/yr, run-of-river typical)",
           dataSource: "Curated Nepal hydropower operator registry (capacity + facility)",
         };
       }
