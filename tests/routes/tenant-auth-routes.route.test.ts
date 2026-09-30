@@ -97,7 +97,7 @@ describe("POST /api/officer/clear", () => {
 describe("POST /api/auth/device-code", () => {
   it("handles auth service errors gracefully", async () => {
     // This route doesn't validate request body - it just forwards to AUTH_URL
-    // Testing error handling when AUTH_URL is unavailable or returns invalid response
+    // Testing error handling when AUTH_URL returns invalid response (MSW has no handler)
     const request = createMockRequest(
       "/api/auth/device-code",
       {
@@ -106,8 +106,8 @@ describe("POST /api/auth/device-code", () => {
     );
 
     const response = await deviceCodePost(request);
-    // With AUTH_URL not configured in test env, expect 500
-    await expectJsonError(response, 500, "AUTH_URL not configured");
+    // MSW intercepts but has no handler, returns HTML which fails JSON parsing
+    await expectJsonError(response, 500, "Auth service error");
   });
 });
 

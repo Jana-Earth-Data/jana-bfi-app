@@ -50,6 +50,19 @@ function emptySummary(): PortfolioSummary {
       totalAttributedCo2eTonnes: 0,
       byTaxonomy: { green: 0, amber: 0, red: 0, unclassified: 0 },
     })),
+    // N1.1: grossExposureMatrix should always be present post-B62(b), even if empty
+    grossExposureMatrix: [],
+    // N1.2: grossExposureCoverage for empty portfolio (0% coverage, no exposures)
+    grossExposureCoverage: {
+      totalGrossExposureUsd: 0,
+      includedGrossExposureUsd: 0,
+      coveragePercent: 0,
+      includedLoanCount: 0,
+      excludedLoanCount: 0,
+      excludedAssetTypes: [],
+      riskMitigantsExcluded: false,
+      totalRiskMitigantValueUsd: 0,
+    },
   };
 }
 

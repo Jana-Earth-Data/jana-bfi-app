@@ -54,7 +54,8 @@ describe("POST /api/officer/set", () => {
       expect(setCookieHeader).toContain(OFFICER_COOKIE_NAME);
       expect(setCookieHeader).toContain(TEST_OFFICER_ID);
       expect(setCookieHeader).toContain("HttpOnly");
-      expect(setCookieHeader).toContain("SameSite=Strict");
+      // Next.js serializes SameSite as lowercase
+      expect(setCookieHeader?.toLowerCase()).toContain("samesite=strict");
     });
   });
 
