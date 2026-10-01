@@ -19,22 +19,33 @@
  * The JANA_DEMO=1 half matters too: a boundary that breaks the demo would
  * just get reverted.
  *
+ * This deliberately calls getDemoProvider() / emptyPortfolio() rather than
+ * getBfiDemoData(). getBfiDemoData() → isDemoMode() which reads cookies via
+ * next/headers and throws outside a request scope -- there is no request
+ * here, this is a plain node process. The deployment-level check (is the
+ * demo switch available at all?) is what this guard tests, not the per-user
+ * mode.
+ *
  * Usage:  npx tsx scripts/check-live-build-empty.ts
  * Exit 0 = empty without the demo switch and the demo works with it, 1 = leak.
  */
-import { getBfiDemoData } from "@/lib/api/bfi";
 import { __resetDemoProviderCache } from "@/lib/demo/provider";
+import { emptyPortfolio } from "@/lib/data/empty-portfolio";
 
 (async () => {
+  const { getDemoProvider } = await import("@/lib/demo/provider");
+
   // --- JANA_DEMO unset: no demo switch ------------------------------------
   delete process.env.JANA_DEMO;
   __resetDemoProviderCache();
-  const live = await getBfiDemoData();
+  const liveProvider = await getDemoProvider();
+  const live = liveProvider ? await liveProvider.getPortfolio() : emptyPortfolio();
 
   // --- JANA_DEMO=1: demo switch available ---------------------------------
   process.env.JANA_DEMO = "1";
   __resetDemoProviderCache();
-  const demo = await getBfiDemoData();
+  const demoProvider = await getDemoProvider();
+  const demo = demoProvider ? await demoProvider.getPortfolio() : emptyPortfolio();
 
   const checks: [string, boolean][] = [
     ["live: zero loans", live.loans.length === 0],

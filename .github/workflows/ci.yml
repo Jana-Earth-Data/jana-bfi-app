@@ -83,15 +83,18 @@ jobs:
       - name: Test (report-only coverage)
         run: npm run test:coverage
 
-      # The 8 prebuild guards (check-dockerignore-build-scripts, check-build-
-      # wiring, check-demo-imports, check-demo-mode-gate, check-docker-demo-
-      # flag, check-capture-client, check-demo-officers, check-regulatory-
-      # boundary) plus precompute-guard. Run them directly rather than via
-      # `next build` so a guard failure is attributed clearly and doesn't
-      # require a full build first.
+      # The prebuild guards (11 total: 8× .mjs — check-dockerignore-build-
+      # scripts, check-build-wiring, check-demo-imports, check-demo-mode-gate,
+      # check-capture-client, check-demo-officers, check-regulatory-boundary,
+      # precompute-guard; 3× .ts architectural guards — check-demo-boundary,
+      # check-live-build-empty, check-pcaf-overlay). Run them directly rather
+      # than via `next build` so a guard failure is attributed clearly and
+      # doesn't require a full build first.
       #
       # P5.8: precompute-guard ALWAYS generates the portfolio (no conditional
       # logic). JANA_DEMO is runtime-only and not used during build.
+      # P0.7: wired the three orphaned .ts guards (demo boundary, live-empty,
+      # PCAF overlay) into prebuild.
       - name: Build guards (prebuild)
         run: npm run prebuild
 
