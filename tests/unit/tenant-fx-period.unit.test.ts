@@ -267,7 +267,7 @@ describe("Partial tenant configurations", () => {
       source: "Custom bank rate",
     };
 
-    const tenant = { reportingFxRate: customRate };
+    const tenant = { reportingFxRate: customRate } as any;
 
     expect(reportingFxRateForTenant(tenant)).toEqual(customRate);
     expect(trendYearsForTenant(tenant)).toEqual(TREND_YEARS);
@@ -282,7 +282,7 @@ describe("Partial tenant configurations", () => {
       asOfDate: "2024-12-31",
     };
 
-    const tenant = { reportingPeriod: customPeriod };
+    const tenant = { reportingPeriod: customPeriod } as any;
 
     expect(reportingFxRateForTenant(tenant)).toEqual(REPORTING_FX_RATE);
     expect(trendYearsForTenant(tenant)).toEqual([2022, 2023, 2024]);
