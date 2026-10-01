@@ -34,6 +34,7 @@ import {
   NgfsTransitionRiskCategory,
   NRB_ESRM_GHG_REPORTING_THRESHOLD_TCO2E,
 } from "./types";
+import { AS_OF_DATE } from "@/lib/regulatory/reporting/period";
 
 // ---------------------------------------------------------------------------
 // Sector → NGFS category mapping (NRB ESRM 2022 §4.1, §4.2)
@@ -197,18 +198,6 @@ export function rollupRating(
 }
 
 // ---------------------------------------------------------------------------
-// Deterministic hash for the assessed-at timestamp
-// ---------------------------------------------------------------------------
-
-function stableHash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  }
-  return h >>> 0; // uint32
-}
-
-// ---------------------------------------------------------------------------
 // Reduction-target seam (N0.3)
 // ---------------------------------------------------------------------------
 //
@@ -311,11 +300,10 @@ export function inferClimateRisk(b: Borrower): BorrowerClimateRisk {
     profile.transition.length,
     emissions.exceedsReportingThreshold,
   );
-  // Deterministic assessed-at timestamp — same borrower, same date. Uses
-  // a fixed epoch so re-renders don't produce drifting timestamps.
-  const assessedAt = new Date(
-    Date.UTC(2025, 10, 1) + (stableHash(b.id) % (60 * 60 * 24 * 30)) * 1000,
-  );
+  // N0.12: System auto-inference timestamp is AS_OF_DATE (the reporting period
+  // boundary), not a per-borrower fabricated timestamp. For officer assessments,
+  // the API route (climate/borrower/[borrowerId]) uses the override's assessed_at.
+  const assessedAt = new Date(AS_OF_DATE);
   return {
     physicalRisks: [...profile.physical],
     transitionRisks: [...profile.transition],
