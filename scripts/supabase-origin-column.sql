@@ -82,7 +82,12 @@ DECLARE
     -- Written by the seeder, therefore demo. A real deployment gets its own
     -- officer roster and tenant settings.
     'bfi_officers',
-    'bfi_tenant_settings'
+    'bfi_tenant_settings',
+    -- Bank's own operational footprint (Scope 1 and 2 emissions, N2.8)
+    'bfi_operational_fuel',
+    'bfi_operational_fleet',
+    'bfi_operational_refrigerants',
+    'bfi_operational_electricity'
   ];
 BEGIN
   FOREACH t IN ARRAY capture_tables LOOP

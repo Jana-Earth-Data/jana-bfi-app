@@ -1,18 +1,25 @@
 -- ============================================================================
--- Operational Footprint Capture Tables (N2.8)
+-- BFI Demo — Operational Footprint (Scope 1 and Scope 2 emissions, N2.8)
 -- ============================================================================
--- Bank's own Scope 1 and Scope 2 operational emissions.
--- Four tables for the four emission types:
---   - Fuel combustion (stationary)
---   - Fleet vehicles (mobile)
---   - Refrigerants (fugitive)
---   - Electricity (Scope 2 location-based)
+-- Bank's own GHG emissions from operations, separate from Scope 3 Category 15
+-- financed emissions. Per IFRS S2 §29(a)(i) and (v), entity shall disclose:
+--   - Scope 1: Direct emissions from owned/controlled sources (fuel, fleet,
+--              refrigerants)
+--   - Scope 2: Indirect emissions from purchased electricity (location-based
+--              method is mandatory per B30)
 --
--- All tables share the same structure pattern: scoped by bank_id, attributed
--- to an officer, with a reporting period and emission calculation details.
+-- Four capture tables:
+--   bfi_operational_fuel          — stationary combustion (Scope 1)
+--   bfi_operational_fleet         — mobile combustion / vehicles (Scope 1)
+--   bfi_operational_refrigerants  — fugitive emissions / HVAC leaks (Scope 1)
+--   bfi_operational_electricity   — purchased electricity (Scope 2)
 --
--- Market-based Scope 2 is optional per IFRS S2 B31 and only populated where
--- contractual instruments (RECs, PPAs) exist. Not included in initial schema.
+-- Idempotent: safe to re-run. Scoped by bank_id so multiple tenants can
+-- demo without cross-contamination.
+--
+-- Run in the Supabase SQL Editor after:
+--   - scripts/supabase-capture-schema.sql (creates bfi_banks, bfi_officers)
+--   - scripts/supabase-origin-column.sql (adds origin column to all 4 tables)
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -47,15 +54,11 @@ CREATE TABLE public.bfi_operational_fuel (
 
     -- Audit trail
     captured_at                     timestamptz NOT NULL DEFAULT now(),
-    updated_at                      timestamptz NOT NULL DEFAULT now(),
-
-    -- Provenance (Phase 3 demo/live separation)
-    origin                          text        NOT NULL DEFAULT 'live' CHECK (origin IN ('demo', 'live'))
+    updated_at                      timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX bfi_operational_fuel_bank_idx ON public.bfi_operational_fuel (bank_id);
 CREATE INDEX bfi_operational_fuel_period_idx ON public.bfi_operational_fuel (bank_id, period_start, period_end);
-CREATE INDEX bfi_operational_fuel_origin_idx ON public.bfi_operational_fuel (origin);
 
 
 -- ---------------------------------------------------------------------------
@@ -96,9 +99,6 @@ CREATE TABLE public.bfi_operational_fleet (
     captured_at                     timestamptz NOT NULL DEFAULT now(),
     updated_at                      timestamptz NOT NULL DEFAULT now(),
 
-    -- Provenance (Phase 3 demo/live separation)
-    origin                          text        NOT NULL DEFAULT 'live' CHECK (origin IN ('demo', 'live')),
-
     -- Constraint: must have either distance OR fuel consumption (not both, not neither)
     CONSTRAINT fleet_has_activity_data CHECK (
         (distance_km IS NOT NULL AND fuel_consumed_liters IS NULL) OR
@@ -112,7 +112,6 @@ CREATE TABLE public.bfi_operational_fleet (
 
 CREATE INDEX bfi_operational_fleet_bank_idx ON public.bfi_operational_fleet (bank_id);
 CREATE INDEX bfi_operational_fleet_period_idx ON public.bfi_operational_fleet (bank_id, period_start, period_end);
-CREATE INDEX bfi_operational_fleet_origin_idx ON public.bfi_operational_fleet (origin);
 
 
 -- ---------------------------------------------------------------------------
@@ -148,15 +147,11 @@ CREATE TABLE public.bfi_operational_refrigerants (
 
     -- Audit trail
     captured_at                     timestamptz NOT NULL DEFAULT now(),
-    updated_at                      timestamptz NOT NULL DEFAULT now(),
-
-    -- Provenance (Phase 3 demo/live separation)
-    origin                          text        NOT NULL DEFAULT 'live' CHECK (origin IN ('demo', 'live'))
+    updated_at                      timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX bfi_operational_refrigerants_bank_idx ON public.bfi_operational_refrigerants (bank_id);
 CREATE INDEX bfi_operational_refrigerants_period_idx ON public.bfi_operational_refrigerants (bank_id, period_start, period_end);
-CREATE INDEX bfi_operational_refrigerants_origin_idx ON public.bfi_operational_refrigerants (origin);
 
 
 -- ---------------------------------------------------------------------------
@@ -191,12 +186,40 @@ CREATE TABLE public.bfi_operational_electricity (
 
     -- Audit trail
     captured_at                         timestamptz NOT NULL DEFAULT now(),
-    updated_at                          timestamptz NOT NULL DEFAULT now(),
-
-    -- Provenance (Phase 3 demo/live separation)
-    origin                              text        NOT NULL DEFAULT 'live' CHECK (origin IN ('demo', 'live'))
+    updated_at                          timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX bfi_operational_electricity_bank_idx ON public.bfi_operational_electricity (bank_id);
 CREATE INDEX bfi_operational_electricity_period_idx ON public.bfi_operational_electricity (bank_id, period_start, period_end);
-CREATE INDEX bfi_operational_electricity_origin_idx ON public.bfi_operational_electricity (origin);
+
+
+-- ============================================================================
+-- Row Level Security
+-- ============================================================================
+-- Access via service-role only, matching the rest of the demo's capture
+-- tables (bfi_esdd_responses, bfi_esrm_screenings, bfi_taxonomy_assessments).
+ALTER TABLE public.bfi_operational_fuel ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bfi_operational_fleet ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bfi_operational_refrigerants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bfi_operational_electricity ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON public.bfi_operational_fuel FROM anon, authenticated;
+REVOKE ALL ON public.bfi_operational_fleet FROM anon, authenticated;
+REVOKE ALL ON public.bfi_operational_refrigerants FROM anon, authenticated;
+REVOKE ALL ON public.bfi_operational_electricity FROM anon, authenticated;
+
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON public.bfi_operational_fuel TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON public.bfi_operational_fleet TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON public.bfi_operational_refrigerants TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON public.bfi_operational_electricity TO service_role;
+
+-- ============================================================================
+-- Done. Next steps:
+--   1. Run scripts/supabase-origin-column.sql to add the origin column to all
+--      4 tables (enables demo/live separation).
+--   2. Officer captures via POST /api/operational/{fuel,fleet,refrigerants,
+--      electricity} are written here with (bank_id, officer_id, period_*,
+--      ..., origin). The lib/regulatory/emissions/operational.ts module will
+--      aggregate these into the bank's total Scope 1 and Scope 2 footprint
+--      for IFRS S2 §29(a)(i) and (v) disclosure.
+-- ============================================================================

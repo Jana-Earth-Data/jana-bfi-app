@@ -68,6 +68,10 @@ export const CAPTURE_TABLES = [
   "bfi_loans_denorm",
   "bfi_officers",
   "bfi_tenant_settings",
+  "bfi_operational_fuel",
+  "bfi_operational_fleet",
+  "bfi_operational_refrigerants",
+  "bfi_operational_electricity",
 ] as const;
 
 const CAPTURE_SET: ReadonlySet<string> = new Set(CAPTURE_TABLES);
