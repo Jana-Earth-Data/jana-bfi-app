@@ -54,6 +54,15 @@ export function NfrsTab({ data }: { data: DashboardSsrData }) {
     };
   }, [trend]);
 
+  // N0.11: Show "illustrative" label when Score 5 retail proxy drives the total.
+  // RETAIL_TCO2E_PER_NPR (lib/regulatory/pcaf/retail.ts) is an illustrative demo
+  // assumption, not a sourced emissions factor. When Score 5 (retail-pool loans
+  // using that proxy) contributes >10% of the headline, surface that this is
+  // illustrative per IFRS S2 §29(a)(iii) significant judgments disclosure.
+  const score5Tonnes = s.dataQualityDistribution?.find((d) => d.score === 5)?.attributedCo2eTonnes ?? 0;
+  const score5ShareOfTotal = s.totalAttributedCo2eTonnes > 0 ? score5Tonnes / s.totalAttributedCo2eTonnes : 0;
+  const headlineLabel = score5ShareOfTotal > 0.1 ? "Total financed emissions (illustrative)" : "Total financed emissions";
+
   const facilityBorrowers = data.facilityBorrowers.length;
 
   return (
@@ -61,7 +70,7 @@ export function NfrsTab({ data }: { data: DashboardSsrData }) {
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" data-tour="nfrs-headline">
         <KpiCard
-          label="Total financed emissions"
+          label={headlineLabel}
           value={formatCo2e(s.totalAttributedCo2eTonnes)}
           sublabel={
             yoy != null ? (
