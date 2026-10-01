@@ -168,10 +168,10 @@ function toMonitoring(row: MonitoringRow): MonitoringReport {
 // ---------------------------------------------------------------------------
 
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { loanId } = await params;
   const [, offErr] = await requireOfficer("accessing CAP data");
   if (offErr) return offErr;
 
+  const { loanId } = await params;
   if (!loanId) {
     return apiError("loanId is required", 400);
   }
@@ -314,10 +314,10 @@ const VALID_COMPLIANCE = new Set<ComplianceStatus>([
 const VALID_FREQUENCY = new Set<number>([1, 3, 6, 12]);
 
 export async function POST(request: NextRequest, { params }: Params) {
-  const { loanId } = await params;
   const [officer, offErr] = await requireOfficer("saving CAP data");
   if (offErr) return offErr;
 
+  const { loanId } = await params;
   if (!loanId) {
     return apiError("loanId is required", 400);
   }

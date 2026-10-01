@@ -35,10 +35,10 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ loanId: string }> };
 
 export async function POST(_req: Request, { params }: Params) {
-  const { loanId } = await params;
   const [officer, offErr] = await requireOfficer("claiming a loan");
   if (offErr) return offErr;
 
+  const { loanId } = await params;
   if (!loanId) {
     return NextResponse.json(
       { error: "loanId is required" },

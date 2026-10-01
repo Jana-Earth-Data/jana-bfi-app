@@ -103,9 +103,10 @@ async function loadContext(loanId: string) {
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {
-  const { loanId } = await params;
   const [, offErr] = await requireOfficer("accessing PCAF evidence");
   if (offErr) return offErr;
+
+  const { loanId } = await params;
 
   const supabase = await getCaptureClient();
   if (!supabase) {
