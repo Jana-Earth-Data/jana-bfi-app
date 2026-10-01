@@ -90,7 +90,7 @@ describe("POST /api/officer/set", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "not valid json{",
-      }) as any; // Cast to bypass TypeScript - tests runtime behavior
+      }) as unknown as Request; // Cast to bypass TypeScript - tests runtime behavior
 
       // Manually set cookies since we're using raw Request
       const nextRequest = new (await import("next/server")).NextRequest(request);

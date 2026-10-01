@@ -57,7 +57,7 @@ describe("POST /api/tenant/set-code", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "not json",
-    }) as any;
+    }) as unknown as Request;
 
     const nextRequest = new (await import("next/server")).NextRequest(request);
     const response = await setCodePost(nextRequest);
@@ -118,7 +118,7 @@ describe("POST /api/auth/device-token", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "not json",
-    }) as any;
+    }) as unknown as Request;
 
     const nextRequest = new (await import("next/server")).NextRequest(request);
     const response = await deviceTokenPost(nextRequest);

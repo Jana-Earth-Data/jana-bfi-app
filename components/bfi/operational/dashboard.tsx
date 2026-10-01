@@ -15,6 +15,7 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Officer } from "@/lib/tenants";
 import { FuelForm } from "./fuel-form";
 import { FleetForm } from "./fleet-form";
@@ -60,12 +61,12 @@ export function OperationalDashboard({
               <div className="text-slate-300">{officer.name}</div>
               <div className="text-slate-500">{ROLE_LABEL[officer.role]}</div>
             </div>
-            <a
+            <Link
               href="/"
               className="rounded-md border border-line bg-panel px-3 py-1 text-xs text-slate-300 hover:bg-line/30"
             >
               Return to dashboard
-            </a>
+            </Link>
           </div>
         </div>
       </div>
