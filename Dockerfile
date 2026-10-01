@@ -6,28 +6,14 @@ ARG NEXT_PUBLIC_API_URL=https://api-test.jana.earth
 ARG NEXT_PUBLIC_AUTH_URL=https://auth-dev.jana.earth
 ARG NEXT_PUBLIC_DEMO_USE_MOCKS=true
 
-# Is the demo switch available in this image?
-#
-# The demo code (the 80,035-loan synthesizer, PCAF name fixtures, synthetic
-# air-quality generator, Demo menu) is in the bundle either way -- nothing is
-# compiled out. JANA_DEMO decides two things: whether the precomputed demo
-# portfolio file is generated at build time, and (via ENV below and in the
-# runner stage) whether the running server offers the per-user demo switch.
-# "1": demo switch available, precomputed portfolio included. Anything else:
-# no demo switch, no precomputed portfolio, users see only the bank's own data.
-#
-# Defaults to 1. A deployment without the demo switch is produced by passing
-# JANA_DEMO=0. What keeps fabricated data out of a bank's real data is the
-# lib/demo/provider.ts boundary and the `origin` provenance column, not code
-# absence. See lib/demo/provider.ts. PROJECT_PLAN P5.8 collapses the two image
-# variants into one build.
-ARG JANA_DEMO=1
-
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_AUTH_URL=$NEXT_PUBLIC_AUTH_URL
 ENV NEXT_PUBLIC_DEMO_USE_MOCKS=$NEXT_PUBLIC_DEMO_USE_MOCKS
-ENV JANA_DEMO=$JANA_DEMO
 ENV NEXT_OUTPUT=standalone
+
+# P5.8: One build that always includes the demo capability.
+# The precomputed portfolio is generated unconditionally by prebuild guards.
+# JANA_DEMO is now runtime-only (see runner stage below).
 
 COPY package.json package-lock.json* ./
 RUN npm install
@@ -39,17 +25,18 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Carry the JANA_DEMO decision into the runtime stage.
+# P5.8: JANA_DEMO is runtime-only. The build always generates the precomputed
+# portfolio (via prebuild guards), so there is no build-time flag anymore.
 #
-# This is where JANA_DEMO actually takes effect: isDemoBuild() reads
-# process.env.JANA_DEMO in the running server -- it gates the Demo menu, the
-# /api/demo/mode toggle route and the provider's dynamic import. Without this
-# line the demo switch would be unavailable even though the image was built
-# with the precomputed portfolio, and the failure would be silent: no Demo
-# menu and an empty loan book, with no error anywhere saying why.
-# Re-declared here because ARGs do not cross FROM boundaries.
-ARG JANA_DEMO=1
-ENV JANA_DEMO=$JANA_DEMO
+# This ENV controls whether the demo switch is offered to users:
+# - isDemoBuild() reads process.env.JANA_DEMO in the running server
+# - Gates the Demo menu and the /api/demo/mode toggle route
+# - Enables the provider's dynamic import of demo data
+#
+# Without this ENV the demo switch would be unavailable even though the image
+# was built with the precomputed portfolio, and the failure would be silent:
+# no Demo menu and an empty loan book, with no error anywhere saying why.
+ENV JANA_DEMO=1
 
 ENV NODE_ENV=production
 ENV PORT=3000

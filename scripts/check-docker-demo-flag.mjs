@@ -1,31 +1,22 @@
 /**
- * Verify JANA_DEMO reaches the Docker image — at build time AND at runtime.
+ * Verify JANA_DEMO reaches the Docker runtime (P5.8 update).
  *
  * Why this exists
  * ---------------
- * Docker is one environment the app runs in with the demo switch available.
- * But Phase 1 wired the demo flag through npm only, so the Dockerfile ran a
- * bare `npm run build` with JANA_DEMO unset -- which means no precomputed
- * portfolio and, at runtime, no demo switch. Rebuilding the image would have
- * produced a container with an empty loan book and no Demo menu, and nothing
- * would have errored. It would simply have looked like the data had vanished.
+ * As of P5.8, JANA_DEMO is a runtime-only setting that controls whether the
+ * demo switch is offered to users. The build ALWAYS generates the precomputed
+ * portfolio, so there is no build-time flag anymore.
  *
- * There are two halves and both are required:
+ * This guard verifies that JANA_DEMO is set as an ENV in the Dockerfile
+ * runner stage (not as a build ARG) and in docker-compose files' runtime
+ * environment.
  *
- *   build ARG  -- decides whether the precomputed portfolio file is
- *                 generated. (The demo code is in the bundle either way;
- *                 nothing is compiled out.)
- *   runtime ENV -- isDemoBuild() reads process.env in the running server to
- *                 gate the Demo menu, the toggle route and the provider's
- *                 dynamic import. This is what makes the demo switch
- *                 available.
- *
- * Setting only the ARG yields the worst case: an image built with the
- * precomputed portfolio that never offers the demo switch, failing silently.
+ * The demo code and precomputed portfolio are in every image; JANA_DEMO gates
+ * the Demo menu, the /api/demo/mode toggle route, and isDemoBuild() reads
+ * process.env.JANA_DEMO to decide whether to offer the demo switch.
  *
  * Usage:  node scripts/check-docker-demo-flag.mjs
- * Exit 0 = wired, 1 = a stage or compose file would silently lose the demo
- * switch.
+ * Exit 0 = wired correctly, 1 = runtime would silently lose the demo switch.
  */
 
 import { readFileSync, existsSync } from "node:fs";
@@ -35,7 +26,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
 
-// --- Dockerfile: both stages need the flag ---------------------------------
+// --- Dockerfile: runner stage needs runtime ENV (not build ARG) -----------
 const dockerfilePath = join(repoRoot, "Dockerfile");
 if (!existsSync(dockerfilePath)) {
   // No Dockerfile means we are not in a Docker build (e.g. Vercel).
@@ -55,64 +46,67 @@ if (!existsSync(dockerfilePath)) {
       return { name, body: chunk };
     });
 
-  for (const stage of stages) {
-    const hasEnv = /^ENV\s+JANA_DEMO=/m.test(stage.body);
+  const runnerStage = stages.find((s) => s.name === "runner");
+  if (!runnerStage) {
+    failures.push(
+      "Dockerfile: no 'runner' stage found. The runtime ENV cannot be verified.",
+    );
+  } else {
+    const hasEnv = /^ENV\s+JANA_DEMO=/m.test(runnerStage.body);
     if (!hasEnv) {
       failures.push(
-        `Dockerfile stage "${stage.name}": no \`ENV JANA_DEMO=\`. ` +
-          (stage.name === "builder"
-            ? "next build will run unflagged and skip the precomputed " +
-              "portfolio file."
-            : "The running server reads process.env.JANA_DEMO; without it the " +
-              "Demo menu and /api/demo/mode disappear, even though the demo " +
-              "code is in the image."),
-      );
-    }
-    if (!/^ARG\s+JANA_DEMO/m.test(stage.body)) {
-      failures.push(
-        `Dockerfile stage "${stage.name}": no \`ARG JANA_DEMO\`. ARGs do not ` +
-          `cross FROM boundaries, so each stage must re-declare it.`,
+        `Dockerfile stage "runner": no \`ENV JANA_DEMO=\`. ` +
+          "The running server reads process.env.JANA_DEMO; without it the " +
+          "Demo menu and /api/demo/mode disappear.",
       );
     }
   }
+
+  // P5.8: build ARGs should be removed (no longer needed)
+  const builderStage = stages.find((s) => s.name === "builder");
+  if (builderStage && /^ARG\s+JANA_DEMO/m.test(builderStage.body)) {
+    failures.push(
+      `Dockerfile stage "builder": \`ARG JANA_DEMO\` found but no longer needed. ` +
+        "P5.8: the build always generates the portfolio; remove the build ARG.",
+    );
+  }
 }
 
-// --- compose files: build arg AND runtime environment ----------------------
+// --- compose files: runtime environment only (no build args) ---------------
 for (const file of ["docker-compose.yml", "docker-compose.offline.yml"]) {
   const p = join(repoRoot, file);
   if (!existsSync(p)) continue;
   const body = readFileSync(p, "utf8");
 
-  // Under `args:` (build-time) -- YAML mapping form `JANA_DEMO: ...`
-  const inArgs = /^\s+JANA_DEMO:\s*\S/m.test(body);
   // Under `environment:` -- either mapping or `- JANA_DEMO=...` list form
   const inEnv = /^\s+-?\s*JANA_DEMO[=:]\s*\S/m.test(body);
-
-  if (!inArgs) {
-    failures.push(
-      `${file}: no JANA_DEMO under build \`args:\`. The image would be built ` +
-        `unflagged regardless of the Dockerfile default being overridden.`,
-    );
-  }
   if (!inEnv) {
     failures.push(
       `${file}: no JANA_DEMO under \`environment:\`. The container would run ` +
         `without the runtime flag.`,
     );
   }
+
+  // P5.8: build args should be removed (no longer needed)
+  const inArgs = /^\s+args:\s*\n.*JANA_DEMO:/ms.test(body);
+  if (inArgs) {
+    failures.push(
+      `${file}: JANA_DEMO found under build \`args:\` but no longer needed. ` +
+        "P5.8: the build always generates the portfolio; remove the build arg.",
+    );
+  }
 }
 
 if (failures.length > 0) {
-  console.error("\nJANA_DEMO does not reach the Docker image.\n");
+  console.error("\nJANA_DEMO wiring incorrect for P5.8.\n");
   for (const f of failures) console.error(`  - ${f}\n`);
   console.error(
-    "Without JANA_DEMO the Docker deployment loses the demo switch silently:\n" +
-      "an empty product with no error explaining itself.\n",
+    "P5.8: JANA_DEMO is runtime-only. The build always generates the portfolio.\n" +
+      "Remove build ARGs; keep runtime ENV.\n",
   );
   process.exit(1);
 }
 
 console.log(
-  "[check-docker-demo-flag] JANA_DEMO reaches both Dockerfile stages and " +
-    "both compose files (build args + runtime env).",
+  "[check-docker-demo-flag] ✓ JANA_DEMO runtime ENV present, build ARGs removed (P5.8).",
 );
