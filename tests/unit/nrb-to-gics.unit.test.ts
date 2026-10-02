@@ -130,16 +130,16 @@ describe("NRB_TO_GICS_MAP specific mappings", () => {
     expect(gics.sector).toBe("Real Estate");
   });
 
-  it("Transport & Storage → 203020 (Industrials / Air Freight & Logistics)", () => {
+  it("Transport & Storage → 203010 (Industrials / Air Freight & Logistics) [N1.5 fix]", () => {
     const gics = NRB_TO_GICS_MAP["Transport & Storage"];
-    expect(gics.code).toBe("203020");
+    expect(gics.code).toBe("203010");
     expect(gics.sector).toBe("Industrials");
     expect(gics.industry).toBe("Air Freight & Logistics");
   });
 
-  it("Utilities - Waste Management → 552020 (Utilities / Multi-Utilities)", () => {
+  it("Utilities - Waste Management → 551030 (Utilities / Multi-Utilities) [N1.5 fix]", () => {
     const gics = NRB_TO_GICS_MAP["Utilities - Waste Management"];
-    expect(gics.code).toBe("552020");
+    expect(gics.code).toBe("551030");
     expect(gics.sector).toBe("Utilities");
     expect(gics.industry).toBe("Multi-Utilities");
   });

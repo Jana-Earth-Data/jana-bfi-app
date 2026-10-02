@@ -108,7 +108,7 @@ export const NRB_TO_GICS_MAP: Record<string, GicsCode> = {
 
   // MATERIALS - Containers & Packaging
   "Manufacturing - Plastics": {
-    code: "151050",
+    code: "151030",
     sector: "Materials",
     industryGroup: "Materials",
     industry: "Containers & Packaging",
@@ -117,7 +117,7 @@ export const NRB_TO_GICS_MAP: Record<string, GicsCode> = {
 
   // CONSUMER DISCRETIONARY - Textiles
   "Manufacturing - Textiles": {
-    code: "252010",
+    code: "252030",
     sector: "Consumer Discretionary",
     industryGroup: "Consumer Durables & Apparel",
     industry: "Textiles, Apparel & Luxury Goods",
@@ -142,7 +142,7 @@ export const NRB_TO_GICS_MAP: Record<string, GicsCode> = {
 
   // INDUSTRIALS - Catch-all for diversified manufacturing
   "Manufacturing - Other": {
-    code: "201060",
+    code: "201050",
     sector: "Industrials",
     industryGroup: "Capital Goods",
     industry: "Industrial Conglomerates",
@@ -169,7 +169,7 @@ export const NRB_TO_GICS_MAP: Record<string, GicsCode> = {
 
   // INDUSTRIALS - Transportation
   "Transport & Storage": {
-    code: "203020",
+    code: "203010",
     sector: "Industrials",
     industryGroup: "Transportation",
     industry: "Air Freight & Logistics",
@@ -187,7 +187,7 @@ export const NRB_TO_GICS_MAP: Record<string, GicsCode> = {
 
   // UTILITIES - Waste Management
   "Utilities - Waste Management": {
-    code: "552020",
+    code: "551030",
     sector: "Utilities",
     industryGroup: "Utilities",
     industry: "Multi-Utilities",

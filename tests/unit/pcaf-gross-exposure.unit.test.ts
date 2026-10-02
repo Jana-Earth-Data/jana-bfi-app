@@ -85,14 +85,18 @@ describe("grossExposureUsd", () => {
     expect(grossExposureUsd(loan)).toBe(10_200);
   });
 
-  it("subtracts risk mitigant value per IFRS S2 B62(c)(ii) (N1.3)", () => {
+  it("does NOT subtract risk mitigant value per B62(c)(ii) correction (N1.1)", () => {
     const loan = makeLoan({
       outstandingUsd: 10_000,
       lossAllowance: 200,
       riskMitigantValueUsd: 3_000,
     });
-    // Gross exposure = 10,000 + 200 - 3,000 = 7,200
-    expect(grossExposureUsd(loan)).toBe(7_200);
+    // B62(c)(ii) requires disclosure of WHETHER risk mitigants are excluded,
+    // not that they MUST be excluded. Gross exposure is the FULL funded amount
+    // BEFORE deducting collateral/guarantees. Risk mitigants protect the bank's
+    // downside but don't change the carbon intensity of financed activities.
+    // Gross exposure = 10,000 + 200 = 10,200 (risk mitigants NOT subtracted)
+    expect(grossExposureUsd(loan)).toBe(10_200);
   });
 
   it("falls back to outstanding USD when lossAllowance is undefined", () => {

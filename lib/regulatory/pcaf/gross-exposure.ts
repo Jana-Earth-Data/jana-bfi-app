@@ -22,9 +22,14 @@
  * before loss allowance**, not the net carrying amount after impairment
  * provisions. This module computes:
  *
- *     gross exposure USD = outstanding USD + loss allowance USD - risk mitigants USD
+ *     gross exposure USD = outstanding USD + loss allowance USD
  *
- * and aggregates that amount plus financed emissions into an industry × asset-class matrix.
+ * Per B62(c)(ii), the platform does NOT exclude risk mitigants (collateral,
+ * guarantees) from gross exposure — the full funded amount is disclosed,
+ * reflecting the total financing provided to carbon-intensive activities.
+ *
+ * This gross exposure is aggregated alongside financed emissions into an
+ * industry × asset-class matrix serving both B62(a) and B62(b) requirements.
  *
  * WHY LOSS ALLOWANCE MUST BE ADDED BACK. The carrying amount on the balance
  * sheet is net of impairment. IFRS S2 explicitly requires the gross (before-
@@ -63,27 +68,33 @@ export const IFRS_S2_B62_CITATION =
   "IFRS S2 Climate-related Disclosures (June 2023) §B62(b) — gross exposure per industry per asset class";
 
 /**
- * Compute the gross exposure (funded carrying amount before loss allowance,
- * less risk mitigants if excluded) for a single loan, per IFRS S2 B62(b) and (c)(ii).
+ * Compute the gross exposure (funded carrying amount before loss allowance)
+ * for a single loan, per IFRS S2 B62(b) and (c)(ii).
  *
  * Formula:
- *     outstanding USD + loss allowance USD - risk mitigant value USD
+ *     outstanding USD + loss allowance USD
  *
- * Per B62(c)(ii), an entity shall disclose whether it has excluded risk mitigants
- * (collateral, guarantees, credit insurance) from its gross exposure calculation.
- * When `riskMitigantValueUsd` is provided, it is subtracted from the gross exposure.
- * This reduces the bank's reported climate risk exposure to reflect secured positions.
+ * Per B62(b), gross exposure is the **funded carrying amount before loss allowance**,
+ * representing the full amount of financing provided to the borrower's carbon-intensive
+ * activities, regardless of the bank's downside protection.
  *
- * If `lossAllowance` or `riskMitigantValueUsd` are undefined, they default to zero.
+ * Per B62(c)(ii), an entity **shall disclose** whether it has excluded risk mitigants
+ * (collateral, guarantees, credit insurance) from its gross exposure calculation. This
+ * platform does NOT exclude risk mitigants — gross exposure reflects the FULL funded
+ * amount. Risk mitigants protect the bank's financial downside but do not change the
+ * carbon intensity of the borrower's financed activities, so B62 requires the gross
+ * (before-mitigant) exposure as the basis for financed emissions attribution.
+ *
+ * The `riskMitigantValueUsd` field is captured for B62(c)(ii) disclosure purposes
+ * (to show the value of collateral/guarantees held), but is NOT subtracted from gross
+ * exposure. B62(c)(ii) is a transparency requirement, not an instruction to deduct.
+ *
+ * If `lossAllowance` is undefined, it defaults to zero.
  * Demo mode seeds ~2% loss allowance and collateral on ~30% of loans to demonstrate
  * the full disclosure logic.
  */
 export function grossExposureUsd(loan: Loan): number {
-  return (
-    loan.outstandingUsd +
-    (loan.lossAllowance ?? 0) -
-    (loan.riskMitigantValueUsd ?? 0)
-  );
+  return loan.outstandingUsd + (loan.lossAllowance ?? 0);
 }
 
 /**

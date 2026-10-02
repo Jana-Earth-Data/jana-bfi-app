@@ -355,10 +355,11 @@ describe("computeGrossExposureCoverage — N1.3 risk mitigant exclusion", () => 
     expect(coverage.riskMitigantsExcluded).toBe(true);
   });
 
-  it("reduces gross exposure when risk mitigants present", () => {
-    // Loan 1: 10k + 200 - 3k = 7,200 gross
-    // Loan 2: 5k + 100 - 0 = 5,100 gross
-    // Total gross = 12,300 (not 15,300)
+  it("does NOT reduce gross exposure when risk mitigants present (N1.1 fix)", () => {
+    // Per N1.1 fix: gross exposure is BEFORE risk mitigant subtraction
+    // Loan 1: 10k + 200 = 10,200 gross (risk mitigants NOT subtracted)
+    // Loan 2: 5k + 100 = 5,100 gross
+    // Total gross = 15,300 (not 12,300)
     const loans = [
       makeLoan({ id: "l-1", outstandingUsd: 10_000, lossAllowance: 200, riskMitigantValueUsd: 3_000 }),
       makeLoan({ id: "l-2", outstandingUsd: 5_000, lossAllowance: 100, riskMitigantValueUsd: 0 }),
@@ -370,8 +371,8 @@ describe("computeGrossExposureCoverage — N1.3 risk mitigant exclusion", () => 
 
     const coverage = computeGrossExposureCoverage(loans, attributions);
 
-    expect(coverage.totalGrossExposureUsd).toBe(12_300);
-    expect(coverage.includedGrossExposureUsd).toBe(12_300);
+    expect(coverage.totalGrossExposureUsd).toBe(15_300);
+    expect(coverage.includedGrossExposureUsd).toBe(15_300);
     expect(coverage.riskMitigantsExcluded).toBe(true);
     expect(coverage.totalRiskMitigantValueUsd).toBe(3_000);
   });
@@ -458,10 +459,11 @@ describe("computeGrossExposureCoverage — N1.4 undrawn commitment tracking", ()
     expect(coverage.undrawnCommitmentsIncluded).toBe(false);
   });
 
-  it("calculates percentage correctly when risk mitigants present", () => {
-    // Loan 1: 10k + 200 - 3k (mitigant) = 7,200 gross exposure
+  it("calculates percentage correctly when risk mitigants present (N1.1 fix)", () => {
+    // Per N1.1 fix: gross exposure is BEFORE risk mitigant subtraction
+    // Loan 1: 10k + 200 = 10,200 gross (risk mitigants NOT subtracted)
     // Loan 1 undrawn: 2k
-    // Total commitment = (10k + 200) gross before mitigant + 2k undrawn = 12,200
+    // Total commitment = 10,200 (gross) + 2k (undrawn) = 12,200
     // Percentage undrawn = 2k / 12,200 = 16.39%
     const loans = [
       makeLoan({
@@ -478,9 +480,9 @@ describe("computeGrossExposureCoverage — N1.4 undrawn commitment tracking", ()
 
     const coverage = computeGrossExposureCoverage(loans, attributions);
 
-    // Gross exposure includes mitigant subtraction: 10,200 - 3,000 = 7,200
-    expect(coverage.totalGrossExposureUsd).toBe(7_200);
-    // But percentage undrawn uses gross BEFORE mitigant: (10,200) + 2,000 = 12,200
+    // Gross exposure does NOT include mitigant subtraction: 10,200
+    expect(coverage.totalGrossExposureUsd).toBe(10_200);
+    // Percentage undrawn uses the same gross exposure: 10,200 + 2,000 = 12,200
     expect(coverage.totalUndrawnCommitmentUsd).toBe(2_000);
     expect(coverage.percentageUndrawn).toBe(16.39);
   });

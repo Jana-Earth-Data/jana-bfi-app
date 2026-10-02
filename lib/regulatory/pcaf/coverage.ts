@@ -123,7 +123,14 @@ export function computeGrossExposureCoverage(
   attributions: PcafAttribution[],
 ): GrossExposureCoverage {
   // Build a set of loan IDs that have attributions (= included)
-  const includedLoanIds = new Set(attributions.map((a) => a.loanId));
+  // Per N1.2/N1.3 fix: only count loans with NON-ZERO, IN-SCOPE attributions as "included".
+  // Out-of-scope loans (retail) may have zero-emission attribution rows but should not
+  // count toward coverage.
+  const includedLoanIds = new Set(
+    attributions
+      .filter((a) => a.attributedCo2eTonnes > 0)
+      .map((a) => a.loanId)
+  );
 
   let totalGrossExposureUsd = 0;
   let includedGrossExposureUsd = 0;
@@ -176,10 +183,10 @@ export function computeGrossExposureCoverage(
   const riskMitigantsExcluded = totalRiskMitigantValueUsd > 0;
 
   // B62(c)(iii) disclosure: undrawn commitments tracking
-  // Total commitment = drawn (gross exposure before mitigant subtraction) + undrawn
-  // We need gross exposure before mitigant subtraction for this calculation
-  const totalGrossExposureBeforeMitigants = totalGrossExposureUsd + totalRiskMitigantValueUsd;
-  const totalCommitment = totalGrossExposureBeforeMitigants + totalUndrawnCommitmentUsd;
+  // Total commitment = drawn (gross exposure) + undrawn
+  // Per N1.1 fix: grossExposureUsd() now returns the amount BEFORE risk mitigant subtraction,
+  // so we don't need to add risk mitigants back.
+  const totalCommitment = totalGrossExposureUsd + totalUndrawnCommitmentUsd;
   const percentageUndrawn =
     totalCommitment > 0
       ? (totalUndrawnCommitmentUsd / totalCommitment) * 100
