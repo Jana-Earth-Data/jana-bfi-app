@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DashboardSsrData } from "@/components/bfi/dashboard";
 import {
   Badge,
+  CollapsiblePanel,
   KpiCard,
   Panel,
   StatRow,
@@ -32,6 +33,10 @@ import {
 } from "@/lib/reporting/periods";
 import { NrbTaxonomyExportButton } from "@/components/bfi/reports/nrb-taxonomy-export-button";
 import { NrbsisGreenStatementButton } from "@/components/bfi/reports/nrbsis-green-statement-button";
+import {
+  GrossExposureMatrix,
+  CoverageDisclosure,
+} from "@/components/bfi/shared/b62-disclosures";
 
 export function NfrsTab({ data }: { data: DashboardSsrData }) {
   const s = data.portfolio;
@@ -220,6 +225,30 @@ export function NfrsTab({ data }: { data: DashboardSsrData }) {
       >
         <DisclosurePreview data={data} />
       </Panel>
+      </div>
+
+      {/* B62 Disclosures — IFRS S2 paragraph B62 required disclosures */}
+      <div data-tour="b62-gross-exposure-matrix">
+        <CollapsiblePanel
+          title="B62(a)(b) — Gross Exposure Matrix"
+          subtitle="Financed emissions disaggregated by industry (GICS) and asset class per IFRS S2 B62(a)(b)"
+          defaultOpen={false}
+        >
+          <GrossExposureMatrix
+            data={s.grossExposureMatrix ?? []}
+            showCo2e={true}
+          />
+        </CollapsiblePanel>
+      </div>
+
+      <div data-tour="b62-coverage-disclosure">
+        <CollapsiblePanel
+          title="B62(c) — Coverage Disclosure"
+          subtitle="Percentage of gross exposure included in financed emissions measurement per IFRS S2 B62(c)"
+          defaultOpen={false}
+        >
+          <CoverageDisclosure data={s.grossExposureCoverage} />
+        </CollapsiblePanel>
       </div>
 
       {/* Taxonomy portfolio breakdown — reads latest saved assessments */}
@@ -439,59 +468,41 @@ function DisclosurePreview({ data }: { data: DashboardSsrData }) {
   const disclosureGreen = disclosureYear?.byTaxonomy.green ?? green;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="rounded-lg border border-line bg-panel/30 p-5">
-        <div className="text-xs uppercase tracking-wide text-slate-400">
-          Scope 3 — Category 15 financed emissions
-        </div>
-        <p className="mt-2 text-sm text-slate-300">
-          For the calendar year {disclosureYear?.year ?? "—"} (most recent
-          fully-reported year), {data.meta.bankName} attributed{" "}
-          <span className="font-semibold text-white">{formatCo2e(disclosureTotal)}</span>{" "}
-          of greenhouse gas emissions to its lending book under the PCAF Global
-          GHG Accounting and Reporting Standard, Category 15.
-        </p>
-        <p className="mt-3 text-sm text-slate-300">
-          The portfolio&apos;s weighted PCAF data quality score is{" "}
-          <span
-            className={
-              qualityScoreColors[
-                Math.round(s.weightedDataQuality) as 1 | 2 | 3 | 4 | 5
-              ]
-            }
-          >
-            {s.weightedDataQuality.toFixed(1)}
-          </span>
-          , reflecting that{" "}
-          <span className="font-semibold text-white">
-            {formatPercent(facilityShareValue)}
-          </span>{" "}
-          of in-scope outstanding value is attached to facility-level Climate
-          TRACE emissions.
-        </p>
-        <p className="mt-3 text-sm text-slate-300">
-          High-emissions sectors (red taxonomy) account for{" "}
-          <span className="font-semibold text-white">{formatCo2e(disclosureRed)}</span>;
-          green taxonomy assets (renewable energy) contribute{" "}
-          <span className="font-semibold text-white">{formatCo2e(disclosureGreen)}</span>.
-        </p>
+    <div className="rounded-lg border border-line bg-panel/30 p-5">
+      <div className="text-xs uppercase tracking-wide text-slate-400">
+        Scope 3 — Category 15 financed emissions
       </div>
-
-      <div className="rounded-lg border border-line bg-panel/30 p-5">
-        <div className="text-xs uppercase tracking-wide text-slate-400">
-          Methodology note
-        </div>
-        <p className="mt-2 text-sm text-slate-300">{data.meta.pcafMethodologyNote}</p>
-        <p className="mt-3 text-xs text-slate-500">
-          Methodology: PCAF Global GHG Accounting and Reporting Standard (Part
-          A, Chapter 5), the allocation method chosen to meet the financial-sector
-          financed-emissions requirement in IFRS S2 Appendix B (B58–B63; B62(d)
-          asks that the allocation method be disclosed). PCAF is a chosen method,
-          not a requirement of either standard. Underlying facility data: Climate
-          TRACE Nepal facility emissions; Global Cement and Concrete Tracker
-          (July 2025); Global Energy Monitor.
-        </p>
-      </div>
+      <p className="mt-2 text-sm text-slate-300">
+        For the calendar year {disclosureYear?.year ?? "—"} (most recent
+        fully-reported year), {data.meta.bankName} attributed{" "}
+        <span className="font-semibold text-white">{formatCo2e(disclosureTotal)}</span>{" "}
+        of greenhouse gas emissions to its lending book under the PCAF Global
+        GHG Accounting and Reporting Standard, Category 15.
+      </p>
+      <p className="mt-3 text-sm text-slate-300">
+        The portfolio&apos;s weighted PCAF data quality score is{" "}
+        <span
+          className={
+            qualityScoreColors[
+              Math.round(s.weightedDataQuality) as 1 | 2 | 3 | 4 | 5
+            ]
+          }
+        >
+          {s.weightedDataQuality.toFixed(1)}
+        </span>
+        , reflecting that{" "}
+        <span className="font-semibold text-white">
+          {formatPercent(facilityShareValue)}
+        </span>{" "}
+        of in-scope outstanding value is attached to facility-level Climate
+        TRACE emissions.
+      </p>
+      <p className="mt-3 text-sm text-slate-300">
+        High-emissions sectors (red taxonomy) account for{" "}
+        <span className="font-semibold text-white">{formatCo2e(disclosureRed)}</span>;
+        green taxonomy assets (renewable energy) contribute{" "}
+        <span className="font-semibold text-white">{formatCo2e(disclosureGreen)}</span>.
+      </p>
     </div>
   );
 }

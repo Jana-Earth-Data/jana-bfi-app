@@ -34,6 +34,14 @@ export function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+/**
+ * Format a number with thousands separators (for general use in tables).
+ * For currency or CO2e, use formatUsd/formatNpr/formatCo2e instead.
+ */
+export function formatNumber(value: number): string {
+  return new Intl.NumberFormat("en-US").format(Math.round(value));
+}
+
 export const taxonomyColors: Record<string, string> = {
   green: "bg-green-500/20 text-green-300 border-green-500/30",
   amber: "bg-amber-500/20 text-amber-200 border-amber-500/30",

@@ -40,6 +40,59 @@ export function Panel({
   );
 }
 
+export function CollapsiblePanel({
+  children,
+  className = "",
+  title,
+  subtitle,
+  defaultOpen = false,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = React.useState(defaultOpen);
+
+  return (
+    <section
+      className={`rounded-2xl border border-line bg-panelAlt ${className}`}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-start justify-between gap-4 border-b border-line px-5 py-4 text-left transition-colors hover:bg-panel/50"
+      >
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
+            {title}
+          </h3>
+          {subtitle && (
+            <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+          )}
+        </div>
+        <svg
+          className={`h-5 w-5 flex-shrink-0 text-slate-400 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+      {isOpen && <div className="p-5">{children}</div>}
+    </section>
+  );
+}
+
 export function Badge({
   children,
   className = "",
