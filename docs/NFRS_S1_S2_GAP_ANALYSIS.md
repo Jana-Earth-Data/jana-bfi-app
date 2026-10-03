@@ -68,17 +68,18 @@ our current disclosure claim, and we satisfy part of it.
 
 | B62 requires | Platform produces | Assessment |
 |---|---|---|
-| **(a)** Absolute gross financed emissions **disaggregated by Scope 1, 2 and 3, for each industry by asset class** | A single portfolio total (`portfolio.ts:510`); a top-8 sector bar chart | **Major gap.** No scope split, no industry × asset-class matrix |
-| **(a)(i)** Industry classified by **GICS 6-digit code**, latest version at reporting date | NRB sector classification. GICS appears nowhere in the codebase | **Not met** |
-| **(a)(ii)** Asset classes **shall include** loans, project finance, bonds, equity, **undrawn loan commitments** | Ten PCAF classes declared (`pcaf/types.ts:24`) but only five reachable, and only two traverse the option ladder (`scoring.ts:72–102, 298`). Undrawn commitments absent | **Partial** |
-| **(b)** **Gross exposure** per industry per asset class, funded carrying amount **before loss allowance**, presentation currency | In-scope outstanding NPR as a single KPI (`portfolio.ts:582`) | **Partial.** Not disaggregated; loss-allowance treatment undefined |
-| **(c)** **Percentage of gross exposure included**; exclusions and asset types explained; **risk mitigants excluded**; undrawn stated separately | One ratio: facility-matched ÷ in-scope (`nfrs-tab.tsx:413`) | **Not met as specified.** Different denominator from the one required |
-| **(d)** Methodology **including the allocation method** | A hardcoded prose string (`portfolio.ts:831`, and a different one at `api/bfi.ts:218`) | **Partial** |
+| **(a)** Absolute gross financed emissions **disaggregated by Scope 1, 2 and 3, for each industry by asset class** | ✅ **Updated 2026-10-03:** Industry × asset-class matrix component (`gross-exposure-matrix.tsx`) displays full disaggregated table on NFRS tab. Scope 1/2/3 split computed but not populated (N1.6) | **Improved to Partial.** Matrix UI complete (N1.14); scope split plumbing exists, needs data |
+| **(a)(i)** Industry classified by **GICS 6-digit code**, latest version at reporting date | NRB sector classification. GICS appears nowhere in the codebase | **Not met** (N1.7 corrects mapping errors) |
+| **(a)(ii)** Asset classes **shall include** loans, project finance, bonds, equity, **undrawn loan commitments** | Ten PCAF classes declared (`pcaf/types.ts:24`) but only five reachable, and only two traverse the option ladder (`scoring.ts:72–102, 298`). Undrawn commitments absent | **Partial** (N1.4, N1.8, N1.17 address) |
+| **(b)** **Gross exposure** per industry per asset class, funded carrying amount **before loss allowance**, presentation currency | ✅ **Updated 2026-10-03:** Computed and displayed in matrix (NPR). Loss-allowance field needs bank data (N1.1) | **Improved to Partial.** UI complete; loss-allowance treatment in progress |
+| **(c)** **Percentage of gross exposure included**; exclusions and asset types explained; **risk mitigants excluded**; undrawn stated separately | ✅ **Updated 2026-10-03:** Coverage disclosure component (`coverage-disclosure.tsx`) shows coverage %, excluded types, risk mitigant note. Logic corrections in N1.2–N1.3 | **Improved to Met (UI).** Disclosure surface complete (N1.14); coverage calculation being corrected (N1.2) |
+| **(d)** Methodology **including the allocation method** | ✅ **Updated 2026-10-03:** Methodology disclosure component (`methodology-disclosure.tsx`) shows PCAF options, denominators, data quality, sources, asset classes — derived from actual computation. Replaces hardcoded string | **Improved to Met (UI).** Derived disclosure complete (N1.14) |
 
-Supporting requirements that also apply and are unaddressed: **§29(a)(iii)** measurement approach,
-inputs, assumptions and changes with reasons; **B55–B56** the extent to which Scope 3 is measured using
-primary activity data and the extent using verified data; **B27** the consolidation approach (equity
-share or control) and the reason for it; **S1 §70** comparatives from year two.
+Supporting requirements that also apply:
+- **§29(a)(iii)** measurement approach, inputs, assumptions: ✅ **Addressed 2026-10-03** via methodology disclosure (N1.14, N1.10)
+- **B55–B56** extent of primary-activity data and verified data: ✅ **Addressed 2026-10-03** via data extent disclosure component (`data-extent-disclosure.tsx`, N1.14, N1.11)
+- **B27** consolidation approach (equity share or control): ✅ **Addressed 2026-10-03** via consolidation approach component (`consolidation-approach.tsx`, N1.14, N1.12 wiring in progress)
+- **S1 §70** comparatives from year two: Not yet addressed (PR4 scope)
 
 ## 2.1 PCAF is not what the standard asks for
 
