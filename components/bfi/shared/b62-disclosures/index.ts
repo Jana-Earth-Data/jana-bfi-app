@@ -12,3 +12,9 @@ export type { GrossExposureCoverage } from "./coverage-disclosure";
 
 export { MethodologyDisclosure } from "./methodology-disclosure";
 export type { MethodologyDisclosure as MethodologyDisclosureType } from "./methodology-disclosure";
+
+export { DataExtentDisclosure } from "./data-extent-disclosure";
+export type { DataExtentDisclosure as DataExtentDisclosureType } from "./data-extent-disclosure";
+
+export { ConsolidationApproach } from "./consolidation-approach";
+export type { ConsolidationApproach as ConsolidationApproachType } from "./consolidation-approach";

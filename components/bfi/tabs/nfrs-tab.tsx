@@ -37,6 +37,8 @@ import {
   GrossExposureMatrix,
   CoverageDisclosure,
   MethodologyDisclosure,
+  DataExtentDisclosure,
+  ConsolidationApproach,
 } from "@/components/bfi/shared/b62-disclosures";
 
 export function NfrsTab({ data }: { data: DashboardSsrData }) {
@@ -259,6 +261,26 @@ export function NfrsTab({ data }: { data: DashboardSsrData }) {
           defaultOpen={false}
         >
           <MethodologyDisclosure data={s.methodologyDisclosure} />
+        </CollapsiblePanel>
+      </div>
+
+      <div data-tour="b55-b56-data-extent">
+        <CollapsiblePanel
+          title="B55–B56 — Data Extent Disclosure"
+          subtitle="Extent of primary-activity data and verified data per IFRS S2 B55–B56"
+          defaultOpen={false}
+        >
+          <DataExtentDisclosure data={s.dataExtentDisclosure} />
+        </CollapsiblePanel>
+      </div>
+
+      <div data-tour="b27-consolidation">
+        <CollapsiblePanel
+          title="B27 — Consolidation Approach"
+          subtitle="Basis of consolidation for financed emissions measurement per IFRS S2 B27"
+          defaultOpen={false}
+        >
+          <ConsolidationApproach data={s.consolidationApproach} />
         </CollapsiblePanel>
       </div>
 
