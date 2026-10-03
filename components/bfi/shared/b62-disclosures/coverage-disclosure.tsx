@@ -154,7 +154,7 @@ export function CoverageDisclosure({
               <p className="mt-1 text-amber-300/80">
                 Guarantees, collateral, and other risk mitigants totaling{" "}
                 {formatUsd(totalRiskMitigantValueUsd)} are excluded from gross
-                exposure per IFRS S2 B62(c). Exposure represents bank's
+                exposure per IFRS S2 B62(c). Exposure represents bank&apos;s
                 direct lending position.
               </p>
             </div>
