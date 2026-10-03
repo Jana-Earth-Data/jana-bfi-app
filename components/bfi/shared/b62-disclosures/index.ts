@@ -9,3 +9,6 @@ export type { GrossExposureMatrixRow } from "./gross-exposure-matrix";
 
 export { CoverageDisclosure } from "./coverage-disclosure";
 export type { GrossExposureCoverage } from "./coverage-disclosure";
+
+export { MethodologyDisclosure } from "./methodology-disclosure";
+export type { MethodologyDisclosure as MethodologyDisclosureType } from "./methodology-disclosure";

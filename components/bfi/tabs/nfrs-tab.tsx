@@ -36,6 +36,7 @@ import { NrbsisGreenStatementButton } from "@/components/bfi/reports/nrbsis-gree
 import {
   GrossExposureMatrix,
   CoverageDisclosure,
+  MethodologyDisclosure,
 } from "@/components/bfi/shared/b62-disclosures";
 
 export function NfrsTab({ data }: { data: DashboardSsrData }) {
@@ -248,6 +249,16 @@ export function NfrsTab({ data }: { data: DashboardSsrData }) {
           defaultOpen={false}
         >
           <CoverageDisclosure data={s.grossExposureCoverage} />
+        </CollapsiblePanel>
+      </div>
+
+      <div data-tour="b62-methodology-disclosure">
+        <CollapsiblePanel
+          title="B62(d) — Methodology Disclosure"
+          subtitle="Measurement approach, inputs, and allocation method per IFRS S2 B62(d) and §29(a)(iii)"
+          defaultOpen={false}
+        >
+          <MethodologyDisclosure data={s.methodologyDisclosure} />
         </CollapsiblePanel>
       </div>
 
