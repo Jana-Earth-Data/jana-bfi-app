@@ -456,6 +456,12 @@ function generateLoansForCategory(
     })();
 
     const branch = BRANCHES[Math.floor(r() * BRANCHES.length)];
+
+    // N1.18: Seed undrawn commitments (~20% of loans) and risk mitigants (~30% of loans)
+    // to exercise N1.1–N1.4 B62(c) coverage disclosure logic.
+    const seedUndrawn = r() < 0.20;
+    const seedRiskMitigant = r() < 0.30;
+
     out.push({
       id: `L-${String(startIndex + i + 1).padStart(7, "0")}`,
       borrowerId: borrower.id,
@@ -468,6 +474,16 @@ function generateLoansForCategory(
       outstandingUsd: usd,
       // Demo seeds ~2% loss allowance (typical Nepal BFI provision rate for N1.1 gross exposure)
       lossAllowance: Math.round(usd * 0.02 * 100) / 100,
+      // N1.18: Risk mitigants (collateral, guarantees) on ~30% of loans.
+      // Seeded as 40–70% of outstanding (typical Nepal collateral coverage range).
+      riskMitigantValueUsd: seedRiskMitigant
+        ? Math.round(usd * (0.4 + r() * 0.3) * 100) / 100
+        : undefined,
+      // N1.18: Undrawn commitments on ~20% of loans (approved but not disbursed).
+      // Seeded as 10–50% of outstanding (typical commitment headroom).
+      undrawnCommitmentUsd: seedUndrawn
+        ? Math.round(usd * (0.1 + r() * 0.4) * 100) / 100
+        : undefined,
       disbursedDate,
       maturityDate,
       status,
