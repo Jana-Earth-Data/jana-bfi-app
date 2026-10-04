@@ -217,3 +217,85 @@ export const PCAF_OPTION_LABEL: Record<PcafOption, string> = {
   "3b": "Option 3b — outstanding × sector-average EF/asset",
   "3c": "Option 3c — asset-turnover × sector-average EF/asset",
 };
+
+// ---------------------------------------------------------------------------
+// Asset-class categorization — Loan Origination vs. Investment Portfolio
+// ---------------------------------------------------------------------------
+
+/**
+ * PCAF asset classes that apply to **loan origination** portfolios (the lending book).
+ * These are the classes that a commercial bank's credit department originates.
+ *
+ * Per IFRS S2 B62(a)(ii) and PCAF Part A §5, financed emissions for the **lending
+ * portfolio** use these five classes. A Nepal commercial bank's loan book contains:
+ * - Business loans to corporates/SMEs (§5.2)
+ * - Project finance for infrastructure/hydropower (§5.3)
+ * - Residential mortgages (§5.5)
+ * - Motor vehicle loans (§5.6)
+ * - Out-of-scope retail personal/education loans
+ */
+export const LOAN_ORIGINATION_ASSET_CLASSES: ReadonlySet<PcafAssetClass> = new Set([
+  "business-loans-unlisted-equity", // §5.2 — SME, commercial, corporate loans
+  "project-finance", // §5.3 — Infrastructure, hydropower, self-contained projects
+  "mortgages", // §5.5 — Residential real estate loans
+  "motor-vehicle-loans", // §5.6 — Consumer/business vehicle financing
+  "out-of-scope", // Retail personal/education (not in PCAF Cat. 15)
+]);
+
+/**
+ * PCAF asset classes that apply to **investment portfolios** (asset management,
+ * treasury holdings, securities portfolios). These are classes for equity/bond
+ * **holdings** that a bank invests in, not loans that a bank originates.
+ *
+ * A commercial bank's **lending book** does not originate these; they appear only
+ * in the **investment portfolio** (treasury, asset management). Per PCAF Part A §5,
+ * financed emissions for investment portfolios use §5.1 (listed equity/bonds),
+ * §5.7 (green bonds), §5.8 (securitized products), §5.9 (sovereign debt), and
+ * §5.10 (sub-sovereign debt).
+ *
+ * **Why these are not supported for loan origination:**
+ * - A bank does not "lend" to create equity or bonds — it invests in them (§5.1)
+ * - Sovereign/sub-sovereign debt are government bonds, not loans originated to
+ *   borrowers (§5.9, §5.10)
+ * - Securitisation is packaging of existing loans into securities (§5.8)
+ * - Use-of-proceeds structures inherit their class from the underlying asset (§5.7)
+ * - Commercial real estate (§5.4) would apply if Nepal banks had non-residential
+ *   CRE loans as a separate category, but current loan categories route CRE to
+ *   §5.2 business loans
+ */
+export const INVESTMENT_PORTFOLIO_ASSET_CLASSES: ReadonlySet<PcafAssetClass> = new Set([
+  "listed-equity-corporate-bonds", // §5.1 — Public equity/bond holdings
+  "commercial-real-estate", // §5.4 — Non-residential CRE (not in Nepal loan categories)
+  "use-of-proceeds-structures", // §5.7 — Green bonds, sustainability-linked (inherit from underlying)
+  "securitisation-structured-products", // §5.8 — Securitized asset pools
+  "sovereign-debt", // §5.9 — Government bond holdings
+  "sub-sovereign-debt", // §5.10 — Municipal/provincial bond holdings
+]);
+
+/**
+ * Check if a PCAF asset class is supported for **loan origination** portfolios.
+ *
+ * Returns `true` for classes that apply to a commercial bank's lending book
+ * (business loans, project finance, mortgages, vehicle loans, out-of-scope retail).
+ * Returns `false` for investment portfolio classes (equity holdings, sovereign bonds,
+ * securitized products) that do not represent loans originated by the bank.
+ *
+ * **Usage:** Validate that asset classes used in financed emissions calculations
+ * for the lending portfolio are appropriate. Investment portfolio classes require
+ * separate calculation logic per PCAF Part A §5.1, §5.8, §5.9, §5.10.
+ */
+export function isSupportedForLoanOrigination(assetClass: PcafAssetClass): boolean {
+  return LOAN_ORIGINATION_ASSET_CLASSES.has(assetClass);
+}
+
+/**
+ * Check if a PCAF asset class applies to **investment portfolios** (not loan origination).
+ *
+ * Returns `true` for equity/bond holdings, sovereign debt, and other securities that
+ * a bank invests in rather than originates as loans. These require separate financed
+ * emissions calculation per PCAF Part A §5.1, §5.7–§5.10 and are out of scope for
+ * the lending book disclosure.
+ */
+export function isInvestmentPortfolioClass(assetClass: PcafAssetClass): boolean {
+  return INVESTMENT_PORTFOLIO_ASSET_CLASSES.has(assetClass);
+}

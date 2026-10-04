@@ -23,9 +23,20 @@
  *
  * COVERAGE
  * --------
- * v8 provider, report-only for now (no threshold gate). P0.4 wires the report
- * into CI; P1.5 turns the 100%-on-lib/regulatory gate ON. Until then a missing
- * threshold must not fail the build.
+ * v8 provider. P0.4 wired the report into CI; P1.5 (this config) turns the hard
+ * gate ON: `lib/regulatory/**` must hold 100% line + branch + function coverage,
+ * enforced on every `npm run test:coverage` run (so CI fails the build on any
+ * regression) per TEST_STRATEGY §5.2. The regulatory core is the disclosed-
+ * numbers surface — every branch there changes a figure a bank reports, so it
+ * carries no untested lines. The wider report globs (lib/demo, lib/api/bfi.ts,
+ * lib/reporting, …) stay report-only; they are exercised by the golden suites
+ * but are not yet under a hard threshold.
+ *
+ * The four unreachable branches that stood between the suites and a literal
+ * 100% (a terminal switch case, a `: "none"` ternary, a `?? null` alias
+ * fallback, and an all-`yes_no` DNSH implicit-else) were removed in P1.5 with
+ * inline notes pointing at the invariant each removal relies on; see the
+ * per-module test headers.
  *
  * WHY .mts (not .ts)
  * ------------------
@@ -51,6 +62,14 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["tests/**/*.{test,spec}.{ts,tsx}"],
+    // Environment variables for route tests (P1.7)
+    env: {
+      SEED_ADMIN_TOKEN: "test-admin-token-12345",
+    },
+    // setupFiles runs before any test file imports, ensuring mocks are hoisted.
+    // This is where vi.mock() calls for next/headers and @/lib/data/capture-client
+    // live (P1.7 route testing infrastructure).
+    setupFiles: ["tests/setup.ts"],
     // globalSetup synthesizes the ~80K-loan portfolio ONCE (writing the gz that
     // getPortfolio() prefers) before any worker starts. Without it, Vitest's
     // per-file worker isolation would re-run the ~50-80s synthesis for each
@@ -75,6 +94,19 @@ export default defineConfig({
       ],
       // Data catalogues and generated artifacts are not logic under test.
       exclude: ["**/*.d.ts", "lib/demo/precomputed-portfolio.json.gz"],
+      // P1.5 hard gate (TEST_STRATEGY §5.2). The `**` glob applies the 100%
+      // thresholds per-file across the regulatory core, so a single uncovered
+      // branch in any lib/regulatory module fails `npm run test:coverage` (and
+      // therefore CI). The wider report globs above are intentionally NOT listed
+      // here — they stay report-only until their own phase raises them.
+      thresholds: {
+        "lib/regulatory/**": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+      },
     },
   },
 });

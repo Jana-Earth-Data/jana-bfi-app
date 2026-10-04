@@ -24,6 +24,34 @@
  * 3. **Cite the paragraph.** Every result carries a citation like
  *    "PCAF Part A 3rd Edition §5.2 · Option 2b" so an auditor can trace
  *    the number back to a specific standard section.
+ *
+ * **Hydropower lifecycle emission factor (N2.4 resolution):**
+ * The 15 tCO₂e/MW/yr factor applied to Nepal hydropower capacity is a
+ * LIFECYCLE CO₂e factor (construction + operation + decommissioning), not a
+ * reservoir CH₄ emission factor. This determination is based on:
+ *
+ * 1. **Consistency with literature:** 15 tCO₂e/MW/yr converts to ~3-4 gCO₂e/kWh
+ *    (at typical 50% capacity factor), matching run-of-river hydropower
+ *    lifecycle emissions in peer-reviewed LCA studies (median ~4 gCO₂e/kWh,
+ *    Peruvian Andes run-of-river <3 gCO₂e/kWh).
+ *
+ * 2. **Nepal hydro context:** Nepal's hydropower sector is predominantly
+ *    run-of-river with minimal reservoir storage, so lifecycle emissions are
+ *    dominated by construction/materials rather than reservoir methane.
+ *
+ * 3. **IPCC 2019 Refinement guidance:** Vol.4 Ch.7 provides CH₄ emission
+ *    factors in kg CH₄/ha/yr (area-based), NOT tCO₂e/MW/yr (capacity-based).
+ *    Converting area-based CH₄ to capacity-based CO₂e requires reservoir area,
+ *    CH₄→CO₂e conversion (GWP₁₀₀ ×28-30), plus CO₂ and lifecycle components.
+ *
+ * 4. **Field name:** The factor flows into `annualCo2eTonnes`, and entities.ts
+ *    explicitly documents it as "lifecycle attribution" (entities.ts:250).
+ *
+ * If this were CH₄-basis requiring GWP conversion per IFRS S2 B22, the CO₂e
+ * figure would be 28-30× higher (~450 tCO₂e/MW/yr), which is inconsistent with
+ * all hydropower LCA literature. Therefore: NO GWP conversion is applied; the
+ * 15 tCO₂e/MW/yr is used as-is per the B22 first-sentence exemption (factors
+ * already expressed in CO₂e are not recalculated).
  */
 
 import type { Borrower, Loan, LoanCategory } from "@/lib/types/bfi";
@@ -36,6 +64,8 @@ import {
   PcafOption,
   PcafScore,
   SCORE_FOR_OPTION,
+  isSupportedForLoanOrigination,
+  isInvestmentPortfolioClass,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -52,7 +82,7 @@ import {
 // So inferPcafAvailability() below leaves both publish flags FALSE. They are
 // set only by a verified evidence document, via resolveAvailability() in
 // evidence-matrix.ts. The demo seeds that evidence (lib/demo/pcaf-evidence-
-// seed.ts); a live build has none until an officer reviews a real report. This
+// seed.ts); with demo mode off there is none until an officer reviews a real report. This
 // module no longer takes name fixtures at all -- there is nothing fabricated
 // left in the scoring path (backlog N0.4).
 
@@ -61,11 +91,38 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Route a bank loan-category to a PCAF §5 asset class.
+ * Route a bank loan-category to a PCAF §5 asset class for **loan origination** portfolios.
  *
- * Retail personal / education loans have no matching PCAF Part A asset
- * class (they are neither §5.5 mortgages nor §5.6 vehicles); we mark them
- * `out-of-scope` per the "not in Part A" carve-out in §5 introduction.
+ * This router covers the five PCAF asset classes that apply to a commercial bank's
+ * **lending book** (loans originated by the bank). Returns one of:
+ * - `business-loans-unlisted-equity` (§5.2) — SME, commercial, corporate loans
+ * - `project-finance` (§5.3) — Infrastructure, hydropower, self-contained projects
+ * - `mortgages` (§5.5) — Residential real estate loans
+ * - `motor-vehicle-loans` (§5.6) — Consumer/business vehicle financing
+ * - `out-of-scope` — Retail personal/education (not in PCAF Cat. 15)
+ *
+ * **Investment portfolio classes are not returned** — the five classes for equity/bond
+ * holdings (`listed-equity-corporate-bonds`, `sovereign-debt`, `sub-sovereign-debt`,
+ * `securitisation-structured-products`, `use-of-proceeds-structures`) and
+ * `commercial-real-estate` (no matching loan category) require separate financed
+ * emissions calculation per PCAF Part A §5.1, §5.4, §5.7–§5.10. These are declared
+ * in the `PcafAssetClass` type for completeness but are **explicitly unsupported**
+ * for loan origination — see `isSupportedForLoanOrigination()` and
+ * `isInvestmentPortfolioClass()` helpers in `types.ts`.
+ *
+ * **Why the other five classes are unsupported:**
+ * - A bank does not "lend" to create equity or bonds — it invests in them (§5.1)
+ * - Sovereign/sub-sovereign debt are government bonds, not loans (§5.9, §5.10)
+ * - Securitisation packages existing loans into securities (§5.8)
+ * - Use-of-proceeds inherits from the underlying asset (§5.7)
+ * - **Commercial real estate (§5.4) is not implemented** — would require a separate
+ *   loan category (e.g. `commercial-real-estate`) not present in the current Nepal
+ *   commercial banking loan taxonomy. If needed: add category, wire to §5.4 routing,
+ *   implement property-value denominator per PCAF §5.4.
+ *
+ * This explicit categorization satisfies IFRS S2 B62(a)(ii) requirement to disclose
+ * which asset classes are included in financed emissions calculation and resolves
+ * NFRS remediation backlog N1.8.
  */
 export function assetClassForLoanCategory(
   category: LoanCategory | undefined,
@@ -95,6 +152,10 @@ export function assetClassForLoanCategory(
       // PCAF Part A 3rd Edition §5.2 — Business Loans & Unlisted Equity.
       return "business-loans-unlisted-equity";
     default:
+      // N1.17: Explicit fallback for any unknown/future loan categories.
+      // If TypeScript allows a value here, it means LoanCategory was extended without
+      // updating this router. Default to business loans (§5.2) as the most conservative
+      // PCAF asset class for commercial lending.
       return "business-loans-unlisted-equity";
   }
 }
@@ -126,7 +187,7 @@ export function assetClassForLoanCategory(
  * they default false and are set by verified document evidence instead — see
  * resolveAvailability() in evidence-matrix.ts. The demo seeds that evidence
  * (lib/demo/pcaf-evidence-seed.ts) to populate the top of the 1..5 histogram;
- * a live build seeds nothing and establishes the flags by real review.
+ * with demo mode off nothing is seeded and the flags are established by real review.
  */
 export function inferPcafAvailability(
   borrower: Borrower,
@@ -154,7 +215,7 @@ export function inferPcafAvailability(
   // Not inferable. These two flags start FALSE here and are established only by
   // a verified evidence document in resolveAvailability() (evidence-matrix.ts):
   // seeded in the demo (lib/demo/pcaf-evidence-seed.ts), reviewed by an officer
-  // in a live build. Nothing in this module asserts them.
+  // for the bank's own data. Nothing in this module asserts them.
   const publishesVerified = false;
   const publishesUnverified = false;
 
@@ -169,7 +230,7 @@ export function inferPcafAvailability(
   const hasPhysicalActivity =
     // Cement → Global Cement Tracker capacity (Mt/yr).
     (isCement && hasFacilityMatch) ||
-    // Hydro → installed capacity in MW (used with IPCC 2019 reservoir CH4 EFs).
+    // Hydro → installed capacity in MW (used with lifecycle CO₂e factors).
     (isHydro && hasFacilityMatch) ||
     // Any other facility-tier borrower with CT-matched emissions.
     (borrower.dataTier === "facility" && hasFacilityMatch);
@@ -208,7 +269,7 @@ export function inferPcafAvailability(
  * The demo default is to infer the observable availability flags from the
  * borrower catalog (Climate TRACE match, publicly-listed flag) and raise the
  * two published-emissions flags from verified evidence documents (seeded in
- * the demo, none in a live build).  When an officer has reviewed the actual annual
+ * demo mode, none otherwise).  When an officer has reviewed the actual annual
  * report / assurance statement and persisted a row via the
  * `PCAF Data Availability` collection panel, those saved flags take
  * precedence per-flag.  Missing flags on the saved side fall through
@@ -336,7 +397,7 @@ function methodDescription(
       if (assetClass === "project-finance" && isHydro) {
         return {
           method:
-            "Project installed capacity (MW) × sector emission factor (IPCC 2019 reservoir CH4 refinement, Vol.4 Ch.7)",
+            "Project installed capacity (MW) × lifecycle CO₂e factor (~15 tCO₂e/MW/yr, run-of-river typical)",
           dataSource: "Curated Nepal hydropower operator registry (capacity + facility)",
         };
       }
@@ -358,17 +419,22 @@ function methodDescription(
           "Borrower revenue × sector-average emission factor per unit of revenue",
         dataSource: "NEPSE filings + EDGAR sector intensity (South Asia)",
       };
-    case "3b":
+    // Terminal rung — the sector-average fallback. `chooseOption` produces
+    // "3b" here; "3c" (asset-turnover proxy) is a valid PcafOption value the
+    // type + SCORE_FOR_OPTION + PCAF_OPTION_LABEL carry, but the §5 decision
+    // tree in chooseOption() never routes to it (no availability-flag
+    // combination yields "3c"). Both collapse to the same Score-5 sector-
+    // average method, so this is a single `default` case rather than separate
+    // `case "3b"` / `case "3c"` labels: that keeps the switch exhaustive for
+    // the type-checker AND leaves no unreachable `case "3c"` branch for the
+    // P1.5 100%-branch gate to trip on. The 3c→Score-5 collapse itself is
+    // still asserted via SCORE_FOR_OPTION in
+    // tests/unit/pcaf-scoring.unit.test.ts.
+    default:
       return {
         method:
           "Outstanding amount × sector-average emission factor per unit of asset",
         dataSource: "EDGAR sector-average intensity (Nepal / South Asia)",
-      };
-    case "3c":
-      return {
-        method:
-          "Revenue estimated via asset-turnover ratio × sector-average EF per unit of asset",
-        dataSource: "EDGAR sector intensity + sector asset-turnover proxy",
       };
   }
 }
@@ -394,6 +460,14 @@ function buildCitation(option: PcafOption, assetClass: PcafAssetClass): string {
  * The returned {@link PcafComputationResult} is safe to embed in the
  * `PcafAttribution` shape as optional `pcafOption` / `pcafCitation`
  * fields — see `lib/data/portfolio.ts` for the wire-in.
+ *
+ * **Validation:** Only asset classes supported for loan origination are accepted.
+ * Investment portfolio classes (`listed-equity-corporate-bonds`, `sovereign-debt`,
+ * etc.) will throw an error — they require separate calculation logic per PCAF
+ * Part A §5.1, §5.7–§5.10.
+ *
+ * @throws {Error} if `assetClass` is an investment portfolio class (not supported
+ *   for loan origination financed emissions)
  */
 export function computePcafScore(
   loan: Loan,
@@ -412,6 +486,21 @@ export function computePcafScore(
       citation: "PCAF Part A 3rd Edition §5 — asset class not in Part A scope",
       assetClass: "out-of-scope",
     };
+  }
+
+  // Validate asset class is supported for loan origination.
+  // Investment portfolio classes (equity holdings, sovereign bonds, securitized
+  // products) are explicitly unsupported per N1.8 — they require separate
+  // calculation logic per PCAF Part A §5.1, §5.7–§5.10.
+  if (!isSupportedForLoanOrigination(assetClass)) {
+    throw new Error(
+      `Asset class "${assetClass}" is not supported for loan origination financed emissions. ` +
+        `This class applies to investment portfolios (equity/bond holdings, sovereign debt, ` +
+        `securitized products) and requires separate calculation per PCAF Part A §5.1, §5.7–§5.10. ` +
+        `Loan origination supports: business-loans-unlisted-equity, project-finance, mortgages, ` +
+        `motor-vehicle-loans, out-of-scope. See isSupportedForLoanOrigination() and ` +
+        `isInvestmentPortfolioClass() in lib/regulatory/pcaf/types.ts.`
+    );
   }
 
   const option = chooseOption(availability, assetClass);

@@ -1,8 +1,8 @@
 /**
  * Does the demo boundary hold?
  *
- * The requirement being guarded: no fabricated record may appear in a live
- * deployment. The dangerous failure is silent -- an invented Score 1 looks
+ * The requirement being guarded: no fabricated record may appear in the
+ * bank's own data. The dangerous failure is silent -- an invented Score 1 looks
  * exactly like an earned one, and it lands in a disclosure.
  *
  * Asserts the two behaviours that matter. With JANA_DEMO=1 the demo seeds
@@ -14,7 +14,9 @@
  * switch does not disturb genuine inference, which would be a different bug
  * wearing the same clothes.
  *
- * Scope: the BUILD-time half of the boundary only.
+ * Scope: the deployment-level half of the boundary only -- whether the
+ * provider hands anything out at all given JANA_DEMO (read at runtime; the
+ * demo code is present either way). Not the per-user demo-mode half.
  *
  * This deliberately calls getDemoProvider().pcafEvidenceRecords() rather than
  * the demoPcafEvidenceRecords() helper the app uses. The helper now also
@@ -66,27 +68,27 @@ function resolvedFlags(borrower: Borrower, evidence: PcafEvidenceRecord[]) {
     "@/lib/demo/provider"
   );
 
-  /** Build-level evidence seed, skipping the cookie-reading mode check. */
+  /** Deployment-level evidence seed, skipping the cookie-reading mode check. */
   const buildEvidence = async () =>
     (await getDemoProvider())?.pcafEvidenceRecords(ghorahi);
 
-  // --- live build: no evidence seeded ------------------------------------
+  // --- JANA_DEMO unset (no demo switch): no evidence seeded ---------------
   delete process.env.JANA_DEMO;
   __resetDemoProviderCache();
   const liveEvidence = await buildEvidence();
   const live = resolvedFlags(ghorahi, liveEvidence ?? []);
 
-  // --- demo build: evidence seeded ---------------------------------------
+  // --- JANA_DEMO=1 (demo switch available): evidence seeded ---------------
   process.env.JANA_DEMO = "1";
   __resetDemoProviderCache();
   const demoEvidence = await buildEvidence();
   const demo = resolvedFlags(ghorahi, demoEvidence ?? []);
 
   const checks: [string, boolean][] = [
-    ["live build seeds no evidence", liveEvidence === undefined],
+    ["no demo switch: seeds no evidence", liveEvidence === undefined],
     ["live: Ghorahi does NOT claim verified emissions", live.borrower_publishes_verified === false],
     ["live: Ghorahi does NOT claim unverified emissions", live.borrower_publishes_unverified === false],
-    ["demo build seeds evidence", Array.isArray(demoEvidence) && demoEvidence.length > 0],
+    ["demo switch available: seeds evidence", Array.isArray(demoEvidence) && demoEvidence.length > 0],
     ["demo: Ghorahi DOES claim verified emissions", demo.borrower_publishes_verified === true],
     ["real inference unaffected by the switch",
       live.revenue_data_available === demo.revenue_data_available],

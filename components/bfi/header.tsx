@@ -22,9 +22,9 @@ export function DashboardHeader({
   isLive: boolean;
   officers: Officer[];
   currentOfficer: Officer | null;
-  /** Was this artifact compiled with the demo layer? Build-time, immutable. */
+  /** Is the demo switch available on this deployment (JANA_DEMO)? Fixed per deployment. */
   demoBuild: boolean;
-  /** Is the demo layer active right now? Runtime, togglable. */
+  /** Is demo mode on for this user right now? Runtime, per-user, togglable. */
   demoMode: boolean;
 }) {
   const { logout, accessToken } = useAuth();
@@ -149,8 +149,9 @@ export function DashboardHeader({
             </button>
           )}
           {/*
-            One entry point for every piece of demo apparatus. Absent
-            entirely from a live build -- see lib/demo/mode.ts.
+            One entry point for every piece of demo apparatus. Not rendered
+            where the demo switch is unavailable (JANA_DEMO unset) -- see
+            lib/demo/mode.ts.
           */}
           {demoBuild && (
             <DemoMenu
@@ -162,7 +163,8 @@ export function DashboardHeader({
           {/*
             Dedicated, always-visible exit. The Demo menu also carries this
             action, but a prospect who wants OUT should not have to open a
-            dropdown labelled "Demo" to find it. Demo builds only.
+            dropdown labelled "Demo" to find it. Only where the demo switch
+            is available.
           */}
           {demoBuild && (
             <button

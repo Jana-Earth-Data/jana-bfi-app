@@ -19,6 +19,7 @@ import {
   MatchedFacility,
 } from "@/lib/types/bfi";
 import { mulberry32, rangeFloat } from "@/lib/demo/synth-util";
+import { gicsCodeString } from "@/lib/regulatory/industry/nrb-to-gics";
 
 // ---------------------------------------------------------------------------
 // Real Climate TRACE 2024 facility index — keyed by 4-decimal lat/lon
@@ -212,11 +213,13 @@ function cementBorrowers(): Borrower[] {
       owner.toLowerCase().includes("arghakhanchi") ||
       owner.toLowerCase().includes("hetauda cement");
 
+    const nrbSector = "Manufacturing - Cement";
     out.push({
       id: `B-CEM-${String(i).padStart(3, "0")}`,
       name: owner,
       kind: "corporate",
-      nrbSector: "Manufacturing - Cement",
+      nrbSector,
+      gicsCode: gicsCodeString(nrbSector),
       enterpriseValueUsd: evUsd,
       evSource: publiclyListed ? "public-filing" : "estimated",
       dataTier: "facility",
@@ -269,12 +272,14 @@ function hydroBorrowers(): Borrower[] {
     // Hydro EV heuristic: $2M per MW (lower than developed-world due to lower capex).
     const evUsd = Math.max(8_000_000, totalCap * 2_000_000);
     const publiclyListed = op.ownership === "publicly-listed";
+    const nrbSector = "Energy - Hydropower";
 
     out.push({
       id: `B-HYD-${String(i + 1).padStart(3, "0")}`,
       name: op.name,
       kind: "corporate",
-      nrbSector: "Energy - Hydropower",
+      nrbSector,
+      gicsCode: gicsCodeString(nrbSector),
       enterpriseValueUsd: evUsd,
       evSource: publiclyListed ? "public-filing" : "estimated",
       // Sector-benchmark tier, NOT facility tier: Climate TRACE does not
@@ -337,12 +342,14 @@ function industrialBorrowers(): Borrower[] {
     const publiclyListed = e.ownership === "publicly-listed";
     // Industrial EV: very rough $40M-$200M
     const evUsd = Math.round(rangeFloat(40_000_000, 200_000_000, r));
+    const nrbSector = INDUSTRIAL_NRB_SECTOR[e.sector] ?? "Manufacturing - Other";
 
     out.push({
       id: `B-IND-${String(i + 1).padStart(3, "0")}`,
       name: e.name,
       kind: "corporate",
-      nrbSector: INDUSTRIAL_NRB_SECTOR[e.sector] ?? "Manufacturing - Other",
+      nrbSector,
+      gicsCode: gicsCodeString(nrbSector),
       enterpriseValueUsd: evUsd,
       evSource: publiclyListed ? "public-filing" : "estimated",
       // Some have facility coordinates (counts as facility tier with name match),
@@ -560,6 +567,7 @@ function ctMatchedBorrowers(): Borrower[] {
       name: namePart,
       kind: "corporate",
       nrbSector: pool.nrbSector,
+      gicsCode: gicsCodeString(pool.nrbSector),
       enterpriseValueUsd: evUsd,
       evSource: "estimated",
       dataTier: "facility",
@@ -720,6 +728,7 @@ function smeBorrowers(count: number, seed: number): SmeBorrower[] {
       name,
       kind: "sme",
       nrbSector: sector.nrbSector,
+      gicsCode: gicsCodeString(sector.nrbSector),
       enterpriseValueUsd: Math.round(rangeFloat(evMin, evMax, r)),
       evSource: "proxy",
       dataTier: "sector-benchmark",
@@ -740,6 +749,7 @@ const RETAIL_POOL: Borrower = {
   name: "Retail Loan Pool",
   kind: "retail-pool",
   nrbSector: "Retail",
+  gicsCode: gicsCodeString("Retail"),
   enterpriseValueUsd: 0,
   evSource: "proxy",
   dataTier: "n/a",

@@ -1,37 +1,51 @@
 /**
- * Does a live build actually produce an empty book?
+ * Without the demo switch, is the loan book actually empty?
  *
- * The requirement: no fabricated record may reach a live deployment. Not
- * hidden, not filtered -- absent. An invented loan is indistinguishable from
- * a real one once it is in a disclosure, so the guarantee has to be that the
- * synthesizer is not reachable rather than that it is not read.
+ * The requirement: no fabricated record may reach the bank's own data. An
+ * invented loan is indistinguishable from a real one once it is in a
+ * disclosure, so the guarantee has to be that the synthesizer is not
+ * reachable through lib/demo/provider.ts unless demo is enabled -- not that
+ * every caller remembers not to read it. (The synthesizer code is in every
+ * bundle; this checks the provider gate, not code absence.)
  *
- * With JANA_DEMO unset, getBfiDemoData() must return a valid but genuinely
+ * With JANA_DEMO unset (demo switch not available on this deployment),
+ * getBfiDemoData() must return a valid but genuinely
  * empty envelope: the state of a bank whose core-banking import has not
  * happened yet. The weighted data-quality check is deliberate -- zero, not
  * five. Five is the worst PCAF score and would assert that every loan was
  * assessed and found wanting, which is a claim about a book that does not
  * exist.
  *
- * The demo-build half matters too: a boundary that breaks the demo would just
- * get reverted.
+ * The JANA_DEMO=1 half matters too: a boundary that breaks the demo would
+ * just get reverted.
+ *
+ * This deliberately calls getDemoProvider() / emptyPortfolio() rather than
+ * getBfiDemoData(). getBfiDemoData() → isDemoMode() which reads cookies via
+ * next/headers and throws outside a request scope -- there is no request
+ * here, this is a plain node process. The deployment-level check (is the
+ * demo switch available at all?) is what this guard tests, not the per-user
+ * mode.
  *
  * Usage:  npx tsx scripts/check-live-build-empty.ts
- * Exit 0 = live build is empty and demo build works, 1 = leak.
+ * Exit 0 = empty without the demo switch and the demo works with it, 1 = leak.
  */
-import { getBfiDemoData } from "@/lib/api/bfi";
 import { __resetDemoProviderCache } from "@/lib/demo/provider";
+import { emptyPortfolio } from "@/lib/data/empty-portfolio";
 
 (async () => {
-  // --- live build ---------------------------------------------------------
+  const { getDemoProvider } = await import("@/lib/demo/provider");
+
+  // --- JANA_DEMO unset: no demo switch ------------------------------------
   delete process.env.JANA_DEMO;
   __resetDemoProviderCache();
-  const live = await getBfiDemoData();
+  const liveProvider = await getDemoProvider();
+  const live = liveProvider ? await liveProvider.getPortfolio() : emptyPortfolio();
 
-  // --- demo build ---------------------------------------------------------
+  // --- JANA_DEMO=1: demo switch available ---------------------------------
   process.env.JANA_DEMO = "1";
   __resetDemoProviderCache();
-  const demo = await getBfiDemoData();
+  const demoProvider = await getDemoProvider();
+  const demo = demoProvider ? await demoProvider.getPortfolio() : emptyPortfolio();
 
   const checks: [string, boolean][] = [
     ["live: zero loans", live.loans.length === 0],
@@ -54,6 +68,6 @@ import { __resetDemoProviderCache } from "@/lib/demo/provider";
     console.log(`  [${pass ? "PASS" : "FAIL"}] ${name}`);
   }
   console.log(`\n  live loans=${live.loans.length}  demo loans=${demo.loans.length}`);
-  console.log(ok ? "  live build is genuinely empty" : "  SEAM BROKEN");
+  console.log(ok ? "  without the demo switch the book is genuinely empty" : "  SEAM BROKEN");
   process.exit(ok ? 0 : 1);
 })();

@@ -78,8 +78,8 @@ const demoSliceMemo = new WeakMap<object, DashboardSlicePartial>();
 type DashboardSlicePartial = Omit<DashboardSsrData, "officers" | "currentOfficer">;
 
 /**
- * Synthetic air quality for a borrower's first geocoded facility, in a demo
- * build only. Returns undefined in a live build, where a borrower with no
+ * Synthetic air quality for a borrower's first geocoded facility, when demo
+ * mode is on only. Returns undefined when it is off, where a borrower with no
  * real station reading simply has no air-quality panel -- which is the honest
  * result rather than an invented one.
  */
@@ -112,9 +112,10 @@ export async function buildDashboardSlice(
     }
   }
 
-  // Null in a live build, and null when demo mode is off, so borrowers
-  // without a real station reading get no air-quality panel rather than a
-  // manufactured one. Mode matters as well as build: buildDashboardSlice runs
+  // Null when the demo switch is unavailable (JANA_DEMO unset), and null when
+  // demo mode is off, so borrowers without a real station reading get no
+  // air-quality panel rather than a manufactured one. Mode matters as well as
+  // switch availability: buildDashboardSlice runs
   // over whatever borrowers it is handed, and once CBS import lands those are
   // real companies. A generated PM2.5 reading attached to a real facility is
   // a fabricated environmental measurement about a real place.
@@ -179,8 +180,8 @@ export async function buildDashboardSlice(
   // Portfolio-level climate risk summary (NRB ESRM 2022 §4.4). Computes
   // the "above threshold without target" callout counts once at slice
   // build time so the NFRS tab doesn't need a per-page fetch. The
-  // reduction-target seed is injected (N0.3): a demo build supplies the
-  // ~15% fixture; a live build supplies nothing, so every above-threshold
+  // reduction-target seed is injected (N0.3): with demo mode on it supplies
+  // the ~15% fixture; with demo mode off nothing is supplied, so every above-threshold
   // borrower counts as "without target" until an officer records a real one.
   const reductionSeed = await demoReductionTargetSeed();
   const climateSummary = summarisePortfolioClimate(data.borrowers, reductionSeed);

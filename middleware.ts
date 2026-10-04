@@ -30,11 +30,20 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Demo builds skip rate limiting entirely. A bank demo room is behind
-    // one NAT — every attendee shares a single IP. A single page load can
-    // fire 6+ parallel API calls (taxonomy-summary, followups, officer-queue,
-    // dashboard-data, …), so even a modest group trips the limit and the
-    // failure looks like the app breaking.
+    // Deployments with the demo switch available (JANA_DEMO=1) skip rate
+    // limiting entirely -- for every user, whether or not demo mode is on,
+    // which is why it is ineffective on the deployed app (PROJECT_PLAN P3.8).
+    // The original rationale: a bank demo room is behind one NAT — every
+    // attendee shares a single IP. A single page load can fire 6+ parallel
+    // API calls (taxonomy-summary, followups, officer-queue, dashboard-data,
+    // …), so even a modest group trips the limit and the failure looks like
+    // the app breaking.
+    //
+    // P5.8/P3.8: This skip should be replaced with mode-aware rate limiting:
+    // key the limit on (IP, demo_mode) so demo and live have separate buckets,
+    // ensuring demo mode (a client-set cookie) cannot bypass rate limits.
+    // The demo-room scenario still needs a higher limit or exemption, but that
+    // should be based on a trusted signal (tenant config, not user cookie).
     if (process.env.JANA_DEMO === "1") {
       return NextResponse.next();
     }

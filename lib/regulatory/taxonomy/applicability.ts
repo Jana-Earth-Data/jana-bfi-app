@@ -85,8 +85,20 @@ function activitiesFromHints(nrbSector: string): TaxonomyActivity[] {
   for (const hint of SECTOR_HINTS) {
     if (!hint.match.test(nrbSector)) continue;
     for (const id of hint.activityIds) {
-      const a = TAXONOMY_ACTIVITIES.find((x) => x.id === id);
-      if (a && !acc.includes(a)) acc.push(a);
+      // INVARIANT (asserted by taxonomy-applicability.unit.test.ts
+      // "every SECTOR_HINTS activityId resolves to a real activity"): every id
+      // above is a real TAXONOMY_ACTIVITIES entry, so `find` never returns
+      // undefined here. The former `a && …` null-guard was therefore an
+      // unreachable branch (P1.5 gate — same class as the `?? null → !` removal
+      // in activities.ts) and is dropped; a mistyped hint id would now surface
+      // as a loud undefined push in the test above rather than silently vanish.
+      const a = TAXONOMY_ACTIVITIES.find((x) => x.id === id)!;
+      // No intra-call dedup guard: within one call no two hints can co-match a
+      // single sector string while sharing an activityId (the shared ids —
+      // cement-whr, food-processing, green-buildings — sit behind mutually
+      // exclusive regexes), and no single hint repeats an id. Cross-source
+      // duplicates are collapsed by suggestActivitiesForSector's merge step.
+      acc.push(a);
     }
   }
   return acc;

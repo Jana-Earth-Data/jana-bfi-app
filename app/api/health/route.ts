@@ -14,12 +14,12 @@
  * few seconds and must not be throttled.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { isDemoBuild } from "@/lib/demo/provider";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
   return NextResponse.json({
     status: "ok",
     timestamp: new Date().toISOString(),

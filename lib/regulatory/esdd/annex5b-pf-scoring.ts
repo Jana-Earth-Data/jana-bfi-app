@@ -147,9 +147,15 @@ function buildRationale({
   const drivingList = drivingPs.length > 0 ? drivingPs.join(", ") : "none";
 
   if (riskClass === "critical") {
-    const criticalList = criticalFlaggedItems.length > 0
-      ? criticalFlaggedItems.map((id) => id.replace("annex5b.", "")).join(", ")
-      : "none";
+    // riskClass is only ever set to "critical" when criticalFlaggedItems is
+    // non-empty (see scorePfScreening: `critical` requires
+    // criticalFlaggedItems.length > 0). So inside this block the list is always
+    // populated; the former `: "none"` ternary fallback was unreachable and is
+    // removed for the P1.5 100%-branch gate. The critical→non-empty invariant is
+    // asserted in tests/unit/annex5b-pf-scoring.unit.test.ts.
+    const criticalList = criticalFlaggedItems
+      .map((id) => id.replace("annex5b.", ""))
+      .join(", ");
     return (
       `PF risk: CRITICAL. ${criticalFlaggedItems.length} IFC PS termination-grade item(s) ` +
       `flagged (${criticalList}). Total flags: ${itemsFlagged}. Top-flagged PS: ${drivingList}. ` +

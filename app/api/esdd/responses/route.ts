@@ -144,6 +144,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const [_officer, authErr] = await requireOfficer("viewing responses");
+  if (authErr) return authErr;
+
   const [supabase, sbErr] = await requireCaptureClient();
   if (sbErr) return sbErr;
   const tenant = await resolveCurrentTenant();

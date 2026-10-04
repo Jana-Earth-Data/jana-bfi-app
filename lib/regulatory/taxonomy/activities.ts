@@ -1763,7 +1763,13 @@ export function findActivityById(id: string): TaxonomyActivity | null {
   if (direct) return direct;
   const aliased = LEGACY_ID_ALIASES[id];
   if (aliased) {
-    return TAXONOMY_ACTIVITIES.find((a) => a.id === aliased) ?? null;
+    // Every LEGACY_ID_ALIASES *value* is a live TAXONOMY_ACTIVITIES id (see the
+    // alias table below), so this `.find()` never returns undefined. The former
+    // `?? null` fallback was an unreachable branch and is removed for the P1.5
+    // 100%-branch gate; a `!` keeps the return type non-nullable here. The
+    // alias→real-activity invariant is asserted in
+    // tests/unit/taxonomy-activities.unit.test.ts.
+    return TAXONOMY_ACTIVITIES.find((a) => a.id === aliased)!;
   }
   return null;
 }

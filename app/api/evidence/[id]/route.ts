@@ -10,6 +10,7 @@ import { resolveCurrentTenant } from "@/lib/tenants";
 import { resolveCurrentOfficer } from "@/lib/officers/resolve";
 import { assertOwnerOrRespond } from "@/lib/officers/loan-lock";
 import { getCaptureClient } from "@/lib/data/capture-client";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,6 +19,9 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
+  const [, offErr] = await requireOfficer("deleting evidence attachment");
+  if (offErr) return offErr;
+
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }

@@ -34,6 +34,7 @@ import {
   NgfsTransitionRiskCategory,
   NRB_ESRM_GHG_REPORTING_THRESHOLD_TCO2E,
 } from "./types";
+import { AS_OF_DATE } from "@/lib/regulatory/reporting/period";
 
 // ---------------------------------------------------------------------------
 // Sector → NGFS category mapping (NRB ESRM 2022 §4.1, §4.2)
@@ -176,7 +177,14 @@ function profileForBorrower(b: Borrower): SectorClimateProfile {
 // This mirrors the "count + severity" trigger logic used elsewhere in
 // the demo (see lib/regulatory/esdd/scoring.ts).
 
-function rollupRating(
+// Exported so the rollup policy can be unit-tested directly (P1.5, TEST_STRATEGY
+// §4.1). The `low` verdict (line: `return "low"`) requires zero transition risk
+// AND fewer than two physical categories — a combination no SECTOR_PROFILE /
+// DEFAULT_PROFILE currently produces (every profile carries >=1 transition
+// risk), so it is unreachable through inferClimateRisk today. We keep the branch
+// (the compliance team may add a transition-free profile later) and pin it here
+// rather than delete it, exercising the full documented Low/Medium/High table.
+export function rollupRating(
   physicalCount: number,
   transitionCount: number,
   aboveThreshold: boolean,
@@ -190,30 +198,19 @@ function rollupRating(
 }
 
 // ---------------------------------------------------------------------------
-// Deterministic hash for the assessed-at timestamp
-// ---------------------------------------------------------------------------
-
-function stableHash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  }
-  return h >>> 0; // uint32
-}
-
-// ---------------------------------------------------------------------------
 // Reduction-target seam (N0.3)
 // ---------------------------------------------------------------------------
 //
 // Whether an above-threshold borrower has a documented GHG reduction target is
-// DATA, not arithmetic — in a live deployment it is a fact the ESRM officer
+// DATA, not arithmetic — for the bank's own data it is a fact the ESRM officer
 // records (persisted in `bfi_climate_risk_assessments.reduction_target_on_file`;
 // see the API override in app/api/climate/borrower/[id]/route.ts). It must NOT
-// be fabricated inside lib/regulatory, or a live build inherits invented
+// be fabricated inside lib/regulatory, or production data inherits invented
 // reduction targets on a disclosure surface (backlog N0.3, §0 principle).
 //
 // So the reduction-target value is INJECTED. `inferEmissionsFlag` accepts an
-// optional seed keyed by borrower id; when absent — the live default — the flag
+// optional seed keyed by borrower id; when absent — the default whenever demo
+// mode is off — the flag
 // is `false` / `null` and the officer override (empty by default) is the sole
 // source. The demo passes `demoReductionTargetSeed` from lib/demo/climate-seed
 // to reproduce the previous ~15% distribution, so demo output is unchanged.
@@ -303,11 +300,10 @@ export function inferClimateRisk(b: Borrower): BorrowerClimateRisk {
     profile.transition.length,
     emissions.exceedsReportingThreshold,
   );
-  // Deterministic assessed-at timestamp — same borrower, same date. Uses
-  // a fixed epoch so re-renders don't produce drifting timestamps.
-  const assessedAt = new Date(
-    Date.UTC(2025, 10, 1) + (stableHash(b.id) % (60 * 60 * 24 * 30)) * 1000,
-  );
+  // N0.12: System auto-inference timestamp is AS_OF_DATE (the reporting period
+  // boundary), not a per-borrower fabricated timestamp. For officer assessments,
+  // the API route (climate/borrower/[borrowerId]) uses the override's assessed_at.
+  const assessedAt = new Date(AS_OF_DATE);
   return {
     physicalRisks: [...profile.physical],
     transitionRisks: [...profile.transition],
@@ -372,10 +368,20 @@ export function summarisePortfolioClimate(
   let aboveThresholdWithTargetCount = 0;
 
   for (const b of scoped) {
-    const climate = inferClimateRisk(b);
     const flag = inferEmissionsFlag(b, seed);
-    if (climate.physicalRisks.length > 0) borrowersWithPhysicalRisk += 1;
-    if (climate.transitionRisks.length > 0) borrowersWithTransitionRisk += 1;
+    // INVARIANT (asserted by climate-infer.unit.test.ts "every scoped borrower
+    // carries at least one physical and one transition risk"): inferClimateRisk
+    // draws from profileForBorrower, and every SECTOR_PROFILE — plus the
+    // DEFAULT_PROFILE fallback — declares >=1 physical AND >=1 transition
+    // category. So a scoped borrower always contributes to both counters; the
+    // former `length > 0 ?` guards were unreachable false branches (P1.5 gate,
+    // same class as the applicability.ts `find(...)!` removal) and are dropped.
+    // Because both increments are now unconditional, we no longer call
+    // inferClimateRisk(b) here at all (it was pure and only read for its
+    // now-removed guards). A future risk-free profile would break the invariant
+    // test above, not silently undercount here.
+    borrowersWithPhysicalRisk += 1;
+    borrowersWithTransitionRisk += 1;
     if (flag.exceedsReportingThreshold) {
       aboveThresholdBorrowerIds.push(b.id);
       if (flag.reductionTargetOnFile) {

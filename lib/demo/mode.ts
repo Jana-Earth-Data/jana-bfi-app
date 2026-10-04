@@ -3,28 +3,35 @@
  *
  * Distinct from isDemoBuild() in ./provider.ts, and the difference matters.
  *
- *   isDemoBuild()  — does this artifact CONTAIN the demo layer? Build-time,
- *                    immutable, decided by JANA_DEMO at compile.
- *   isDemoMode()   — is it currently ACTIVE? Runtime, togglable, but only
- *                    inside a build that contains it.
+ *   isDemoBuild()  — is the demo switch AVAILABLE on this deployment? Read
+ *                    from process.env.JANA_DEMO at runtime, despite the name.
+ *                    (Correction 2026-09-30: earlier comments called this
+ *                    build-time and said a "live build" contains no demo
+ *                    code; the demo code is in every bundle -- see
+ *                    lib/demo/provider.ts.)
+ *   isDemoMode()   — is demo mode ON for this user's request? Runtime,
+ *                    per-user, togglable.
  *
- * A live build has no demo code compiled in, so there is nothing for a
- * runtime toggle to enable. The toggle exists for demo builds, so you can
- * show the clean empty product mid-conversation without rebuilding.
+ * With the switch available, the toggle lets a user move between the demo
+ * portfolio and the bank's own data without a redeploy.
  *
  * The rule
  * --------
- *   effective = isDemoBuild() && (cookie ?? true)
+ *   effective = isDemoBuild() && cookie === "on"
  *
- * The asymmetry is deliberate and load-bearing. You can always turn demo OFF.
- * You can only turn it ON in a build that shipped the demo layer. A cookie
- * cannot conjure fabricated data into a live deployment, because the code to
- * fabricate it is not in the bundle -- the switch is a convenience, not a
- * security boundary, and it is arranged so that misusing it fails safe.
+ * Demo mode is per user: the switch is a session cookie in that user's
+ * browser, and every capture read or write is scoped to the request's origin
+ * (lib/data/capture-client.ts), so one person switching demo on never changes
+ * what anyone else sees.
  *
- * Default ON in a demo build: someone who deliberately built with JANA_DEMO=1
- * wants the demo. Making them also flip a cookie would be a papercut with no
- * safety benefit, since the artifact is already demo-only.
+ * Default OFF (changed 2026-09-30). The production system is what everyone
+ * gets; demo mode is opt-in -- for training new users, or a sales walkthrough
+ * -- via the demo menu. Previously an absent cookie meant ON, so every new
+ * session on the deployed app opened on fabricated data.
+ *
+ * The switch is a convenience, not a security boundary. What keeps
+ * fabricated rows out of the bank's data is the provenance (origin) column
+ * and lib/demo/provider.ts being the only door to the demo layer.
  */
 
 import { cookies } from "next/headers";
@@ -43,16 +50,17 @@ export async function isDemoMode(): Promise<boolean> {
   if (!isDemoBuild()) return false;
   const jar = await cookies();
   const raw = jar.get(DEMO_MODE_COOKIE)?.value;
-  // Absent means on. Only an explicit "off" disables it.
-  return raw !== "off";
+  // Absent means off: production by default, demo only when chosen.
+  return raw === "on";
 }
 
 /**
  * Whether to render the demo controls at all.
  *
- * True for any demo build, including when demo mode is toggled off -- the
- * menu is how you toggle it back on. A live build returns false and the
- * controls are never rendered.
+ * True whenever the demo switch is available on this deployment, including
+ * when demo mode is toggled off -- the menu is how you toggle it back on.
+ * Where the switch is not available (JANA_DEMO unset) this returns false and
+ * the controls are never rendered.
  */
 export function showDemoControls(): boolean {
   return isDemoBuild();

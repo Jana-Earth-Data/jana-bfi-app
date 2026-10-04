@@ -28,12 +28,16 @@ import { NextResponse } from "next/server";
 import { resolveCurrentOfficer } from "@/lib/officers/resolve";
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { resolveLoanLockFor } from "@/lib/officers/loan-lock";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ loanId: string }> };
 
 export async function POST(_req: Request, { params }: Params) {
+  const [officer, offErr] = await requireOfficer("claiming a loan");
+  if (offErr) return offErr;
+
   const { loanId } = await params;
   if (!loanId) {
     return NextResponse.json(
@@ -42,13 +46,6 @@ export async function POST(_req: Request, { params }: Params) {
     );
   }
 
-  const officer = await resolveCurrentOfficer();
-  if (!officer) {
-    return NextResponse.json(
-      { error: "Officer must be selected before claiming a loan." },
-      { status: 401 },
-    );
-  }
   const tenant = await resolveCurrentTenant();
 
   const lock = await resolveLoanLockFor(loanId, tenant, officer);

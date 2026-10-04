@@ -6,12 +6,12 @@
  * header.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { OFFICER_COOKIE_NAME } from "@/lib/officers/resolve";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(_request: NextRequest) {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(OFFICER_COOKIE_NAME, "", {
     httpOnly: true,

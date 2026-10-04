@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { resolveCurrentOfficer } from "@/lib/officers/resolve";
 import { getCaptureClient } from "@/lib/data/capture-client";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 import {
   deriveEsrm,
@@ -38,6 +39,9 @@ export const dynamic = "force-dynamic";
  * wizard on mount and by the drawer to render live status.
  */
 export async function GET(request: NextRequest) {
+  const [, offErr] = await requireOfficer("accessing ESRM screenings");
+  if (offErr) return offErr;
+
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json(

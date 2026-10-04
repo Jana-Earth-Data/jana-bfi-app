@@ -38,6 +38,10 @@ import {
   TaxonomyBreakdown,
 } from "@/lib/types/bfi";
 import { TREND_YEARS } from "@/lib/regulatory/reporting/period";
+import { computeGrossExposureMatrix } from "./gross-exposure";
+import { computeGrossExposureCoverage } from "./coverage";
+import { computeMethodologyDisclosure } from "./methodology";
+import { computeDataExtentDisclosure } from "./data-extent";
 
 function emptyTaxonomy(): TaxonomyBreakdown {
   return { green: 0, amber: 0, red: 0, unclassified: 0 };
@@ -47,11 +51,16 @@ function emptyTaxonomy(): TaxonomyBreakdown {
  * Aggregate a loan book + borrowers + attributions into the disclosed
  * PortfolioSummary. Pure function of its inputs; the demo synthesizer and the
  * live/overlay paths both call it so the two can never diverge.
+ *
+ * @param consolidationApproach - Optional IFRS S2 B27 consolidation approach disclosure.
+ *   When provided, included in the returned summary for B27 compliance. When undefined,
+ *   consolidation approach has not been configured for this tenant.
  */
 export function summarise(
   loans: Loan[],
   borrowers: Borrower[],
   attributions: PcafAttribution[],
+  consolidationApproach?: { approach: "equity-share" | "control"; reason: string },
 ): PortfolioSummary {
   const borrowerMap = new Map(borrowers.map((b) => [b.id, b]));
   const attrByLoan = new Map(attributions.map((a) => [a.loanId, a]));
@@ -231,6 +240,32 @@ export function summarise(
     };
   });
 
+  // IFRS S2 B62(b) gross exposure matrix — industry × asset class disaggregation
+  // of funded carrying amount before loss allowance. Computed here so demo and
+  // live paths both produce identical B62(b) disclosure tables (N1.1).
+  const grossExposureMatrix = computeGrossExposureMatrix(
+    loans,
+    borrowers,
+    attributions,
+  );
+
+  // IFRS S2 B62(c) coverage — percentage of gross exposure included in the
+  // financed-emissions calculation, with excluded asset types named. Replaces
+  // the existing facility-matched ÷ in-scope ratio with the correct denominator
+  // (total gross exposure, not in-scope exposure). N1.2.
+  const grossExposureCoverage = computeGrossExposureCoverage(loans, attributions);
+
+  // IFRS S2 B62(d) + §29(a)(iii) methodology disclosure — structured breakdown
+  // of which PCAF options, denominators, and data sources were used across the
+  // portfolio. Replaces the hardcoded `pcafMethodologyNote` prose strings (N1.10).
+  const methodologyDisclosure = computeMethodologyDisclosure(attributions, loans);
+
+  // IFRS S2 B55–B56 + §29(a)(iii) data extent disclosure — the extent to which
+  // financed emissions are measured using primary-activity data (borrower-specific
+  // operational data, Options 2a/2b) and verified data (third-party assured, Option 1a).
+  // Added for N1.11.
+  const dataExtentDisclosure = computeDataExtentDisclosure(attributions, loans);
+
   return {
     totalLoans,
     totalOutstandingUsd: Math.round(totalOutstandingUsd),
@@ -243,5 +278,10 @@ export function summarise(
     funnel,
     dataQualityDistribution,
     trend,
+    grossExposureMatrix,
+    grossExposureCoverage,
+    methodologyDisclosure,
+    dataExtentDisclosure,
+    consolidationApproach,
   };
 }

@@ -5,7 +5,7 @@
  * (`inferPcafAvailability` — Climate TRACE match → physical_activity,
  * publiclyListed → revenue) and then raise the two published-emissions flags
  * only where a verified evidence document exists (`resolveAvailability` —
- * seeded in the demo, none in a live build).  This route lets an officer
+ * seeded in demo mode, none when demo mode is off).  This route lets an officer
  * confirm or override that answer after reviewing the borrower's actual
  * annual report / ISO 14064 assurance statement — the whole point of the P24
  * collection UI.
@@ -53,6 +53,7 @@ import { getBfiDemoData } from "@/lib/api/bfi";
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { resolveCurrentOfficer } from "@/lib/officers/resolve";
 import { assertOwnerOrRespond } from "@/lib/officers/loan-lock";
+import { requireOfficer } from "@/lib/api/route-helpers";
 import {
   assetClassForLoanCategory,
   computePcafScore,
@@ -163,7 +164,7 @@ function findLoanForBorrower(
  * override. Mirrors the build-time pcafFor() derivation exactly so the
  * inferredFlags this route reports match the ones baked into the portfolio:
  * infer the observable flags, then raise the two published-emissions flags from
- * evidence — seeded in a demo build, none in live — through the same
+ * evidence — seeded in demo mode, none when it is off — through the same
  * resolveAvailability the officer's own review flows through. `evidenceFor` is
  * resolved once by the caller (it awaits the demo provider).
  */
@@ -231,6 +232,9 @@ async function loadSavedRow(
 // ---------------------------------------------------------------------------
 
 export async function GET(_req: Request, { params }: Params) {
+  const [, offErr] = await requireOfficer("accessing PCAF availability");
+  if (offErr) return offErr;
+
   const { borrowerId } = await params;
   if (!borrowerId) {
     return NextResponse.json(
@@ -295,6 +299,9 @@ export async function GET(_req: Request, { params }: Params) {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: Request, { params }: Params) {
+  const [, offErr] = await requireOfficer("saving PCAF availability");
+  if (offErr) return offErr;
+
   const { borrowerId } = await params;
   if (!borrowerId) {
     return NextResponse.json(

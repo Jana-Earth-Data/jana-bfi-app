@@ -15,8 +15,10 @@
  * So it stays, it is bright, and it is at the top where it lands in any
  * screen capture.
  *
- * Not rendered at all in a live build -- there is no demo layer to warn
- * about, and a warning that never applies teaches people to ignore warnings.
+ * Rendered only when demo mode is on for this user (app/layout.tsx). With it
+ * off the user is looking at the bank's own data, there is nothing fabricated
+ * to warn about, and a warning that never applies teaches people to ignore
+ * warnings.
  */
 
 export function DemoModeBanner() {

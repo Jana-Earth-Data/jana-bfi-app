@@ -12,7 +12,7 @@
  */
 
 import { apiFetchAll } from "@/lib/api/client";
-import { pcafAttributionFactor } from "@/lib/regulatory/pcaf/attribution";
+import { attributionDenominatorUsd } from "@/lib/regulatory/pcaf/attribution";
 import { summarise } from "@/lib/regulatory/pcaf/aggregation";
 import { TREND_YEARS } from "@/lib/reporting/periods";
 import { getDemoProvider } from "@/lib/demo/provider";
@@ -197,15 +197,40 @@ function overlayLive(
       // sector-benchmark — already correct (no facility tier)
       return prev;
     }
-    // Facility-tier re-overlay only reaches here, so the shared PCAF §4.2
-    // attribution factor (lib/regulatory/pcaf/attribution.ts) applies the
-    // facility EV floor — the same floor the demo aggregator uses. No local
-    // floor literal lives in this file (N0.2).
-    const af = pcafAttributionFactor(loan.outstandingUsd, b);
+    // Facility-tier re-overlay only reaches here. The shared PCAF attribution
+    // denominator logic (lib/regulatory/pcaf/attribution.ts) applies per-asset-class
+    // denominators (N1.9: equity+debt for §5.2, project cost for §5.3, etc.) with
+    // PCAF-permitted fallbacks and EV floor. No local floor literal lives here (N0.2).
+    const assetClass = prev.pcafAssetClass || "business-loans-unlisted-equity";
+    const denominator = attributionDenominatorUsd(loan, b, assetClass);
+    const af = loan.outstandingUsd / denominator.denominatorUsd;
+
+    // N1.16: Recalculate scope breakdown when emissions change from live overlay.
+    // The ...prev spread would keep stale scope values from mock data; we must
+    // recompute attributed scope fields based on the new attribution factor and
+    // the borrower's updated scope emissions (if available).
+    const attributedScope1Co2eTonnes =
+      b.scope1Co2eTonnes !== undefined
+        ? Math.round(af * b.scope1Co2eTonnes)
+        : undefined;
+    const attributedScope2Co2eTonnes =
+      b.scope2Co2eTonnes !== undefined
+        ? Math.round(af * b.scope2Co2eTonnes)
+        : undefined;
+    const attributedScope3Co2eTonnes =
+      b.scope3Co2eTonnes !== undefined
+        ? Math.round(af * b.scope3Co2eTonnes)
+        : undefined;
+
     return {
       ...prev,
       attributionFactor: af,
       attributedCo2eTonnes: Math.round(af * b.totalCo2eTonnes),
+      attributedScope1Co2eTonnes,
+      attributedScope2Co2eTonnes,
+      attributedScope3Co2eTonnes,
+      denominatorType: denominator.denominatorType,
+      denominatorLabel: denominator.denominatorLabel,
     };
   });
 
@@ -217,9 +242,10 @@ function overlayLive(
       ...base.meta,
       isMock: false,
       generatedAt: new Date().toISOString(),
+      // Deprecated - use portfolio.methodologyDisclosure instead (N1.10)
       pcafMethodologyNote:
-        "Live: Climate TRACE facility emissions (Nepal) overlaid onto synthesized loan portfolio. " +
-        "PCAF Cat. 15 attribution: outstanding USD / enterprise value USD x facility CO2e.",
+        "Live: Climate TRACE facility emissions overlaid. " +
+        "See portfolio.methodologyDisclosure for detailed breakdown.",
     },
     borrowers,
     loans: base.loans,
@@ -295,15 +321,15 @@ async function fetchLiveAndOverlay(
  * - With token: fetch live Climate TRACE data, overlay onto borrowers.
  */
 /**
- * The base portfolio, from whichever source this build has -- and only if the
- * demo layer is switched on right now.
+ * The base portfolio: the demo book only if demo mode is switched on for this
+ * request, otherwise the bank's own loan book.
  *
- * A demo build gets the synthesized 80K-loan book. A live build has no
- * synthesizer compiled into it at all, so it gets a genuinely empty envelope:
- * no loans, no borrowers, no fabricated exposures. That is the correct state
- * for a bank whose core-banking import has not happened yet, and giving the
- * live path a real answer is what removes the temptation to keep the
- * synthesizer around "just for the empty case".
+ * With demo mode on, the user gets the synthesized 80K-loan book. With it off
+ * (or the demo switch unavailable on this deployment), they get a genuinely
+ * empty envelope: no loans, no borrowers, no fabricated exposures. That is
+ * the correct state for a bank whose core-banking import has not happened
+ * yet, and giving the production path a real answer is what removes the
+ * temptation to reach for the synthesizer "just for the empty case".
  *
  * The isDemoMode() check is the one that makes the header toggle mean
  * something. Without it the switch would repaint the chrome while the
@@ -384,9 +410,9 @@ export async function fetchClimateTraceSummary(token: string) {
 
 /**
  * Drop the synthesizer's in-process cache. Used by the seed routes after they
- * rewrite the loan book. A no-op in a live build, where there is no cache and
- * no synthesizer -- callers do not need to know which kind of build they are
- * in.
+ * rewrite the loan book. A no-op when the demo switch is unavailable on this
+ * deployment (JANA_DEMO unset), where the provider is null -- callers do not
+ * need to know which kind of deployment they are in.
  */
 export async function invalidatePortfolioCache(): Promise<void> {
   const provider = await getDemoProvider();

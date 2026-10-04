@@ -1,12 +1,13 @@
 /**
  * What the dashboard shows when there is no loan book.
  *
- * Two ways to arrive here, and they are the same state:
- *   - a live build, before core-banking import has run;
- *   - a demo build with demo mode toggled off.
+ * Today one way to arrive here: demo mode is off (the default), so the user
+ * sees the bank's own data, and the loan book is empty until the core-banking
+ * import has run. Whether or not the deployment offers the demo switch, it is
+ * the same state.
  *
- * That equivalence is the point. Turning the toggle off in front of a
- * prospect shows them their own day-one instance, not a mockup of one.
+ * That is the point. Turning demo mode off in front of a prospect shows them
+ * their own day-one instance, not a mockup of one.
  *
  * Why an empty frame rather than a "no data" message
  * --------------------------------------------------

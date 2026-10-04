@@ -4,7 +4,7 @@
  * Riya Sharma, Anish Rai, Priya Karki and Bikram Thapa are invented people,
  * hardcoded as `demoOfficers` in lib/tenants/registry.ts. Because they live in
  * TypeScript rather than a table, they slipped past both earlier boundaries:
- * the build-time demo layer (Phase 1) and the `origin` column (Phase 3). With
+ * the lib/demo provider boundary (Phase 1) and the `origin` column (Phase 3). With
  * demo mode off the portfolio was empty, the work queue was empty, and the
  * header still read "As Riya Sharma · Loan officer".
  *

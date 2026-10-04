@@ -29,7 +29,7 @@
  *   }
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { resolveCurrentTenant } from "@/lib/tenants";
 
 import { getBfiDemoData } from "@/lib/api/bfi";
@@ -75,7 +75,7 @@ function daysBetween(fromIso: string, toIso: string): number {
   return Math.round((to - from) / (24 * 60 * 60 * 1000));
 }
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
   const [supabase, sbErr] = await requireCaptureClient();
   if (sbErr) return sbErr;
   const tenant = await resolveCurrentTenant();

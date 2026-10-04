@@ -13,12 +13,11 @@
 #     production Dockerfile builds from, so lint / type-check / guards run
 #     against the Node version we actually ship on — not whatever a bare
 #     GitHub runner happens to provide.
-#   * The `docker-build` job builds the REAL production image both ways
-#     (JANA_DEMO=1 demo and JANA_DEMO=0 live). This proves the exact artifact
-#     that deploys actually compiles, and exercises the prebuild guards inside
-#     the build (precompute-guard bakes the portfolio for demo, strips it for
-#     live). This subsumes the plan's `build:demo` / `build:live` requirement
-#     using the production Dockerfile rather than a bare `next build`.
+#   * The `docker-build` job builds the REAL production image. P5.8: ONE build
+#     that always includes the demo capability. The prebuild guards
+#     unconditionally generate the precomputed portfolio; JANA_DEMO is
+#     runtime-only and controls whether the demo switch is offered to users.
+#     This proves the exact artifact that deploys actually compiles.
 #
 # The `checks` job runs the Vitest suite (report-only coverage, no gate) as of
 # P0.4. The coverage THRESHOLD gate on lib/regulatory/** is turned on later in
@@ -84,16 +83,18 @@ jobs:
       - name: Test (report-only coverage)
         run: npm run test:coverage
 
-      # The 8 prebuild guards (check-dockerignore-build-scripts, check-build-
-      # wiring, check-demo-imports, check-demo-mode-gate, check-docker-demo-
-      # flag, check-capture-client, check-demo-officers, check-regulatory-
-      # boundary) plus precompute-guard. Run them directly rather than via
-      # `next build` so a guard failure is attributed clearly and doesn't
-      # require a full build first.
+      # The prebuild guards (11 total: 8× .mjs — check-dockerignore-build-
+      # scripts, check-build-wiring, check-demo-imports, check-demo-mode-gate,
+      # check-capture-client, check-demo-officers, check-regulatory-boundary,
+      # precompute-guard; 3× .ts architectural guards — check-demo-boundary,
+      # check-live-build-empty, check-pcaf-overlay). Run them directly rather
+      # than via `next build` so a guard failure is attributed clearly and
+      # doesn't require a full build first.
       #
-      # JANA_DEMO is left UNSET here: precompute-guard treats that as a live
-      # build and asserts no fabricated portfolio is present — the safer of the
-      # two invariants to enforce on every push.
+      # P5.8: precompute-guard ALWAYS generates the portfolio (no conditional
+      # logic). JANA_DEMO is runtime-only and not used during build.
+      # P0.7: wired the three orphaned .ts guards (demo boundary, live-empty,
+      # PCAF overlay) into prebuild.
       - name: Build guards (prebuild)
         run: npm run prebuild
 
@@ -109,11 +110,15 @@ jobs:
       # header. CI proves the build compiles; provenance is a human decision.
 
   # --------------------------------------------------------------------------
-  # Build the real production image both ways. This is the "test in Docker"
+  # Build the real production image. P5.8: ONE build that always includes the
+  # demo capability. The prebuild guards unconditionally generate the
+  # precomputed 80,035-loan portfolio. JANA_DEMO is a runtime ENV (set in the
+  # Dockerfile runner stage) that controls whether the demo switch is offered
+  # to users; it is not a build arg anymore. This is the "test in Docker"
   # signal: the exact artifact that ships must build.
   # --------------------------------------------------------------------------
   docker-build:
-    name: Docker image build (demo + live)
+    name: Docker image build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -122,29 +127,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Demo image: JANA_DEMO=1 bakes in the 80,035-loan synthesizer. This is
-      # the image the sales demo runs.
-      - name: Build demo image (JANA_DEMO=1)
+      # P5.8: Single build. The demo code and precomputed portfolio are in
+      # every image; JANA_DEMO (runtime ENV) gates the Demo menu and the
+      # /api/demo/mode toggle route.
+      - name: Build production image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: false
-          build-args: |
-            JANA_DEMO=1
-          cache-from: type=gha,scope=demo
-          cache-to: type=gha,mode=max,scope=demo
-          tags: jana-bfi-app:ci-demo
-
-      # Live image: JANA_DEMO=0 must produce a bundle with NO fabricated
-      # portfolio. Building it here proves the live artifact compiles and that
-      # precompute-guard correctly strips the demo layer.
-      - name: Build live image (JANA_DEMO=0)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          build-args: |
-            JANA_DEMO=0
-          cache-from: type=gha,scope=live
-          cache-to: type=gha,mode=max,scope=live
-          tags: jana-bfi-app:ci-live
+          cache-from: type=gha,scope=build
+          cache-to: type=gha,mode=max,scope=build
+          tags: jana-bfi-app:ci

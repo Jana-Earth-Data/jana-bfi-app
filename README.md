@@ -18,12 +18,12 @@ The dashboard has five top-level tabs — **My Work** (the signed-in officer's r
 
 ## Two modes
 
-The app ships **two modes in a single build**, toggled at runtime:
+One application with a **runtime demo switch**:
 
-- **Live** — empty loan book, real officer captures persisted to Supabase. This is what a bank runs.
-- **Demo** — a fabricated 80,000-loan portfolio rooted in real Nepal entities. Used for sales demonstrations and for training officers before their real book is loaded.
+- **Demo mode on** — a fabricated 80,000-loan portfolio rooted in real Nepal entities. Used for sales demonstrations and for training officers before their real book is loaded.
+- **Demo mode off** — the bank's own data: real officer captures persisted to Supabase, and the bank's loan book once the loan-book import (P4.1a) exists.
 
-The `JANA_DEMO` build flag gates the separation (see Environment variables below), fixtures live behind the `lib/demo` boundary, a DEMO MODE banner is always visible in demo, and capture tables carry a provenance column so demo rows can never appear in live data.
+The switch is available when the `JANA_DEMO` environment variable is `1` (as on the Vercel deployment). Fixtures live behind the `lib/demo` boundary, a DEMO MODE banner is always visible in demo mode, and capture tables carry a provenance column so demo rows can never appear in live data. Demo mode is per user (a session cookie) and defaults to off, so everyone else keeps working on production data.
 
 ## Stack
 
@@ -37,8 +37,8 @@ The `JANA_DEMO` build flag gates the separation (see Environment variables below
 ```bash
 cp .env.local.example .env.local
 npm install
-npm run dev:demo     # demo build (JANA_DEMO=1) — what a sales demo runs
-# npm run dev        # live build — empty loan book, no fabricated portfolio
+npm run dev:demo     # JANA_DEMO=1 — demo switch available (as on Vercel)
+# npm run dev        # JANA_DEMO unset — no demo switch, precomputed portfolio not generated
 # → http://localhost:3000
 ```
 
@@ -52,7 +52,7 @@ via the npm scripts (`build:demo` / `dev:demo`), the Dockerfile build arg, or
 
 | Variable | Purpose |
 |---|---|
-| `JANA_DEMO` | Build-time. `1` → demo build; unset → live build. Set by `npm run build:demo` / `dev:demo`, the `JANA_DEMO` Dockerfile ARG, and `vercel.json` |
+| `JANA_DEMO` | Read at runtime. `1` → the per-user demo switch is available (and the precomputed demo portfolio is generated at build); unset → no demo switch. Set by `npm run build:demo` / `dev:demo`, the `JANA_DEMO` Dockerfile ARG, and `vercel.json`. Collapsing this to one build is PROJECT_PLAN P5.8 |
 | `NEXT_PUBLIC_API_URL` | Jana API base URL (default `https://api-test.jana.earth`) |
 | `NEXT_PUBLIC_AUTH_URL` | Jana auth service for the device-code flow (default `https://auth-dev.jana.earth`) |
 | `NEXT_PUBLIC_DEMO_USE_MOCKS` | `true` forces mock mode; `false` enables the live overlay after sign-in |

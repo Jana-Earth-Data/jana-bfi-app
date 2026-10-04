@@ -2,16 +2,16 @@
  * The zero state — a bank with no loan book loaded yet.
  *
  * This is not a placeholder or a fallback. It is the correct and expected
- * state of a live deployment before core-banking import exists: the bank has
- * signed up, nothing has been ingested, and the honest answer to "what are
- * your financed emissions" is that we do not know yet.
+ * state of the bank's own data (demo mode off) before core-banking import
+ * exists: the bank has signed up, nothing has been ingested, and the honest
+ * answer to "what are your financed emissions" is that we do not know yet.
  *
- * It exists because the alternative is worse. Without it, a build with no
- * demo layer would have nothing to return from getBfiDemoData(), and the
- * pressure would be to keep the synthesizer around "just for the empty case"
- * -- which is exactly how fabricated loans end up in a production bundle.
- * Giving the live path a real answer removes the reason to reach for the
- * fake one.
+ * It exists because the alternative is worse. Without it, demo mode off
+ * would have nothing to return from getBfiDemoData(), and the pressure would
+ * be to fall back to the synthesizer "just for the empty case" -- which is
+ * exactly how fabricated loans end up in front of a bank as its own data.
+ * Giving the production path a real answer removes the reason to reach for
+ * the fake one.
  *
  * Everything here is genuinely zero or empty. No sample rows, no illustrative
  * borrower, nothing that could be mistaken for a real exposure. A reader who
@@ -50,6 +50,33 @@ function emptySummary(): PortfolioSummary {
       totalAttributedCo2eTonnes: 0,
       byTaxonomy: { green: 0, amber: 0, red: 0, unclassified: 0 },
     })),
+    // N1.1: grossExposureMatrix should always be present post-B62(b), even if empty
+    grossExposureMatrix: [],
+    // N1.2: grossExposureCoverage for empty portfolio (0% coverage, no exposures)
+    // N1.4: undrawn commitments tracking. N1.15: "not provided" gaps.
+    grossExposureCoverage: {
+      totalGrossExposureUsd: 0,
+      includedGrossExposureUsd: 0,
+      coveragePercent: 0,
+      includedLoanCount: 0,
+      excludedLoanCount: 0,
+      excludedAssetTypes: [],
+      riskMitigantsExcluded: false,
+      totalRiskMitigantValueUsd: 0,
+      undrawnCommitmentsIncluded: false,
+      totalUndrawnCommitmentUsd: 0,
+      percentageUndrawn: 0,
+      // N1.15 — "Not provided" coverage gaps (all 0 for empty portfolio)
+      lossAllowanceNotProvidedCount: 0,
+      lossAllowanceNotProvidedExposureUsd: 0,
+      lossAllowanceNotProvidedPercent: 0,
+      riskMitigantsNotProvidedCount: 0,
+      riskMitigantsNotProvidedExposureUsd: 0,
+      riskMitigantsNotProvidedPercent: 0,
+      undrawnCommitmentsNotProvidedCount: 0,
+      undrawnCommitmentsNotProvidedExposureUsd: 0,
+      undrawnCommitmentsNotProvidedPercent: 0,
+    },
   };
 }
 

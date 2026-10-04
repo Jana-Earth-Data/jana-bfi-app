@@ -46,8 +46,9 @@ import { resolveAvailability } from "@/lib/regulatory/pcaf/evidence-matrix";
 import { LATEST_FULL_YEAR } from "@/lib/regulatory/reporting/period";
 import { demoPcafEvidenceRecords } from "@/lib/demo/pcaf-evidence-seed";
 import { SCORE_FOR_OPTION } from "@/lib/regulatory/pcaf/types";
-import { pcafAttributionFactor } from "@/lib/regulatory/pcaf/attribution";
+import { attributionDenominatorUsd } from "@/lib/regulatory/pcaf/attribution";
 import { summarise } from "@/lib/regulatory/pcaf/aggregation";
+import { generateOperationalFootprint } from "@/lib/demo/operational-footprint";
 import {
   RETAIL_PROXY_CITATION,
   retailProxyEmissionsTonnes,
@@ -260,7 +261,7 @@ function pcafFor(loan: Loan, borrower: Borrower): PcafAttribution {
   //     document exists. This module IS the demo layer, so it seeds that
   //     evidence directly (lib/demo/pcaf-evidence-seed.ts) — a verified
   //     assurance opinion for the Score-1 exemplar, a verified GHG inventory
-  //     for the Score-2 exemplars. A live build seeds nothing and the flags are
+  //     for the Score-2 exemplars. With demo mode off nothing is seeded and the flags are
   //     established by an officer's real document review through this same
   //     resolveAvailability path (backlog N0.4). disclosureYear is the latest
   //     fully-reported year so a reportingYear-2024 record is not stale.
@@ -328,12 +329,13 @@ function pcafFor(loan: Loan, borrower: Borrower): PcafAttribution {
     };
   }
 
-  // 4. Compute the attribution factor (loan / EV) — PCAF Part A §4.2. The
-  //    enterprise-value floor (the guard that stops a tiny synthetic EV
-  //    producing a >100 % share) lives once, cited, in
-  //    lib/regulatory/pcaf/attribution.ts and is shared with the live
-  //    re-overlay aggregator (lib/api/bfi.ts).
-  const af = pcafAttributionFactor(loan.outstandingUsd, borrower);
+  // 4. Compute the attribution factor per PCAF Part A §4.2 and §5.1–§5.6.
+  //    N1.9 added per-asset-class denominators: equity+debt (§5.2), project
+  //    cost (§5.3), property value (§5.5), vehicle value (§5.6). The
+  //    attribution denominator logic (including PCAF-permitted fallbacks and
+  //    enterprise-value floor) lives in lib/regulatory/pcaf/attribution.ts.
+  const denominator = attributionDenominatorUsd(loan, borrower, compute.assetClass);
+  const af = loan.outstandingUsd / denominator.denominatorUsd;
   const attributed = af * borrower.totalCo2eTonnes;
 
   // 5. Pick the legacy `methodology` label — kept for the ESRM tab's
@@ -358,6 +360,8 @@ function pcafFor(loan: Loan, borrower: Borrower): PcafAttribution {
     qualityNote: compute.method,
     pcafOption: option,
     pcafAssetClass: compute.assetClass,
+    denominatorType: denominator.denominatorType,
+    denominatorLabel: denominator.denominatorLabel,
     pcafCitation: compute.citation,
     pcafDataSource: compute.dataSource,
   };
@@ -452,6 +456,12 @@ function generateLoansForCategory(
     })();
 
     const branch = BRANCHES[Math.floor(r() * BRANCHES.length)];
+
+    // N1.18: Seed undrawn commitments (~20% of loans) and risk mitigants (~30% of loans)
+    // to exercise N1.1–N1.4 B62(c) coverage disclosure logic.
+    const seedUndrawn = r() < 0.20;
+    const seedRiskMitigant = r() < 0.30;
+
     out.push({
       id: `L-${String(startIndex + i + 1).padStart(7, "0")}`,
       borrowerId: borrower.id,
@@ -462,6 +472,18 @@ function generateLoansForCategory(
       branchCode: branch.code,
       outstandingNpr: npr,
       outstandingUsd: usd,
+      // Demo seeds ~2% loss allowance (typical Nepal BFI provision rate for N1.1 gross exposure)
+      lossAllowance: Math.round(usd * 0.02 * 100) / 100,
+      // N1.18: Risk mitigants (collateral, guarantees) on ~30% of loans.
+      // Seeded as 40–70% of outstanding (typical Nepal collateral coverage range).
+      riskMitigantValueUsd: seedRiskMitigant
+        ? Math.round(usd * (0.4 + r() * 0.3) * 100) / 100
+        : undefined,
+      // N1.18: Undrawn commitments on ~20% of loans (approved but not disbursed).
+      // Seeded as 10–50% of outstanding (typical commitment headroom).
+      undrawnCommitmentUsd: seedUndrawn
+        ? Math.round(usd * (0.1 + r() * 0.4) * 100) / 100
+        : undefined,
       disbursedDate,
       maturityDate,
       status,
@@ -583,21 +605,26 @@ function buildPortfolio(): BfiDemoData {
 
   const portfolio = summarise(loans, borrowers, attributions);
 
+  // Generate bank's own operational footprint (Scope 1 + Scope 2 emissions - N2.1, N2.2)
+  // First Bank of Nepal: ~25 branches, ~20 vehicles (mid-size Nepal bank)
+  const operationalFootprint = generateOperationalFootprint(LATEST_FULL_YEAR, 25, 20);
+
   return {
     meta: {
       bankName: "First Bank of Nepal",
       isMock: true,
       generatedAt: new Date().toISOString(),
       asOfDate: AS_OF_DATE,
+      // Deprecated - use portfolio.methodologyDisclosure instead (N1.10)
       pcafMethodologyNote:
-        "Attribution factor = loan outstanding (USD) / borrower enterprise value (USD). " +
-        "Facility-tier borrowers use Climate TRACE / GEM facility emissions. " +
-        "SME and synthesized commercial borrowers use EDGAR sector intensity benchmarks.",
+        "PCAF Part A 3rd Edition — financed emissions per B62(a)–(d). " +
+        "See portfolio.methodologyDisclosure for detailed breakdown.",
     },
     borrowers,
     loans,
     attributions,
     portfolio,
+    operationalFootprint,
   };
 }
 
@@ -682,7 +709,7 @@ export async function getPortfolio(): Promise<BfiDemoData> {
       return portfolioCache;
     }
 
-    // Loud, not silent: a demo build that reaches synthesis has a packaging
+    // Loud, not silent: a JANA_DEMO=1 deployment that reaches synthesis has a packaging
     // bug (the tracer did not include the artifact where any candidate path
     // resolves). Log the paths we tried so the mismatch is diagnosable from
     // the deploy logs instead of surfacing only as an 83s request.

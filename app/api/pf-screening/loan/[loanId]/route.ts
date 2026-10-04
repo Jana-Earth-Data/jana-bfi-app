@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveCurrentTenant } from "@/lib/tenants";
 import { getCaptureClient } from "@/lib/data/capture-client";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ loanId: string }> },
 ) {
+  const [_officer, authErr] = await requireOfficer("viewing PF screening");
+  if (authErr) return authErr;
+
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json(

@@ -33,7 +33,7 @@ type SettingsRow = {
 // GET
 // ---------------------------------------------------------------------------
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json(
@@ -57,10 +57,16 @@ export async function GET() {
 
   const row = data as SettingsRow | null;
   const settings = resolveSettings(row?.settings ?? {});
+
+  // Include demo mode status so the UI can show the demo banner
+  const { isDemoMode } = await import("@/lib/demo/mode");
+  const demo = await isDemoMode();
+
   return NextResponse.json({
     ok: true,
     tenantId: tenant.id,
     settings,
+    demo,
     updatedAt: row?.updated_at ?? null,
     updatedBy: row?.updated_by ?? null,
     version: row?.version ?? 1,

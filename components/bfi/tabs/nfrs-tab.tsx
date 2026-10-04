@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DashboardSsrData } from "@/components/bfi/dashboard";
 import {
   Badge,
+  CollapsiblePanel,
   KpiCard,
   Panel,
   StatRow,
@@ -32,6 +33,13 @@ import {
 } from "@/lib/reporting/periods";
 import { NrbTaxonomyExportButton } from "@/components/bfi/reports/nrb-taxonomy-export-button";
 import { NrbsisGreenStatementButton } from "@/components/bfi/reports/nrbsis-green-statement-button";
+import {
+  GrossExposureMatrix,
+  CoverageDisclosure,
+  MethodologyDisclosure,
+  DataExtentDisclosure,
+  ConsolidationApproach,
+} from "@/components/bfi/shared/b62-disclosures";
 
 export function NfrsTab({ data }: { data: DashboardSsrData }) {
   const s = data.portfolio;
@@ -54,6 +62,15 @@ export function NfrsTab({ data }: { data: DashboardSsrData }) {
     };
   }, [trend]);
 
+  // N0.11: Show "illustrative" label when Score 5 retail proxy drives the total.
+  // RETAIL_TCO2E_PER_NPR (lib/regulatory/pcaf/retail.ts) is an illustrative demo
+  // assumption, not a sourced emissions factor. When Score 5 (retail-pool loans
+  // using that proxy) contributes >10% of the headline, surface that this is
+  // illustrative per IFRS S2 §29(a)(iii) significant judgments disclosure.
+  const score5Tonnes = s.dataQualityDistribution?.find((d) => d.score === 5)?.attributedCo2eTonnes ?? 0;
+  const score5ShareOfTotal = s.totalAttributedCo2eTonnes > 0 ? score5Tonnes / s.totalAttributedCo2eTonnes : 0;
+  const headlineLabel = score5ShareOfTotal > 0.1 ? "Total financed emissions (illustrative)" : "Total financed emissions";
+
   const facilityBorrowers = data.facilityBorrowers.length;
 
   return (
@@ -61,7 +78,7 @@ export function NfrsTab({ data }: { data: DashboardSsrData }) {
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" data-tour="nfrs-headline">
         <KpiCard
-          label="Total financed emissions"
+          label={headlineLabel}
           value={formatCo2e(s.totalAttributedCo2eTonnes)}
           sublabel={
             yoy != null ? (
@@ -213,6 +230,60 @@ export function NfrsTab({ data }: { data: DashboardSsrData }) {
       </Panel>
       </div>
 
+      {/* B62 Disclosures — IFRS S2 paragraph B62 required disclosures */}
+      <div data-tour="b62-gross-exposure-matrix">
+        <CollapsiblePanel
+          title="B62(a)(b) — Gross Exposure Matrix"
+          subtitle="Financed emissions disaggregated by industry (GICS) and asset class per IFRS S2 B62(a)(b)"
+          defaultOpen={false}
+        >
+          <GrossExposureMatrix
+            data={s.grossExposureMatrix ?? []}
+            showCo2e={true}
+          />
+        </CollapsiblePanel>
+      </div>
+
+      <div data-tour="b62-coverage-disclosure">
+        <CollapsiblePanel
+          title="B62(c) — Coverage Disclosure"
+          subtitle="Percentage of gross exposure included in financed emissions measurement per IFRS S2 B62(c)"
+          defaultOpen={false}
+        >
+          <CoverageDisclosure data={s.grossExposureCoverage} />
+        </CollapsiblePanel>
+      </div>
+
+      <div data-tour="b62-methodology-disclosure">
+        <CollapsiblePanel
+          title="B62(d) — Methodology Disclosure"
+          subtitle="Measurement approach, inputs, and allocation method per IFRS S2 B62(d) and §29(a)(iii)"
+          defaultOpen={false}
+        >
+          <MethodologyDisclosure data={s.methodologyDisclosure} />
+        </CollapsiblePanel>
+      </div>
+
+      <div data-tour="b55-b56-data-extent">
+        <CollapsiblePanel
+          title="B55–B56 — Data Extent Disclosure"
+          subtitle="Extent of primary-activity data and verified data per IFRS S2 B55–B56"
+          defaultOpen={false}
+        >
+          <DataExtentDisclosure data={s.dataExtentDisclosure} />
+        </CollapsiblePanel>
+      </div>
+
+      <div data-tour="b27-consolidation">
+        <CollapsiblePanel
+          title="B27 — Consolidation Approach"
+          subtitle="Basis of consolidation for financed emissions measurement per IFRS S2 B27"
+          defaultOpen={false}
+        >
+          <ConsolidationApproach data={s.consolidationApproach} />
+        </CollapsiblePanel>
+      </div>
+
       {/* Taxonomy portfolio breakdown — reads latest saved assessments */}
       <div data-tour="taxonomy-breakdown">
         <Panel
@@ -355,7 +426,7 @@ function DrillDown({
         <StatRow
           label="Attribution factor"
           value={`${(attribution.attributionFactor * 100).toFixed(2)}%`}
-          hint="loan outstanding ÷ enterprise value"
+          hint={attribution.denominatorLabel || "Outstanding ÷ Enterprise Value"}
         />
         <StatRow
           label="Borrower CO₂e"
@@ -417,9 +488,6 @@ function DisclosurePreview({ data }: { data: DashboardSsrData }) {
   const red = latestYear?.byTaxonomy.red ?? 0;
   const green = latestYear?.byTaxonomy.green ?? 0;
 
-  const facilityShareValue =
-    (s.funnel?.facilityMatchedOutstandingNpr ?? 0) /
-    Math.max(1, s.funnel?.inScopeOutstandingNpr ?? 1);
   // Disclosure narrative uses the latest fully-reported year, not the partial
   // trailing year (see lib/regulatory/reporting/period.ts).
   const fullYears = trend.filter((p) => isFullyReportedYear(p.year));
@@ -430,59 +498,36 @@ function DisclosurePreview({ data }: { data: DashboardSsrData }) {
   const disclosureGreen = disclosureYear?.byTaxonomy.green ?? green;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="rounded-lg border border-line bg-panel/30 p-5">
-        <div className="text-xs uppercase tracking-wide text-slate-400">
-          Scope 3 — Category 15 financed emissions
-        </div>
-        <p className="mt-2 text-sm text-slate-300">
-          For the calendar year {disclosureYear?.year ?? "—"} (most recent
-          fully-reported year), {data.meta.bankName} attributed{" "}
-          <span className="font-semibold text-white">{formatCo2e(disclosureTotal)}</span>{" "}
-          of greenhouse gas emissions to its lending book under the PCAF Global
-          GHG Accounting and Reporting Standard, Category 15.
-        </p>
-        <p className="mt-3 text-sm text-slate-300">
-          The portfolio&apos;s weighted PCAF data quality score is{" "}
-          <span
-            className={
-              qualityScoreColors[
-                Math.round(s.weightedDataQuality) as 1 | 2 | 3 | 4 | 5
-              ]
-            }
-          >
-            {s.weightedDataQuality.toFixed(1)}
-          </span>
-          , reflecting that{" "}
-          <span className="font-semibold text-white">
-            {formatPercent(facilityShareValue)}
-          </span>{" "}
-          of in-scope outstanding value is attached to facility-level Climate
-          TRACE emissions.
-        </p>
-        <p className="mt-3 text-sm text-slate-300">
-          High-emissions sectors (red taxonomy) account for{" "}
-          <span className="font-semibold text-white">{formatCo2e(disclosureRed)}</span>;
-          green taxonomy assets (renewable energy) contribute{" "}
-          <span className="font-semibold text-white">{formatCo2e(disclosureGreen)}</span>.
-        </p>
+    <div className="rounded-lg border border-line bg-panel/30 p-5">
+      <div className="text-xs uppercase tracking-wide text-slate-400">
+        Scope 3 — Category 15 financed emissions
       </div>
-
-      <div className="rounded-lg border border-line bg-panel/30 p-5">
-        <div className="text-xs uppercase tracking-wide text-slate-400">
-          Methodology note
-        </div>
-        <p className="mt-2 text-sm text-slate-300">{data.meta.pcafMethodologyNote}</p>
-        <p className="mt-3 text-xs text-slate-500">
-          Methodology: PCAF Global GHG Accounting and Reporting Standard (Part
-          A, Chapter 5), the allocation method chosen to meet the financial-sector
-          financed-emissions requirement in IFRS S2 Appendix B (B58–B63; B62(d)
-          asks that the allocation method be disclosed). PCAF is a chosen method,
-          not a requirement of either standard. Underlying facility data: Climate
-          TRACE Nepal facility emissions; Global Cement and Concrete Tracker
-          (July 2025); Global Energy Monitor.
-        </p>
-      </div>
+      <p className="mt-2 text-sm text-slate-300">
+        For the calendar year {disclosureYear?.year ?? "—"} (most recent
+        fully-reported year), {data.meta.bankName} attributed{" "}
+        <span className="font-semibold text-white">{formatCo2e(disclosureTotal)}</span>{" "}
+        of greenhouse gas emissions to its lending book under the PCAF Global
+        GHG Accounting and Reporting Standard, Category 15.
+      </p>
+      <p className="mt-3 text-sm text-slate-300">
+        The portfolio&apos;s weighted PCAF data quality score is{" "}
+        <span
+          className={
+            qualityScoreColors[
+              Math.round(s.weightedDataQuality) as 1 | 2 | 3 | 4 | 5
+            ]
+          }
+        >
+          {s.weightedDataQuality.toFixed(1)}
+        </span>
+        .
+      </p>
+      <p className="mt-3 text-sm text-slate-300">
+        High-emissions sectors (red taxonomy) account for{" "}
+        <span className="font-semibold text-white">{formatCo2e(disclosureRed)}</span>;
+        green taxonomy assets (renewable energy) contribute{" "}
+        <span className="font-semibold text-white">{formatCo2e(disclosureGreen)}</span>.
+      </p>
     </div>
   );
 }

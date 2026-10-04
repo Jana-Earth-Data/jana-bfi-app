@@ -30,6 +30,7 @@ import {
 } from "@/lib/regulatory/hydro/doc-matrix";
 import { getBorrowerHydroCapacityMw } from "@/lib/regulatory/hydro/capacity";
 import { getCaptureClient } from "@/lib/data/capture-client";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,9 @@ async function loadStatuses(
 
 export async function GET(_req: Request, { params }: Params) {
   const { loanId } = await params;
+  const [, offErr] = await requireOfficer("accessing hydro documentation");
+  if (offErr) return offErr;
+
   if (!loanId) {
     return NextResponse.json({ error: "loanId is required" }, { status: 400 });
   }

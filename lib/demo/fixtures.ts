@@ -17,8 +17,8 @@
  *
  * The rule those lists established still holds: lib/regulatory/** contains no
  * fabricated content. Regulatory modules encode the standard and operate on
- * whatever they are handed. Anything invented is injected from lib/demo, and a
- * live build has nothing to inject.
+ * whatever they are handed. Anything invented is injected from lib/demo, and
+ * with demo mode off nothing is injected.
  *
  * What remains here is synthAirQuality — a fabricated PM2.5 reading — for the
  * same reason: it is invented data the demo layer supplies, kept out of any

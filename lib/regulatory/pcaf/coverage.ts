@@ -1,0 +1,280 @@
+/**
+ * IFRS S2 B62(c) coverage calculation — percentage of gross exposure included
+ * in financed-emissions calculation, with excluded asset types named.
+ *
+ * Per *IFRS Sustainability Disclosure Standard IFRS S2 Climate-related
+ * Disclosures* (June 2023), paragraph B62(c):
+ *
+ *   "An entity shall disclose the **percentage of its gross exposure that is
+ *   included** in its financed emissions calculation ... the entity shall
+ *   disclose:
+ *     (i) the **types of assets excluded** from the calculation;
+ *     (ii) whether the entity has excluded risk mitigants ... from its gross
+ *          exposure;
+ *     (iii) whether undrawn loan commitments are included ..."
+ *
+ * CORRECT DENOMINATOR. The percentage is calculated against **total gross
+ * exposure** (all loans), not against "in-scope exposure" (non-retail loans).
+ * This is the correction N1.2 makes: the existing `PortfolioFunnel` computes
+ * facilityMatched ÷ inScope, which has the wrong denominator — it excludes
+ * retail from both numerator and denominator, so the percentage overstates
+ * coverage. B62(c) requires:
+ *
+ *     coverage % = (gross exposure of loans WITH attribution) /
+ *                  (total gross exposure of ALL loans)
+ *
+ * WHAT IS INCLUDED. A loan is "included in the financed-emissions calculation"
+ * if it has a PCAF attribution (i.e., appears in the `attributions` array
+ * passed to the aggregation function). Loans without attributions are excluded
+ * — typically retail loans, which are out of PCAF scope.
+ *
+ * EXCLUDED ASSET TYPES. B62(c)(i) requires the bank to name the types of
+ * assets excluded. This module provides `computeExcludedAssetTypes()`, which
+ * identifies all loan categories present in the portfolio that have zero
+ * attributions, grouped into human-readable labels (e.g., "Retail mortgages",
+ * "Retail personal loans").
+ */
+
+import type { Loan, PcafAttribution } from "@/lib/types/bfi";
+import { grossExposureUsd } from "./gross-exposure";
+
+/**
+ * IFRS S2 B62(c) citation surfaced in tooltips / auditor exports.
+ */
+export const IFRS_S2_B62C_CITATION =
+  "IFRS S2 Climate-related Disclosures (June 2023) §B62(c) — percentage of gross exposure included";
+
+/**
+ * Result of the B62(c) coverage calculation.
+ */
+export type GrossExposureCoverage = {
+  /** Total gross exposure (USD) across all loans */
+  totalGrossExposureUsd: number;
+  /** Gross exposure (USD) of loans included in financed-emissions calculation */
+  includedGrossExposureUsd: number;
+  /** Percentage of gross exposure included (0-100) */
+  coveragePercent: number;
+  /** Count of loans included */
+  includedLoanCount: number;
+  /** Count of loans excluded */
+  excludedLoanCount: number;
+  /** Human-readable list of excluded asset types (B62(c)(i)) */
+  excludedAssetTypes: string[];
+  /**
+   * B62(c)(ii) disclosure: whether risk mitigants have been excluded from gross exposure.
+   * True if any loan in the portfolio has riskMitigantValueUsd > 0.
+   */
+  riskMitigantsExcluded: boolean;
+  /** Total value of risk mitigants excluded (USD) across all loans */
+  totalRiskMitigantValueUsd: number;
+  /**
+   * B62(c)(iii) disclosure: whether undrawn loan commitments are included in financed
+   * emissions calculation. Per B62(b), gross exposure is funded carrying amount, so
+   * undrawn (unfunded) commitments are excluded. This field is always false.
+   */
+  undrawnCommitmentsIncluded: boolean;
+  /** Total undrawn commitment value (USD) across all loans */
+  totalUndrawnCommitmentUsd: number;
+  /**
+   * Percentage of total commitment that is undrawn (0-100).
+   * Calculated as: undrawn / (drawn + undrawn) × 100
+   * where drawn = totalGrossExposureUsd (before risk mitigant subtraction).
+   */
+  percentageUndrawn: number;
+  /**
+   * N1.15 — Coverage gap disclosure for bank-supplied fields.
+   * Per IFRS S2 B62(b)–(c), when a bank-supplied field (loss allowance, risk
+   * mitigants, undrawn commitments) is undefined, it should be disclosed as
+   * "not provided" rather than silently treated as zero. This enables honest
+   * disclosure of data coverage gaps.
+   */
+  /** Count of loans where lossAllowance is undefined (not provided by bank) */
+  lossAllowanceNotProvidedCount: number;
+  /** Gross exposure (outstandingUsd only) of loans where lossAllowance is undefined */
+  lossAllowanceNotProvidedExposureUsd: number;
+  /** Percentage of loans where lossAllowance is not provided (0-100) */
+  lossAllowanceNotProvidedPercent: number;
+  /** Count of loans where riskMitigantValueUsd is undefined (not provided by bank) */
+  riskMitigantsNotProvidedCount: number;
+  /** Gross exposure of loans where riskMitigantValueUsd is undefined */
+  riskMitigantsNotProvidedExposureUsd: number;
+  /** Percentage of loans where riskMitigantValueUsd is not provided (0-100) */
+  riskMitigantsNotProvidedPercent: number;
+  /** Count of loans where undrawnCommitmentUsd is undefined (not provided by bank) */
+  undrawnCommitmentsNotProvidedCount: number;
+  /** Gross exposure of loans where undrawnCommitmentUsd is undefined */
+  undrawnCommitmentsNotProvidedExposureUsd: number;
+  /** Percentage of loans where undrawnCommitmentUsd is not provided (0-100) */
+  undrawnCommitmentsNotProvidedPercent: number;
+};
+
+/**
+ * Mapping from LoanCategory to human-readable asset type labels for B62(c)(i)
+ * disclosure ("types of assets excluded").
+ */
+const LOAN_CATEGORY_LABELS: Record<string, string> = {
+  "retail-mortgage": "Retail mortgages",
+  "retail-personal": "Retail personal loans",
+  "retail-education": "Retail education loans",
+  "retail-vehicle": "Retail vehicle loans",
+  "sme-working-capital": "SME working capital",
+  "sme-trade-finance": "SME trade finance",
+  "sme-term-loan": "SME term loans",
+  "commercial-term-loan": "Commercial term loans",
+  "commercial-working-capital": "Commercial working capital",
+  "commercial-project-finance": "Commercial project finance",
+  "corporate-syndicated": "Corporate syndicated loans",
+  "corporate-project-finance": "Corporate project finance",
+};
+
+/**
+ * Compute IFRS S2 B62(c) coverage: percentage of gross exposure included in
+ * the financed-emissions calculation, with excluded asset types identified.
+ *
+ * @param loans - All loans in the portfolio
+ * @param attributions - PCAF attributions (loans WITH attribution are included)
+ * @returns Coverage statistics + list of excluded asset types
+ *
+ * A loan is "included" if it appears in the `attributions` array (i.e., has a
+ * PCAF attribution). Loans without attributions are excluded — typically retail
+ * loans, which are out of scope for facility-level PCAF.
+ *
+ * The denominator is **total gross exposure** (all loans), not "in-scope
+ * exposure" — this is the correction N1.2 makes over the existing
+ * `PortfolioFunnel` calculation.
+ */
+export function computeGrossExposureCoverage(
+  loans: Loan[],
+  attributions: PcafAttribution[],
+): GrossExposureCoverage {
+  // Build a set of loan IDs that have attributions (= included)
+  // Per N1.2/N1.3 fix: only count loans with NON-ZERO, IN-SCOPE attributions as "included".
+  // Out-of-scope loans (retail) may have zero-emission attribution rows but should not
+  // count toward coverage.
+  const includedLoanIds = new Set(
+    attributions
+      .filter((a) => a.attributedCo2eTonnes > 0)
+      .map((a) => a.loanId)
+  );
+
+  let totalGrossExposureUsd = 0;
+  let includedGrossExposureUsd = 0;
+  let includedLoanCount = 0;
+  let excludedLoanCount = 0;
+  let totalRiskMitigantValueUsd = 0;
+  let totalUndrawnCommitmentUsd = 0;
+
+  // N1.15 — Track "not provided" coverage gaps for bank-supplied fields
+  let lossAllowanceNotProvidedCount = 0;
+  let lossAllowanceNotProvidedExposureUsd = 0;
+  let riskMitigantsNotProvidedCount = 0;
+  let riskMitigantsNotProvidedExposureUsd = 0;
+  let undrawnCommitmentsNotProvidedCount = 0;
+  let undrawnCommitmentsNotProvidedExposureUsd = 0;
+
+  // Track which loan categories are excluded (have loans but zero attributions)
+  const categoriesWithLoans = new Set<string>();
+  const categoriesWithAttributions = new Set<string>();
+
+  for (const loan of loans) {
+    const grossExp = grossExposureUsd(loan);
+    totalGrossExposureUsd += grossExp;
+
+    // Accumulate risk mitigant values (B62(c)(ii))
+    totalRiskMitigantValueUsd += loan.riskMitigantValueUsd ?? 0;
+
+    // Accumulate undrawn commitment values (B62(c)(iii))
+    totalUndrawnCommitmentUsd += loan.undrawnCommitmentUsd ?? 0;
+
+    // N1.15 — Track "not provided" gaps
+    if (loan.lossAllowance === undefined) {
+      lossAllowanceNotProvidedCount += 1;
+      lossAllowanceNotProvidedExposureUsd += loan.outstandingUsd;
+    }
+    if (loan.riskMitigantValueUsd === undefined) {
+      riskMitigantsNotProvidedCount += 1;
+      riskMitigantsNotProvidedExposureUsd += grossExp;
+    }
+    if (loan.undrawnCommitmentUsd === undefined) {
+      undrawnCommitmentsNotProvidedCount += 1;
+      undrawnCommitmentsNotProvidedExposureUsd += grossExp;
+    }
+
+    const category = loan.category ?? "uncategorized";
+    categoriesWithLoans.add(category);
+
+    if (includedLoanIds.has(loan.id)) {
+      includedGrossExposureUsd += grossExp;
+      includedLoanCount += 1;
+      categoriesWithAttributions.add(category);
+    } else {
+      excludedLoanCount += 1;
+    }
+  }
+
+  // Identify excluded asset types: categories with loans but no attributions
+  const excludedCategories = Array.from(categoriesWithLoans).filter(
+    (cat) => !categoriesWithAttributions.has(cat),
+  );
+
+  const excludedAssetTypes = excludedCategories
+    .map((cat) => LOAN_CATEGORY_LABELS[cat] ?? cat)
+    .sort();
+
+  const coveragePercent =
+    totalGrossExposureUsd > 0
+      ? (includedGrossExposureUsd / totalGrossExposureUsd) * 100
+      : 0;
+
+  // B62(c)(ii) disclosure: risk mitigants excluded if any loan has a non-zero value
+  const riskMitigantsExcluded = totalRiskMitigantValueUsd > 0;
+
+  // B62(c)(iii) disclosure: undrawn commitments tracking
+  // Total commitment = drawn (gross exposure) + undrawn
+  // Per N1.1 fix: grossExposureUsd() now returns the amount BEFORE risk mitigant subtraction,
+  // so we don't need to add risk mitigants back.
+  const totalCommitment = totalGrossExposureUsd + totalUndrawnCommitmentUsd;
+  const percentageUndrawn =
+    totalCommitment > 0
+      ? (totalUndrawnCommitmentUsd / totalCommitment) * 100
+      : 0;
+
+  // N1.15 — Calculate "not provided" percentages
+  const totalLoanCount = loans.length;
+  const lossAllowanceNotProvidedPercent =
+    totalLoanCount > 0
+      ? (lossAllowanceNotProvidedCount / totalLoanCount) * 100
+      : 0;
+  const riskMitigantsNotProvidedPercent =
+    totalLoanCount > 0
+      ? (riskMitigantsNotProvidedCount / totalLoanCount) * 100
+      : 0;
+  const undrawnCommitmentsNotProvidedPercent =
+    totalLoanCount > 0
+      ? (undrawnCommitmentsNotProvidedCount / totalLoanCount) * 100
+      : 0;
+
+  return {
+    totalGrossExposureUsd: Math.round(totalGrossExposureUsd),
+    includedGrossExposureUsd: Math.round(includedGrossExposureUsd),
+    coveragePercent: Math.round(coveragePercent * 100) / 100, // Round to 2 decimals
+    includedLoanCount,
+    excludedLoanCount,
+    excludedAssetTypes,
+    riskMitigantsExcluded,
+    totalRiskMitigantValueUsd: Math.round(totalRiskMitigantValueUsd),
+    undrawnCommitmentsIncluded: false, // Always false - undrawn are excluded per B62(b)
+    totalUndrawnCommitmentUsd: Math.round(totalUndrawnCommitmentUsd),
+    percentageUndrawn: Math.round(percentageUndrawn * 100) / 100, // Round to 2 decimals
+    // N1.15 — "Not provided" coverage gaps
+    lossAllowanceNotProvidedCount,
+    lossAllowanceNotProvidedExposureUsd: Math.round(lossAllowanceNotProvidedExposureUsd),
+    lossAllowanceNotProvidedPercent: Math.round(lossAllowanceNotProvidedPercent * 100) / 100,
+    riskMitigantsNotProvidedCount,
+    riskMitigantsNotProvidedExposureUsd: Math.round(riskMitigantsNotProvidedExposureUsd),
+    riskMitigantsNotProvidedPercent: Math.round(riskMitigantsNotProvidedPercent * 100) / 100,
+    undrawnCommitmentsNotProvidedCount,
+    undrawnCommitmentsNotProvidedExposureUsd: Math.round(undrawnCommitmentsNotProvidedExposureUsd),
+    undrawnCommitmentsNotProvidedPercent: Math.round(undrawnCommitmentsNotProvidedPercent * 100) / 100,
+  };
+}

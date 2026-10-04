@@ -23,11 +23,12 @@
  *
  * WHAT A LIVE DEPLOYMENT DOES
  * ---------------------------
- * A live bank sets `reportingFxRate` from its own books — the rate it used to
- * translate USD-denominated exposures in the financial statements the
- * disclosure sits alongside (typically the NRB reference rate at the fiscal-year
- * close). The demo pins the FY2024 rate below. The shape is identical; only the
- * data differs.
+ * A live bank sets TenantConfig.reportingFxRate from its own books — the rate
+ * it used to translate USD-denominated exposures in the financial statements
+ * the disclosure sits alongside (typically the NRB reference rate at the
+ * fiscal-year close). Demo tenants leave reportingFxRate undefined and fall
+ * back to the pinned FY2024 rate below. See {@link reportingFxRateForTenant}
+ * (N1.13) for the selection logic.
  */
 
 /**
@@ -50,8 +51,11 @@ export interface FxRate {
  * 133.5 NPR/USD is the Nepal Rastra Bank published reference (buying) rate
  * around the FY 2023/24 close (Ashadh end / mid-July 2024). Kept numerically
  * identical to the prior `NPR_PER_USD` constant so this move is arithmetic-
- * neutral; the change is that the value is now DATED and SOURCED. A live tenant
- * overrides this with the rate from its own financial statements.
+ * neutral; the change is that the value is now DATED and SOURCED.
+ *
+ * Per N1.13: A live tenant overrides this via TenantConfig.reportingFxRate.
+ * When undefined, this constant is the fallback. Use {@link reportingFxRateForTenant}
+ * to get the effective rate for a tenant.
  */
 export const REPORTING_FX_RATE: FxRate = {
   nprPerUsd: 133.5,
@@ -75,4 +79,18 @@ export function nprToUsd(npr: number, rate: FxRate = REPORTING_FX_RATE): number 
 /** Convert USD to NPR at a given rate (defaults to the reporting-period rate). */
 export function usdToNpr(usd: number, rate: FxRate = REPORTING_FX_RATE): number {
   return usd * rate.nprPerUsd;
+}
+
+/**
+ * Get the effective reporting FX rate for a tenant.
+ * Returns tenant.reportingFxRate if configured, otherwise falls back to
+ * REPORTING_FX_RATE constant. Added for N1.13.
+ *
+ * @param tenant - Optional tenant configuration. Pass undefined to get the default rate.
+ * @returns The FX rate to use for this tenant's disclosures.
+ */
+export function reportingFxRateForTenant(tenant?: {
+  reportingFxRate?: FxRate;
+}): FxRate {
+  return tenant?.reportingFxRate ?? REPORTING_FX_RATE;
 }

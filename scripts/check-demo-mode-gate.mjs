@@ -5,8 +5,10 @@
  * ---------------
  * There are two switches with similar names and very different jobs:
  *
- *   isDemoBuild()  build-time  -- is the synthesizer compiled in at all?
- *   isDemoMode()   runtime     -- is it switched on for this request?
+ *   isDemoBuild()  per deployment -- is the demo switch available at all?
+ *                                    (reads JANA_DEMO at runtime; the
+ *                                    synthesizer is in every bundle)
+ *   isDemoMode()   per user       -- is demo mode on for this request?
  *
  * Every read path into the portfolio must consult BOTH. Consulting only
  * isDemoBuild() produces the worst available outcome: the banner disappears,

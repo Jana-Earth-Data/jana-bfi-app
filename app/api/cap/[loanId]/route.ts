@@ -168,6 +168,9 @@ function toMonitoring(row: MonitoringRow): MonitoringReport {
 // ---------------------------------------------------------------------------
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  const [, offErr] = await requireOfficer("accessing CAP data");
+  if (offErr) return offErr;
+
   const { loanId } = await params;
   if (!loanId) {
     return apiError("loanId is required", 400);
@@ -311,6 +314,9 @@ const VALID_COMPLIANCE = new Set<ComplianceStatus>([
 const VALID_FREQUENCY = new Set<number>([1, 3, 6, 12]);
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const [officer, offErr] = await requireOfficer("saving CAP data");
+  if (offErr) return offErr;
+
   const { loanId } = await params;
   if (!loanId) {
     return apiError("loanId is required", 400);
@@ -319,8 +325,6 @@ export async function POST(request: NextRequest, { params }: Params) {
   const [supabase, sbErr] = await requireCaptureClient();
   if (sbErr) return sbErr;
   const tenant = await resolveCurrentTenant();
-  const [officer, offErr] = await requireOfficer("saving CAP data");
-  if (offErr) return offErr;
 
   let body: {
     borrowerId?: string;

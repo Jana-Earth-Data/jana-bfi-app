@@ -22,6 +22,7 @@ import { resolveCurrentOfficer } from "@/lib/officers/resolve";
 
 import { assertOwnerOrRespond } from "@/lib/officers/loan-lock";
 import { getCaptureClient } from "@/lib/data/capture-client";
+import { requireOfficer } from "@/lib/api/route-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const [, offErr] = await requireOfficer("accessing PF screening responses");
+  if (offErr) return offErr;
+
   const supabase = await getCaptureClient();
   if (!supabase) {
     return NextResponse.json(

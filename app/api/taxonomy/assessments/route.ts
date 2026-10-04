@@ -71,7 +71,16 @@ export async function POST(request: NextRequest) {
   const denied = await assertOwnerOrRespond(loanId, officer, tenant);
   if (denied) return denied;
 
-  const derivation = activity.classify(answers);
+  let derivation;
+  try {
+    derivation = activity.classify(answers);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: `Classification failed: ${message}` },
+      { status: 400 },
+    );
+  }
 
   const { data: inserted, error } = await supabase
     .from("bfi_taxonomy_assessments")
@@ -170,6 +179,13 @@ export async function GET(request: NextRequest) {
     );
   }
   const tenant = await resolveCurrentTenant();
+  const officer = await resolveCurrentOfficer();
+  if (!officer) {
+    return NextResponse.json(
+      { error: "Officer must be selected." },
+      { status: 401 },
+    );
+  }
   const loanId = request.nextUrl.searchParams.get("loanId");
   if (!loanId) {
     return NextResponse.json(
