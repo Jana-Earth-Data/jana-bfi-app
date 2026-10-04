@@ -579,7 +579,8 @@ export type PortfolioSummary = {
   /**
    * IFRS S2 B62(c) coverage — percentage of gross exposure included in
    * financed-emissions calculation, with excluded asset types named. Added for N1.2.
-   * Risk mitigant exclusion disclosure added for N1.3.
+   * Risk mitigant exclusion disclosure added for N1.3. Undrawn commitments tracking
+   * added for N1.4. "Not provided" coverage gaps added for N1.15.
    */
   grossExposureCoverage?: {
     totalGrossExposureUsd: number;
@@ -590,6 +591,19 @@ export type PortfolioSummary = {
     excludedAssetTypes: string[];
     riskMitigantsExcluded: boolean;
     totalRiskMitigantValueUsd: number;
+    undrawnCommitmentsIncluded: boolean;
+    totalUndrawnCommitmentUsd: number;
+    percentageUndrawn: number;
+    // N1.15 — "Not provided" coverage gaps
+    lossAllowanceNotProvidedCount: number;
+    lossAllowanceNotProvidedExposureUsd: number;
+    lossAllowanceNotProvidedPercent: number;
+    riskMitigantsNotProvidedCount: number;
+    riskMitigantsNotProvidedExposureUsd: number;
+    riskMitigantsNotProvidedPercent: number;
+    undrawnCommitmentsNotProvidedCount: number;
+    undrawnCommitmentsNotProvidedExposureUsd: number;
+    undrawnCommitmentsNotProvidedPercent: number;
   };
   /**
    * IFRS S2 B62(d) + §29(a)(iii) methodology disclosure — structured breakdown

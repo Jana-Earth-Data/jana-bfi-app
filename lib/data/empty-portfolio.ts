@@ -53,6 +53,7 @@ function emptySummary(): PortfolioSummary {
     // N1.1: grossExposureMatrix should always be present post-B62(b), even if empty
     grossExposureMatrix: [],
     // N1.2: grossExposureCoverage for empty portfolio (0% coverage, no exposures)
+    // N1.4: undrawn commitments tracking. N1.15: "not provided" gaps.
     grossExposureCoverage: {
       totalGrossExposureUsd: 0,
       includedGrossExposureUsd: 0,
@@ -62,6 +63,19 @@ function emptySummary(): PortfolioSummary {
       excludedAssetTypes: [],
       riskMitigantsExcluded: false,
       totalRiskMitigantValueUsd: 0,
+      undrawnCommitmentsIncluded: false,
+      totalUndrawnCommitmentUsd: 0,
+      percentageUndrawn: 0,
+      // N1.15 — "Not provided" coverage gaps (all 0 for empty portfolio)
+      lossAllowanceNotProvidedCount: 0,
+      lossAllowanceNotProvidedExposureUsd: 0,
+      lossAllowanceNotProvidedPercent: 0,
+      riskMitigantsNotProvidedCount: 0,
+      riskMitigantsNotProvidedExposureUsd: 0,
+      riskMitigantsNotProvidedPercent: 0,
+      undrawnCommitmentsNotProvidedCount: 0,
+      undrawnCommitmentsNotProvidedExposureUsd: 0,
+      undrawnCommitmentsNotProvidedPercent: 0,
     },
   };
 }

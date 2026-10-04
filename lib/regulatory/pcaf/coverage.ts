@@ -81,6 +81,31 @@ export type GrossExposureCoverage = {
    * where drawn = totalGrossExposureUsd (before risk mitigant subtraction).
    */
   percentageUndrawn: number;
+  /**
+   * N1.15 — Coverage gap disclosure for bank-supplied fields.
+   * Per IFRS S2 B62(b)–(c), when a bank-supplied field (loss allowance, risk
+   * mitigants, undrawn commitments) is undefined, it should be disclosed as
+   * "not provided" rather than silently treated as zero. This enables honest
+   * disclosure of data coverage gaps.
+   */
+  /** Count of loans where lossAllowance is undefined (not provided by bank) */
+  lossAllowanceNotProvidedCount: number;
+  /** Gross exposure (outstandingUsd only) of loans where lossAllowance is undefined */
+  lossAllowanceNotProvidedExposureUsd: number;
+  /** Percentage of loans where lossAllowance is not provided (0-100) */
+  lossAllowanceNotProvidedPercent: number;
+  /** Count of loans where riskMitigantValueUsd is undefined (not provided by bank) */
+  riskMitigantsNotProvidedCount: number;
+  /** Gross exposure of loans where riskMitigantValueUsd is undefined */
+  riskMitigantsNotProvidedExposureUsd: number;
+  /** Percentage of loans where riskMitigantValueUsd is not provided (0-100) */
+  riskMitigantsNotProvidedPercent: number;
+  /** Count of loans where undrawnCommitmentUsd is undefined (not provided by bank) */
+  undrawnCommitmentsNotProvidedCount: number;
+  /** Gross exposure of loans where undrawnCommitmentUsd is undefined */
+  undrawnCommitmentsNotProvidedExposureUsd: number;
+  /** Percentage of loans where undrawnCommitmentUsd is not provided (0-100) */
+  undrawnCommitmentsNotProvidedPercent: number;
 };
 
 /**
@@ -139,6 +164,14 @@ export function computeGrossExposureCoverage(
   let totalRiskMitigantValueUsd = 0;
   let totalUndrawnCommitmentUsd = 0;
 
+  // N1.15 — Track "not provided" coverage gaps for bank-supplied fields
+  let lossAllowanceNotProvidedCount = 0;
+  let lossAllowanceNotProvidedExposureUsd = 0;
+  let riskMitigantsNotProvidedCount = 0;
+  let riskMitigantsNotProvidedExposureUsd = 0;
+  let undrawnCommitmentsNotProvidedCount = 0;
+  let undrawnCommitmentsNotProvidedExposureUsd = 0;
+
   // Track which loan categories are excluded (have loans but zero attributions)
   const categoriesWithLoans = new Set<string>();
   const categoriesWithAttributions = new Set<string>();
@@ -152,6 +185,20 @@ export function computeGrossExposureCoverage(
 
     // Accumulate undrawn commitment values (B62(c)(iii))
     totalUndrawnCommitmentUsd += loan.undrawnCommitmentUsd ?? 0;
+
+    // N1.15 — Track "not provided" gaps
+    if (loan.lossAllowance === undefined) {
+      lossAllowanceNotProvidedCount += 1;
+      lossAllowanceNotProvidedExposureUsd += loan.outstandingUsd;
+    }
+    if (loan.riskMitigantValueUsd === undefined) {
+      riskMitigantsNotProvidedCount += 1;
+      riskMitigantsNotProvidedExposureUsd += grossExp;
+    }
+    if (loan.undrawnCommitmentUsd === undefined) {
+      undrawnCommitmentsNotProvidedCount += 1;
+      undrawnCommitmentsNotProvidedExposureUsd += grossExp;
+    }
 
     const category = loan.category ?? "uncategorized";
     categoriesWithLoans.add(category);
@@ -192,6 +239,21 @@ export function computeGrossExposureCoverage(
       ? (totalUndrawnCommitmentUsd / totalCommitment) * 100
       : 0;
 
+  // N1.15 — Calculate "not provided" percentages
+  const totalLoanCount = loans.length;
+  const lossAllowanceNotProvidedPercent =
+    totalLoanCount > 0
+      ? (lossAllowanceNotProvidedCount / totalLoanCount) * 100
+      : 0;
+  const riskMitigantsNotProvidedPercent =
+    totalLoanCount > 0
+      ? (riskMitigantsNotProvidedCount / totalLoanCount) * 100
+      : 0;
+  const undrawnCommitmentsNotProvidedPercent =
+    totalLoanCount > 0
+      ? (undrawnCommitmentsNotProvidedCount / totalLoanCount) * 100
+      : 0;
+
   return {
     totalGrossExposureUsd: Math.round(totalGrossExposureUsd),
     includedGrossExposureUsd: Math.round(includedGrossExposureUsd),
@@ -204,5 +266,15 @@ export function computeGrossExposureCoverage(
     undrawnCommitmentsIncluded: false, // Always false - undrawn are excluded per B62(b)
     totalUndrawnCommitmentUsd: Math.round(totalUndrawnCommitmentUsd),
     percentageUndrawn: Math.round(percentageUndrawn * 100) / 100, // Round to 2 decimals
+    // N1.15 — "Not provided" coverage gaps
+    lossAllowanceNotProvidedCount,
+    lossAllowanceNotProvidedExposureUsd: Math.round(lossAllowanceNotProvidedExposureUsd),
+    lossAllowanceNotProvidedPercent: Math.round(lossAllowanceNotProvidedPercent * 100) / 100,
+    riskMitigantsNotProvidedCount,
+    riskMitigantsNotProvidedExposureUsd: Math.round(riskMitigantsNotProvidedExposureUsd),
+    riskMitigantsNotProvidedPercent: Math.round(riskMitigantsNotProvidedPercent * 100) / 100,
+    undrawnCommitmentsNotProvidedCount,
+    undrawnCommitmentsNotProvidedExposureUsd: Math.round(undrawnCommitmentsNotProvidedExposureUsd),
+    undrawnCommitmentsNotProvidedPercent: Math.round(undrawnCommitmentsNotProvidedPercent * 100) / 100,
   };
 }

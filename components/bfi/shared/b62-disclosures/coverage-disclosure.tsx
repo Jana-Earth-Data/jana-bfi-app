@@ -31,6 +31,19 @@ export type GrossExposureCoverage = {
   excludedAssetTypes: string[];
   riskMitigantsExcluded: boolean;
   totalRiskMitigantValueUsd: number;
+  undrawnCommitmentsIncluded: boolean;
+  totalUndrawnCommitmentUsd: number;
+  percentageUndrawn: number;
+  // N1.15 — "Not provided" coverage gaps
+  lossAllowanceNotProvidedCount: number;
+  lossAllowanceNotProvidedExposureUsd: number;
+  lossAllowanceNotProvidedPercent: number;
+  riskMitigantsNotProvidedCount: number;
+  riskMitigantsNotProvidedExposureUsd: number;
+  riskMitigantsNotProvidedPercent: number;
+  undrawnCommitmentsNotProvidedCount: number;
+  undrawnCommitmentsNotProvidedExposureUsd: number;
+  undrawnCommitmentsNotProvidedPercent: number;
 };
 
 export function CoverageDisclosure({
@@ -158,6 +171,71 @@ export function CoverageDisclosure({
                 direct lending position.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* N1.15 — "Not Provided" Coverage Gaps */}
+      {(data.lossAllowanceNotProvidedCount > 0 ||
+        data.riskMitigantsNotProvidedCount > 0 ||
+        data.undrawnCommitmentsNotProvidedCount > 0) && (
+        <div className="rounded-lg border border-line bg-panel p-4">
+          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-300">
+            Data Coverage Gaps (N1.15)
+          </h4>
+          <p className="mb-3 text-xs text-slate-400">
+            Per IFRS S2 B62(b)–(c), bank-supplied fields that are not provided
+            are disclosed as coverage gaps rather than silently defaulting to zero.
+          </p>
+          <div className="space-y-0">
+            {data.lossAllowanceNotProvidedCount > 0 && (
+              <StatRow
+                label="Loss allowance not provided"
+                value={
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-white">
+                      {formatNumber(data.lossAllowanceNotProvidedCount)} loans (
+                      {formatPercent(data.lossAllowanceNotProvidedPercent / 100)})
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {formatUsd(data.lossAllowanceNotProvidedExposureUsd)} outstanding
+                    </div>
+                  </div>
+                }
+              />
+            )}
+            {data.riskMitigantsNotProvidedCount > 0 && (
+              <StatRow
+                label="Risk mitigants not provided"
+                value={
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-white">
+                      {formatNumber(data.riskMitigantsNotProvidedCount)} loans (
+                      {formatPercent(data.riskMitigantsNotProvidedPercent / 100)})
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {formatUsd(data.riskMitigantsNotProvidedExposureUsd)} gross exposure
+                    </div>
+                  </div>
+                }
+              />
+            )}
+            {data.undrawnCommitmentsNotProvidedCount > 0 && (
+              <StatRow
+                label="Undrawn commitments not provided"
+                value={
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-white">
+                      {formatNumber(data.undrawnCommitmentsNotProvidedCount)} loans (
+                      {formatPercent(data.undrawnCommitmentsNotProvidedPercent / 100)})
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {formatUsd(data.undrawnCommitmentsNotProvidedExposureUsd)} gross exposure
+                    </div>
+                  </div>
+                }
+              />
+            )}
           </div>
         </div>
       )}
