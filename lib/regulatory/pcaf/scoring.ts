@@ -115,7 +115,10 @@ import {
  * - Sovereign/sub-sovereign debt are government bonds, not loans (§5.9, §5.10)
  * - Securitisation packages existing loans into securities (§5.8)
  * - Use-of-proceeds inherits from the underlying asset (§5.7)
- * - Commercial real estate (§5.4) would require a separate loan category
+ * - **Commercial real estate (§5.4) is not implemented** — would require a separate
+ *   loan category (e.g. `commercial-real-estate`) not present in the current Nepal
+ *   commercial banking loan taxonomy. If needed: add category, wire to §5.4 routing,
+ *   implement property-value denominator per PCAF §5.4.
  *
  * This explicit categorization satisfies IFRS S2 B62(a)(ii) requirement to disclose
  * which asset classes are included in financed emissions calculation and resolves
@@ -149,6 +152,10 @@ export function assetClassForLoanCategory(
       // PCAF Part A 3rd Edition §5.2 — Business Loans & Unlisted Equity.
       return "business-loans-unlisted-equity";
     default:
+      // N1.17: Explicit fallback for any unknown/future loan categories.
+      // If TypeScript allows a value here, it means LoanCategory was extended without
+      // updating this router. Default to business loans (§5.2) as the most conservative
+      // PCAF asset class for commercial lending.
       return "business-loans-unlisted-equity";
   }
 }
