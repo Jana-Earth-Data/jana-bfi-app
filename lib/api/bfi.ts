@@ -204,10 +204,31 @@ function overlayLive(
     const assetClass = prev.pcafAssetClass || "business-loans-unlisted-equity";
     const denominator = attributionDenominatorUsd(loan, b, assetClass);
     const af = loan.outstandingUsd / denominator.denominatorUsd;
+
+    // N1.16: Recalculate scope breakdown when emissions change from live overlay.
+    // The ...prev spread would keep stale scope values from mock data; we must
+    // recompute attributed scope fields based on the new attribution factor and
+    // the borrower's updated scope emissions (if available).
+    const attributedScope1Co2eTonnes =
+      b.scope1Co2eTonnes !== undefined
+        ? Math.round(af * b.scope1Co2eTonnes)
+        : undefined;
+    const attributedScope2Co2eTonnes =
+      b.scope2Co2eTonnes !== undefined
+        ? Math.round(af * b.scope2Co2eTonnes)
+        : undefined;
+    const attributedScope3Co2eTonnes =
+      b.scope3Co2eTonnes !== undefined
+        ? Math.round(af * b.scope3Co2eTonnes)
+        : undefined;
+
     return {
       ...prev,
       attributionFactor: af,
       attributedCo2eTonnes: Math.round(af * b.totalCo2eTonnes),
+      attributedScope1Co2eTonnes,
+      attributedScope2Co2eTonnes,
+      attributedScope3Co2eTonnes,
       denominatorType: denominator.denominatorType,
       denominatorLabel: denominator.denominatorLabel,
     };
