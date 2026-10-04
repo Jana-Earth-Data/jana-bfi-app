@@ -488,9 +488,6 @@ function DisclosurePreview({ data }: { data: DashboardSsrData }) {
   const red = latestYear?.byTaxonomy.red ?? 0;
   const green = latestYear?.byTaxonomy.green ?? 0;
 
-  const facilityShareValue =
-    (s.funnel?.facilityMatchedOutstandingNpr ?? 0) /
-    Math.max(1, s.funnel?.inScopeOutstandingNpr ?? 1);
   // Disclosure narrative uses the latest fully-reported year, not the partial
   // trailing year (see lib/regulatory/reporting/period.ts).
   const fullYears = trend.filter((p) => isFullyReportedYear(p.year));
@@ -523,12 +520,7 @@ function DisclosurePreview({ data }: { data: DashboardSsrData }) {
         >
           {s.weightedDataQuality.toFixed(1)}
         </span>
-        , reflecting that{" "}
-        <span className="font-semibold text-white">
-          {formatPercent(facilityShareValue)}
-        </span>{" "}
-        of in-scope outstanding value is attached to facility-level Climate
-        TRACE emissions.
+        .
       </p>
       <p className="mt-3 text-sm text-slate-300">
         High-emissions sectors (red taxonomy) account for{" "}
